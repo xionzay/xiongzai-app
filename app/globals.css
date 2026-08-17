@@ -418,3 +418,70 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .public-home-preview b { font-size: 13px; }
 .public-home-preview small { margin-top: 6px; font-size: 10px; }
 .public-home-preview em { font-size: 11px; font-weight: 900; }
+
+/* WeChat-like chat, cartoon pickers, and centered icon geometry */
+.buyer-home-head { min-height: 72px; padding-bottom: 5px; }
+.home-wordmark { height: 72px; margin-top: -7px; margin-bottom: 1px; }
+.home-brand.home-wordmark > img { height: 112px; }
+
+.chat-messages { padding: 14px 13px; }
+.chat-messages .avatar { width: 54px; height: 54px; border: 0; border-radius: 14px; box-shadow: 0 3px 9px rgba(39,49,61,.13); }
+.chat-messages .avatar > i { right: -2px; bottom: -1px; }
+.message { align-items: flex-start; gap: 9px; margin-bottom: 17px; }
+.message > span { max-width: 62%; }
+.message p { padding: 10px 12px; font-size: 14px; line-height: 1.55; }
+.message.mine p { border-radius: 15px 4px 15px 15px; background: #a9df37; color: #202512; }
+.message.theirs p { border-radius: 4px 15px 15px 15px; }
+.read-receipt { margin-top: 3px; }
+.message-list .avatar-md { width: 58px; height: 58px; border-radius: 15px; }
+
+.earnings-pickers { position: relative; z-index: 35; overflow: visible; padding: 11px; border: 2px solid #b6d8f2; border-radius: 18px; background: linear-gradient(145deg,#edf8ff,#fff9ee); box-shadow: 0 6px 0 #d5e8f5,0 10px 20px rgba(44,91,127,.1); }
+.earnings-picker { position: relative; min-width: 0; }
+.earnings-picker > span { display: block; margin: 0 0 5px 3px; color: #527391; font-size: 9px; font-weight: 900; }
+.earnings-picker > button { position: relative; width: 100%; height: 39px; display: flex; align-items: center; border: 1px solid #c3dceb; border-radius: 11px; padding: 0 28px 0 9px; background: white; color: #283641; text-align: left; box-shadow: inset 0 -2px #edf3f7; cursor: pointer; }
+.earnings-picker > button b { overflow: hidden; font-size: 10px; white-space: nowrap; text-overflow: ellipsis; }
+.earnings-picker > button > i { position: absolute; right: 11px; top: 14px; width: 8px; height: 8px; border-right: 2px solid #367db5; border-bottom: 2px solid #367db5; transform: rotate(45deg); transition: transform .18s ease; }
+.earnings-picker.open > button { border-color: #69aade; background: #fafdff; }
+.earnings-picker.open > button > i { top: 17px; transform: rotate(225deg); }
+.earnings-picker-menu { position: absolute; z-index: 60; left: 0; top: 59px; width: 132px; max-height: 224px; overflow: auto; border: 2px solid #7fb8e3; border-radius: 15px; padding: 6px; background: #fffaf0; box-shadow: 0 7px 0 #b9d9ef,0 15px 28px rgba(38,75,106,.19); }
+.earnings-picker:last-child .earnings-picker-menu { left: auto; right: 0; }
+.earnings-picker-menu::before { position: absolute; content: ""; left: 18px; top: -7px; width: 11px; height: 11px; border-left: 2px solid #7fb8e3; border-top: 2px solid #7fb8e3; background: #fffaf0; transform: rotate(45deg); }
+.earnings-picker-menu > button { width: 100%; min-height: 38px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 10px; padding: 0 10px; background: transparent; color: #4a5660; font-size: 11px; font-weight: 800; text-align: left; cursor: pointer; }
+.earnings-picker-menu > button:hover { background: #eaf5fd; }
+.earnings-picker-menu > button.active { background: #dff2ff; color: #2678b7; }
+.earnings-picker-menu > button i { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 7px; background: #b9db2e; color: #26350a; font-size: 10px; font-style: normal; }
+.earnings-picker-menu > button i:empty { background: transparent; }
+
+.bottom-nav .nav-symbol,.seller-tool-icon.nav-symbol { --icon-y: 0px; position: relative; box-sizing: border-box; }
+.seller-tool-icon.nav-symbol { --icon-y: 6px; }
+.nav-symbol::before,.nav-symbol::after,.nav-symbol > span { box-sizing: border-box; translate: none !important; }
+.nav-home::before { left: 50%; top: calc(12px + var(--icon-y)); width: 23px; height: 19px; border: 3px solid currentColor; border-radius: 5px 5px 6px 6px; transform: translateX(-50%); }
+.nav-home::after { left: 50%; top: calc(5px + var(--icon-y)); width: 18px; height: 18px; border: 3px solid currentColor; border-right: 0; border-bottom: 0; border-radius: 3px; background: white; transform: translateX(-50%) rotate(45deg); }
+.nav-home > span { z-index: 2; left: 50%; top: calc(21px + var(--icon-y)); bottom: auto; width: 7px; height: 10px; border-radius: 3px 3px 0 0; background: currentColor; transform: translateX(-50%); }
+.nav-order::before { left: 50%; top: calc(6px + var(--icon-y)); width: 23px; height: 27px; transform: translateX(-50%); }
+.nav-order::after { left: 50%; top: calc(3px + var(--icon-y)); width: 11px; height: 6px; transform: translateX(-50%); }
+.nav-order > span { left: 50%; top: calc(16px + var(--icon-y)); width: 13px; height: 3px; transform: translateX(-50%); }
+.nav-message::before { left: 50%; top: calc(5px + var(--icon-y)); width: 29px; height: 24px; transform: translateX(-50%); }
+.nav-message::after { left: calc(50% - 10px); top: calc(25px + var(--icon-y)); width: 9px; height: 8px; transform: skew(-28deg); }
+.nav-message > span { left: 50%; top: calc(16px + var(--icon-y)); width: 3px; height: 3px; transform: translateX(-50%); box-shadow: -7px 0 0 currentColor,7px 0 0 currentColor; }
+.nav-mine::before { left: 50%; top: calc(4px + var(--icon-y)); width: 13px; height: 13px; transform: translateX(-50%); }
+.nav-mine::after { left: 50%; bottom: auto; top: calc(20px + var(--icon-y)); width: 27px; height: 14px; transform: translateX(-50%); }
+.nav-service::before { left: 50%; top: calc(6px + var(--icon-y)); width: 25px; height: 25px; transform: translateX(-50%); }
+.nav-service > span { left: 50%; top: calc(14px + var(--icon-y)); width: 14px; transform: translateX(-50%); }
+.nav-wallet::before { left: 50%; top: calc(8px + var(--icon-y)); width: 27px; height: 22px; transform: translateX(-50%); }
+.nav-wallet::after { left: calc(50% + 2px); right: auto; top: calc(14px + var(--icon-y)); width: 13px; height: 10px; }
+
+.menu-user::before { left: 50%; top: 7px; transform: translateX(-50%); }
+.menu-user::after { left: 50%; bottom: 6px; transform: translateX(-50%); }
+.menu-message::before { left: 50%; top: 8px; transform: translateX(-50%); }
+.menu-message::after { left: calc(50% - 11px); top: 27px; }
+.menu-message > span { left: 50%; top: 18px; transform: translateX(-50%); box-shadow: -7px 0 0 currentColor,7px 0 0 currentColor; }
+.menu-shield::before { left: 50%; top: 6px; transform: translateX(-50%); }
+.menu-shield::after { left: 50%; top: 14px; transform: translateX(-50%); }
+.menu-setting::before { left: 50%; top: 9px; transform: translateX(-50%); }
+.menu-setting::after { left: 50%; top: 15px; transform: translateX(-50%); }
+.asset-favorite::before { left: 50%; top: 8px; transform: translateX(-50%); }
+.asset-favorite::after { left: 50%; top: 28px; transform: translateX(-50%) rotate(-45deg); }
+.asset-coupon::before { left: 50%; top: 12px; transform: translateX(-50%); }
+.asset-coupon::after { left: 50%; top: 15px; transform: translateX(-50%); }
+.asset-coupon > span { left: 13px; top: 20px; }
