@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const imageUrl = `${protocol}://${host}/og.png`;
   const title = "熊崽电竞 · 和平精英陪玩交易";
-  const description = "让普通玩家也有自己的陪玩主页。熊崽电竞是面向和平精英玩家的 C2C 游戏服务交易平台。";
+  const description = "陪玩是店铺，服务是商品。熊崽电竞是面向和平精英玩家的买家端与陪玩中心一体化 C2C 游戏服务交易平台。";
   return {
     title,
     description,
