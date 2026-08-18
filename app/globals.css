@@ -1209,3 +1209,98 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .withdraw-form .form-field > button > i { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: #2b9ef0; color: white; font-style: normal; font-weight: 1000; }
 .withdraw-form .form-field > button b,.withdraw-form .form-field > button small { display: block; }
 .withdraw-form .form-field > button b { font-size: 10px; }.withdraw-form .form-field > button small { margin-top: 3px; color: var(--muted); font-size: 8px; }.withdraw-form .form-field > button em { font-style: normal; }
+
+/* August MVP refinement: alignment, readable forms and seller workflows */
+.chat-messages .message { align-items: center; }
+.chat-messages .message > span { min-height: 54px; display: flex; flex-direction: column; justify-content: center; }
+.chat-messages .message p { margin: 0; }
+.chat-avatar-button { transform: none; align-self: center; }
+
+.search-input-row { height: 56px; align-items: stretch; gap: 7px; }
+.search-input-row .search-scope-toggle { width: 76px; flex: none; display: grid; grid-template-rows: 1fr 1fr; gap: 2px; border: 2px solid #a8cde9; border-radius: 16px; padding: 3px; background: #e9f6ff; box-shadow: 0 4px 0 #cee3f2; }
+.search-input-row .search-scope-toggle button { width: 100%; min-width: 0; height: auto; border: 0; border-radius: 9px; padding: 0; background: transparent; color: #4e7698; font-size: 10px; font-weight: 900; box-shadow: none; }
+.search-input-row .search-scope-toggle button.active { background: #4a9bea; color: white; box-shadow: 0 2px 6px rgba(44,126,194,.24); }
+.search-input-row > input { border-radius: 15px; padding: 0 12px; }
+.search-input-row > button[type="submit"] { width: 62px; }
+
+.buyer-assets button:first-child .asset-symbol { border-color: #ffc1a4; background: #ffe8dc; color: #ff5a1f; }
+.buyer-assets button:first-child .asset-symbol img { filter: brightness(0) saturate(100%) invert(44%) sepia(94%) saturate(3225%) hue-rotate(347deg) brightness(103%) contrast(102%); }
+.buyer-assets button:nth-child(2) .asset-symbol { border-color: #a7d3f6; background: #e1f2ff; color: #4a9bea; }
+.buyer-assets button:nth-child(2) .asset-symbol img { filter: brightness(0) saturate(100%) invert(58%) sepia(42%) saturate(1438%) hue-rotate(174deg) brightness(94%) contrast(92%); }
+
+.profile-fields .profile-nickname-field { grid-template-columns: 138px 1fr; min-height: 88px; }
+.profile-fields .profile-nickname-field label b,.profile-fields button span b { font-size: 15px; }
+.profile-fields .profile-nickname-field label small,.profile-fields button span small { margin-top: 6px; font-size: 11px; }
+.profile-fields .profile-nickname-field input { height: 46px; font-size: 14px; text-align: left; }
+.profile-fields button { min-height: 88px; }
+.profile-fields button em { font-size: 15px; font-weight: 800; }
+
+.refund-form { overflow: visible; }
+.refund-form > label > span,.refund-reason-field > span { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 900; }
+.refund-form textarea { min-height: 105px; font-size: 13px; }
+.refund-form label > em { font-size: 12px; font-style: normal; }
+.refund-reason-field { position: relative; z-index: 20; margin-top: 4px; }
+.refund-reason-field > button { position: relative; width: 100%; height: 50px; display: flex; align-items: center; border: 2px solid #b9d8ee; border-radius: 15px; padding: 0 42px 0 14px; background: linear-gradient(145deg,#f7fcff,#fff7e9); color: #26333d; text-align: left; box-shadow: 0 5px 0 #d5e8f4; }
+.refund-reason-field > button b { font-size: 13px; }
+.refund-reason-field > button > i { position: absolute; right: 17px; top: 17px; width: 9px; height: 9px; border-right: 2px solid #377fb8; border-bottom: 2px solid #377fb8; transform: rotate(45deg); }
+.refund-reason-field > button.open > i { top: 21px; transform: rotate(225deg); }
+.refund-reason-menu { position: absolute; z-index: 40; left: 0; right: 0; top: 82px; border: 2px solid #77b4e0; border-radius: 18px; padding: 7px; background: #fffaf0; box-shadow: 0 7px 0 #bddcf0,0 17px 30px rgba(47,89,123,.2); }
+.refund-reason-menu::before { position: absolute; content: ""; left: 28px; top: -8px; width: 13px; height: 13px; border-left: 2px solid #77b4e0; border-top: 2px solid #77b4e0; background: #fffaf0; transform: rotate(45deg); }
+.refund-reason-menu button { width: 100%; min-height: 42px; display: flex; align-items: center; justify-content: space-between; border: 0; border-radius: 11px; padding: 0 11px; background: transparent; font-size: 12px; font-weight: 800; text-align: left; }
+.refund-reason-menu button.active { background: #e3f3ff; color: #2678b7; }
+.refund-reason-menu button i { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 7px; background: var(--lime); color: #33460c; font-style: normal; }
+.refund-reason-menu button i:empty { background: transparent; }
+
+.seller-publish-form input::placeholder,.seller-publish-form textarea::placeholder,.seller-service-edit-screen input::placeholder,.seller-service-edit-screen textarea::placeholder { color: #aaa49b; opacity: 1; }
+.seller-publish-form .form-panel > label > span,.seller-service-edit-screen .form-panel > label > span { font-size: 12px; }
+.seller-publish-form .form-panel input,.seller-publish-form .form-panel textarea,.seller-service-edit-screen .form-panel input,.seller-service-edit-screen .form-panel textarea { font-size: 12px; }
+.seller-service-tabs button { min-height: 44px; font-size: 13px; font-weight: 900; }
+.seller-service-list { padding-bottom: 155px; }
+.seller-service-list article { grid-template-columns: 108px 1fr auto; min-height: 116px; gap: 12px; padding: 12px; }
+.seller-service-list article > img { width: 108px; height: 88px; border-radius: 14px; }
+.seller-service-list article b { font-size: 14px; line-height: 1.45; }
+.seller-service-list article small { margin-top: 7px; font-size: 11px; line-height: 1.35; }
+.seller-service-list article span { margin-top: 8px; padding: 5px 8px; border-radius: 8px; font-size: 10px; font-weight: 900; }
+.seller-service-list article > button { min-width: 54px; height: 42px; border-radius: 12px; padding: 0 11px; font-size: 12px; font-weight: 900; }
+.seller-service-list article.newly-submitted { border: 2px solid #78b9e6; background: linear-gradient(145deg,#eef8ff,#fff8e9); box-shadow: 0 6px 0 #cfe5f4; }
+.seller-publish-fixed { right: 14px; bottom: 85px; height: 48px; padding: 0 18px; font-size: 12px; }
+.draft-box-fixed { position: absolute; z-index: 56; right: 15px; bottom: 142px; width: 94px; min-height: 54px; display: grid; grid-template-columns: 30px 1fr 18px; align-items: center; gap: 5px; border: 2px solid #aacee8; border-radius: 17px; padding: 7px 8px; background: linear-gradient(145deg,#edf8ff,#fff9ec); color: #276fa8; box-shadow: 0 6px 0 #cce1f1,0 12px 22px rgba(51,94,126,.14); }
+.draft-box-fixed .nav-symbol { width: 28px; height: 28px; }
+.draft-box-fixed span { font-size: 11px; font-weight: 900; }
+.draft-box-fixed b { width: 18px; height: 18px; display: grid; place-items: center; border-radius: 7px; background: var(--orange); color: white; font-size: 9px; }
+
+.earnings-range-tabs button { min-height: 42px; font-size: 12px; }
+.earnings-picker > span { font-size: 11px; }
+.earnings-picker > button { height: 44px; }
+.earnings-picker > button b,.earnings-picker-menu > button { font-size: 12px; }
+.earnings-summary span { font-size: 11px; }
+.earnings-summary b { font-size: 21px; }
+.earnings-summary > div:first-child b { font-size: 23px; }
+.earnings-summary small { font-size: 9px; }
+.seller-earnings-screen .income-list b { font-size: 13px; }
+.seller-earnings-screen .income-list small { font-size: 10px; }
+.seller-earnings-screen .income-list strong { font-size: 15px; }
+.income-filters button { height: 42px; font-size: 13px; }
+.income-records button { min-height: 82px; padding: 13px 14px; }
+.income-records b { font-size: 14px; }
+.income-records small { margin-top: 7px; font-size: 11px; }
+.income-records strong { font-size: 16px; }
+.income-records em { font-size: 20px; }
+
+.withdraw-form > label > span,.withdraw-account-field > span { margin-bottom: 8px; font-size: 14px; font-weight: 900; }
+.withdraw-form label > div > b { font-size: 23px; }
+.withdraw-form label > div > input { font-size: 28px; }
+.withdraw-form label > div > button { font-size: 12px; }
+.withdraw-account-field { margin-top: 16px!important; }
+.payment-account-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.payment-account-switch > button { min-height: 76px; display: grid; grid-template-columns: 38px 1fr 20px; align-items: center; gap: 8px; border: 2px solid #d4d9dc; border-radius: 15px; padding: 8px; background: #faf7f0; text-align: left; }
+.payment-account-switch > button.active { border-color: #4a9bea; background: #e8f5ff; box-shadow: 0 4px 0 #c3e0f4; }
+.payment-account-switch > button > i { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; background: #2b9ef0; color: white; font-size: 15px; font-style: normal; font-weight: 1000; }
+.payment-account-switch > button:nth-child(2) > i { background: #31bd68; }
+.payment-account-switch b { display: block; font-size: 13px; }
+.payment-account-switch small { display: block; margin-top: 4px; color: var(--muted); font-size: 9px; line-height: 1.3; }
+.payment-account-switch em { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 7px; background: var(--lime); font-size: 10px; font-style: normal; font-weight: 900; }
+.manage-account { width: 100%; min-height: 38px; margin-top: 8px; border: 0; background: transparent; color: #337bb5; font-size: 11px; font-weight: 850; text-align: right; }
+.withdraw-fee > div { min-height: 52px; }
+.withdraw-fee span { font-size: 13px; }
+.withdraw-fee b { font-size: 15px; }

@@ -63,3 +63,21 @@ test("keeps the established brand assets and design tokens", async () => {
     "icon-home.png", "icon-order.png", "icon-message.png", "icon-mine.png",
   ].map((name) => access(new URL(`../public/assets/${name}`, import.meta.url))));
 });
+
+test("includes the refined buyer and seller interactions", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /search-scope-toggle/);
+  assert.match(page, /refund-reason-menu/);
+  assert.match(page, /服务已提交审核，可在审核中查看/);
+  assert.match(page, /draft-box-fixed/);
+  assert.match(page, /payment-account-switch/);
+  assert.match(page, /EarningsPicker label="年份"/);
+  assert.match(page, /EarningsPicker label="月份"/);
+  assert.match(page, /EarningsPicker label="周次"/);
+  assert.match(css, /\.chat-messages \.message \{ align-items: center; \}/);
+  assert.match(css, /\.profile-fields \.profile-nickname-field input[^}]+text-align: left/);
+  assert.match(css, /\.income-filters button \{ height: 42px; font-size: 13px; \}/);
+});
