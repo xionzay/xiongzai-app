@@ -1304,3 +1304,115 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .withdraw-fee > div { min-height: 52px; }
 .withdraw-fee span { font-size: 13px; }
 .withdraw-fee b { font-size: 15px; }
+
+/* Search selector follows a single-choice commerce search pattern */
+.search-input-row { position: relative; z-index: 70; height: 48px; gap: 6px; }
+.search-scope-select { position: relative; width: 70px; flex: none; }
+.search-scope-current { position: relative; width: 70px!important; height: 48px!important; border: 1px solid #d6d6d6!important; border-radius: 13px 0 0 13px!important; padding: 0 22px 0 9px!important; background: #f3f3f3!important; color: #272727!important; font-size: 13px!important; font-weight: 900!important; box-shadow: none!important; }
+.search-scope-current > i { position: absolute; right: 9px; top: 19px; width: 7px; height: 7px; border-right: 2px solid #626262; border-bottom: 2px solid #626262; transform: rotate(45deg); }
+.search-scope-select.open .search-scope-current > i { top: 22px; transform: rotate(225deg); }
+.search-scope-menu { position: absolute; z-index: 90; left: 0; top: 55px; width: 96px; overflow: hidden; border: 1px solid #e0dcd5; border-radius: 14px; padding: 5px; background: #fff; box-shadow: 0 12px 28px rgba(43,54,66,.18); }
+.search-scope-menu > button { width: 100%!important; height: 45px!important; display: flex; align-items: center; justify-content: space-between; border: 0!important; border-radius: 10px!important; padding: 0 11px!important; background: transparent!important; color: #333!important; font-size: 14px!important; font-weight: 850!important; box-shadow: none!important; }
+.search-scope-menu > button.active { background: #fff0e9!important; color: var(--orange)!important; }
+.search-scope-menu > button i { font-style: normal; }
+.search-input-row > input { height: 48px; margin-left: -7px; border-radius: 0 13px 13px 0; padding-left: 12px; font-size: 13px; }
+.search-input-row > input::placeholder { color: #8e8e8e; opacity: 1; }
+.search-input-row > button[type="submit"] { width: 54px; height: 48px; border-radius: 12px; font-size: 14px; }
+.search-history .section-title button { font-size: 13px; font-weight: 850; }
+.search-history > div:last-child button { min-height: 48px; font-size: 14px; font-weight: 750; }
+.search-history > div:last-child button i { font-size: 21px; }
+.hot-search > div:last-child { gap: 9px; }
+.hot-search > div:last-child button { min-height: 46px; height: auto; padding: 7px 10px; font-size: 13px; font-weight: 750; line-height: 1.3; }
+.hot-search > div:last-child i { width: 23px; height: 23px; flex: none; font-size: 10px; }
+
+/* Reliable colored buyer asset icons without depending on white PNG backgrounds */
+.buyer-assets .asset-symbol > img { display: none; }
+.buyer-assets .nav-favorite::before,.buyer-assets .nav-coupon::before,.buyer-assets .nav-coupon::after { display: block!important; content: ""!important; position: absolute; }
+.buyer-assets .nav-favorite::before { left: 7px; top: 6px; width: 40px; height: 40px; background: var(--orange); clip-path: polygon(50% 0,61% 34%,98% 35%,68% 56%,79% 94%,50% 72%,21% 94%,32% 56%,2% 35%,39% 34%); }
+.buyer-assets .nav-coupon::before { left: 6px; top: 12px; width: 42px; height: 30px; border-radius: 5px; background: #4a9bea; clip-path: polygon(0 0,100% 0,100% 28%,88% 50%,100% 72%,100% 100%,0 100%,0 72%,12% 50%,0 28%); }
+.buyer-assets .nav-coupon::after { left: 27px; top: 16px; width: 0; height: 22px; border-left: 3px dashed #e1f2ff; }
+
+/* Symmetric refund field and larger after-sale information */
+.refund-reason-field > button { height: 52px; border-width: 2px; border-radius: 15px; padding-top: 0; padding-bottom: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,.85); }
+.refund-reason-field > button b { line-height: 48px; }
+.refund-reason-field > button > i { top: 18px; }
+.refund-reason-field > button.open > i { top: 22px; }
+.after-sale-steps { padding: 18px 8px; }
+.after-sale-steps i { width: 34px; height: 34px; border-radius: 11px; font-size: 12px; }
+.after-sale-steps b { margin-top: 8px; font-size: 13px; }
+.after-sale-steps small { margin-top: 5px; font-size: 11px; font-weight: 700; line-height: 1.35; }
+.refund-summary > div { min-height: 54px; }
+.refund-summary span { font-size: 13px; }
+.refund-summary b { max-width: 68%; font-size: 14px; line-height: 1.4; text-align: right; }
+.process-log > div { gap: 13px; padding: 15px 0; }
+.process-log > div > i { width: 12px; height: 12px; margin-top: 5px; }
+.process-log b { font-size: 14px; }
+.process-log small { margin-top: 6px; font-size: 11px; }
+
+/* Last sent message aligns with its avatar and owns its receipt */
+.chat-messages .message.last-sent { align-items: center; }
+.chat-messages .message.last-sent > span { position: relative; min-height: 62px; padding-bottom: 15px; transform: translateY(3px); }
+.chat-messages .message.last-sent .read-receipt { position: absolute; right: 3px; bottom: 0; margin: 0; font-size: 10px; line-height: 13px; }
+
+/* All editable character counters use upright numerals */
+.app-screen em { font-style: normal; }
+.form-panel label > em,.setup-form > small { font-style: normal!important; }
+
+/* Withdrawal history, review and seller application readability */
+.withdraw-record-list { gap: 13px; }
+.withdraw-record-list article { border-radius: 19px; padding: 17px; }
+.withdraw-record-list article span { padding: 6px 9px; border-radius: 9px; font-size: 12px; }
+.withdraw-record-list article b { font-size: 23px; }
+.withdraw-record-list article small { margin-top: 10px; font-size: 12px; }
+.withdraw-record-list article p { margin-top: 13px; padding-top: 13px; font-size: 13px; line-height: 1.5; }
+.withdraw-record-list article button { height: 42px; border-radius: 12px; padding: 0 14px; font-size: 12px; }
+.withdraw-help .section-title b { font-size: 17px; }
+.withdraw-help p { font-size: 13px; line-height: 1.7; }
+.review-service { grid-template-columns: 100px 1fr; min-height: 122px; gap: 14px; padding: 11px; }
+.review-service img { width: 100px; height: 100px; border-radius: 14px; }
+.review-service b { font-size: 15px; }
+.review-service small { margin-top: 8px; font-size: 12px; }
+.rating-panel > b { font-size: 16px; }
+.rating-panel p { font-size: 13px; }
+.review-form > label > span { font-size: 14px; }
+.review-form textarea { min-height: 112px; font-size: 13px; }
+.review-form label > em { font-size: 12px; }
+.review-tags button { min-height: 38px; height: auto; padding: 7px 12px; font-size: 12px; }
+.anonymous-review span { font-size: 13px!important; }
+.seller-apply-form-screen .header-title p { font-size: 13px; }
+.seller-apply-form-screen .apply-progress i,.apply-screen .apply-progress i { width: 34px; height: 34px; font-size: 12px; }
+.seller-apply-form-screen .apply-progress b,.apply-screen .apply-progress b { margin-top: 8px; font-size: 12px; }
+.seller-apply-form-screen .form-panel > label > span,.seller-apply-form-screen .form-field > span { font-size: 14px; }
+.seller-apply-form-screen .form-panel input,.seller-apply-form-screen .form-panel textarea { font-size: 13px; }
+.seller-apply-form-screen .apply-form .form-field > button { min-height: 50px; font-size: 13px; }
+.apply-agreement span b { font-size: 14px; }
+.apply-agreement span small { font-size: 12px; }
+.apply-status { padding: 25px 20px; }
+.apply-status h2 { font-size: 22px; }
+.apply-status p { font-size: 13px; line-height: 1.7; }
+.apply-status button { height: 48px; font-size: 13px; }
+.apply-info .section-title b { font-size: 17px; }
+.apply-info > div { min-height: 55px; font-size: 13px; }
+.apply-info > div b { font-size: 14px; }
+.apply-info > button { height: 44px; font-size: 12px; }
+
+/* One-to-one service artwork across buyer and seller transaction surfaces */
+.product-cover { height: auto; max-height: none; aspect-ratio: 1 / 1; }
+.product-hero { height: auto; aspect-ratio: 1 / 1; }
+.publish-cover { width: 100%; height: auto; aspect-ratio: 1 / 1; }
+.publish-cover img,.product-cover > img,.product-hero { object-position: center; }
+.checkout-service { grid-template-columns: 100px minmax(0,1fr) auto; }
+.checkout-service img { width: 100px; height: 100px; border-radius: 13px; }
+.buyer-order-product { grid-template-columns: 112px minmax(0,1fr) auto; }
+.buyer-order-product img { width: 112px; height: 112px; border-radius: 14px; }
+.seller-service-list article { grid-template-columns: 104px minmax(0,1fr) auto; }
+.seller-service-list article > img { width: 104px; height: 104px; }
+.spec-service-brief { grid-template-columns: 104px 1fr; }
+.spec-service-brief img { width: 104px; height: 104px; }
+
+/* Global forward affordances: larger arrows and adjacent action copy */
+.section-title > button,.panel-title > button { min-height: 38px; padding: 0 6px; font-size: 12px; font-weight: 850; }
+.shop-arrow,.service-store-card > strong,.order-seller-card > em,.settings-group button > em,.mine-menu button > em,.support-entry > em,.public-home-preview > em,.seller-todo button > em,.income-records button > em,.page-catalog-panel button > em { font-size: 16px!important; font-weight: 900!important; }
+.settings-group button > em,.order-seller-card > em,.public-home-preview > em,.seller-todo button > em { min-height: 38px; display: flex; align-items: center; padding-left: 8px; }
+.buyer-order-head button { min-height: 36px; font-size: 14px; }
+.manage-account { font-size: 13px; }

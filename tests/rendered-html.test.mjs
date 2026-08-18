@@ -69,7 +69,8 @@ test("includes the refined buyer and seller interactions", async () => {
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
-  assert.match(page, /search-scope-toggle/);
+  assert.match(page, /search-scope-select/);
+  assert.match(page, /搜索陪玩昵称或ID/);
   assert.match(page, /refund-reason-menu/);
   assert.match(page, /服务已提交审核，可在审核中查看/);
   assert.match(page, /draft-box-fixed/);
@@ -77,7 +78,11 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(page, /EarningsPicker label="年份"/);
   assert.match(page, /EarningsPicker label="月份"/);
   assert.match(page, /EarningsPicker label="周次"/);
+  assert.match(page, /预计 24h 内/);
   assert.match(css, /\.chat-messages \.message \{ align-items: center; \}/);
   assert.match(css, /\.profile-fields \.profile-nickname-field input[^}]+text-align: left/);
   assert.match(css, /\.income-filters button \{ height: 42px; font-size: 13px; \}/);
+  assert.match(css, /\.buyer-assets \.nav-favorite::before/);
+  assert.match(css, /\.product-hero \{ height: auto; aspect-ratio: 1 \/ 1; \}/);
+  assert.match(css, /\.withdraw-record-list article b \{ font-size: 23px; \}/);
 });
