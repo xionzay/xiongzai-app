@@ -1809,24 +1809,17 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .rating-panel button,.rating-panel button:not(.active),.rating-panel button.active {
   width: 46px;
   height: 46px;
-  overflow: hidden;
+  overflow: visible;
   background: transparent;
   clip-path: none;
 }
-.rating-panel button img {
+.rating-star-canvas {
   width: 46px;
   height: 46px;
   display: block;
-  object-fit: cover;
-  filter: none;
   mix-blend-mode: multiply;
-  opacity: 1;
 }
-.rating-panel button.active {
-  background: #ffb319;
-  clip-path: polygon(50% 1%,61% 34%,96% 36%,68% 57%,79% 92%,50% 72%,21% 92%,32% 57%,4% 36%,39% 34%);
-}
-.rating-panel button.active img { mix-blend-mode: multiply; opacity: 1; }
+.rating-panel button.active { background: transparent; clip-path: none; }
 
 .buyer-assets .favorite-upload,.buyer-assets .coupon-upload {
   background: transparent;

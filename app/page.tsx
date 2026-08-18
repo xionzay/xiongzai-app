@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 type BuyerPage = "splash" | "auth" | "profileSetup" | "home" | "search" | "searchResults" | "companion" | "service" | "specs" | "checkout" | "payment" | "paymentResult" | "orders" | "orderDetail" | "refundApply" | "refundDetail" | "complaint" | "review" | "messages" | "chat" | "mine" | "favorites" | "editProfile" | "rules" | "settings" | "apply" | "sellerApplyForm" | "sellerApplyStatus";
 type SellerPage = "seller" | "sellerProfile" | "sellerServices" | "sellerPublish" | "sellerServiceEdit" | "sellerOrders" | "sellerOrderDetail" | "sellerEarnings" | "incomeDetails" | "withdraw" | "withdrawals";
@@ -52,6 +52,55 @@ function IconButton({ children, label, onClick, badge }: { children: React.React
 function AppIcon({ kind, className = "" }: { kind: string; className?: string }) {
   const asset = kind === "filter" ? "service" : kind;
   return <i aria-hidden="true" className={`nav-symbol nav-${kind} ${className}`}><img src={`/assets/icon-${asset}.png`} alt="" /></i>;
+}
+
+function RatingStar({ selected }: { selected: boolean }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d", { willReadFrequently: true });
+    if (!canvas || !context) return;
+    let cancelled = false;
+    const source = new Image();
+    source.onload = () => {
+      if (cancelled) return;
+      const width = canvas.width;
+      const height = canvas.height;
+      context.clearRect(0, 0, width, height);
+      context.drawImage(source, 0, 0, width, height);
+      if (!selected) return;
+      const image = context.getImageData(0, 0, width, height);
+      const pixels = image.data;
+      let red = 0; let green = 0; let blue = 0; let samples = 0;
+      for (let offset = 0; offset < pixels.length; offset += 4) {
+        if (pixels[offset] > 190 && pixels[offset + 1] > 90 && pixels[offset + 2] < 90) {
+          red += pixels[offset]; green += pixels[offset + 1]; blue += pixels[offset + 2]; samples += 1;
+        }
+      }
+      const fill = samples ? [Math.round(red / samples), Math.round(green / samples), Math.round(blue / samples)] : [255, 179, 25];
+      const visited = new Uint8Array(width * height);
+      const queue = new Int32Array(width * height);
+      let head = 0; let tail = 0;
+      const start = Math.floor(height / 2) * width + Math.floor(width / 2);
+      visited[start] = 1;
+      queue[tail++] = start;
+      while (head < tail) {
+        const point = queue[head++];
+        const offset = point * 4;
+        if (pixels[offset] < 238 || pixels[offset + 1] < 238 || pixels[offset + 2] < 238) continue;
+        pixels[offset] = fill[0]; pixels[offset + 1] = fill[1]; pixels[offset + 2] = fill[2]; pixels[offset + 3] = 255;
+        const x = point % width; const y = Math.floor(point / width);
+        const neighbours = [x > 0 ? point - 1 : -1, x < width - 1 ? point + 1 : -1, y > 0 ? point - width : -1, y < height - 1 ? point + width : -1];
+        for (const next of neighbours) {
+          if (next >= 0 && !visited[next]) { visited[next] = 1; queue[tail++] = next; }
+        }
+      }
+      context.putImageData(image, 0, 0);
+    };
+    source.src = "/assets/ui-star-rounded.jpg";
+    return () => { cancelled = true; };
+  }, [selected]);
+  return <canvas ref={canvasRef} className="rating-star-canvas" width={586} height={586} aria-hidden="true" />;
 }
 
 function Header({ title, subtitle, back, actions }: { title: string; subtitle?: string; back?: () => void; actions?: React.ReactNode }) {
@@ -209,7 +258,7 @@ function ComplaintScreen({ go, notify }: { go: (page: PageId) => void; notify: (
 
 function ReviewScreen({ go, notify }: { go: (page: PageId) => void; notify: (message: string) => void }) {
   const [rating, setRating] = useState(0); const [content, setContent] = useState(""); const [anonymous, setAnonymous] = useState(false);
-  return <div className="app-screen review-screen"><Header title="评价服务" subtitle="真实评价帮助其他玩家选择" back={() => go("orders")} /><section className="review-service"><img src={services[2].cover} alt={services[2].title} /><span><b>{services[2].title}</b><small>陪玩：小悠 · 双排两局</small></span></section><section className="paper-panel rating-panel"><b>本次服务体验如何？</b><div>{[1, 2, 3, 4, 5].map((star) => <button type="button" className={star <= rating ? "active" : ""} onClick={() => setRating(star)} aria-label={`${star}星`} key={star}><img src="/assets/ui-star-rounded.jpg" alt="" /></button>)}</div><p>{rating ? ["很差", "较差", "一般", "满意", "非常满意"][rating - 1] : "请选择评分"}</p></section><section className="form-panel review-form"><label><span>评价内容</span><textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={300} placeholder="分享本次服务体验，帮助其他玩家做选择" /><em>{content.length}/300</em></label><div className="review-tags">{["技术靠谱", "准时接单", "沟通舒服", "耐心教学"].map((item) => <button type="button" key={item}>{item}</button>)}</div><label className="anonymous-review"><input type="checkbox" checked={anonymous} onChange={(event) => setAnonymous(event.target.checked)} /><span>匿名展示评价</span></label></section><button type="button" className="full-primary" onClick={() => { notify("评价发布成功"); go("orders"); }}>发布评价</button></div>;
+  return <div className="app-screen review-screen"><Header title="评价服务" subtitle="真实评价帮助其他玩家选择" back={() => go("orders")} /><section className="review-service"><img src={services[2].cover} alt={services[2].title} /><span><b>{services[2].title}</b><small>陪玩：小悠 · 双排两局</small></span></section><section className="paper-panel rating-panel"><b>本次服务体验如何？</b><div>{[1, 2, 3, 4, 5].map((star) => <button type="button" className={star <= rating ? "active" : ""} onClick={() => setRating(star)} aria-label={`${star}星`} key={star}><RatingStar selected={star <= rating} /></button>)}</div><p>{rating ? ["很差", "较差", "一般", "满意", "非常满意"][rating - 1] : "请选择评分"}</p></section><section className="form-panel review-form"><label><span>评价内容</span><textarea value={content} onChange={(event) => setContent(event.target.value)} maxLength={300} placeholder="分享本次服务体验，帮助其他玩家做选择" /><em>{content.length}/300</em></label><div className="review-tags">{["技术靠谱", "准时接单", "沟通舒服", "耐心教学"].map((item) => <button type="button" key={item}>{item}</button>)}</div><label className="anonymous-review"><input type="checkbox" checked={anonymous} onChange={(event) => setAnonymous(event.target.checked)} /><span>匿名展示评价</span></label></section><button type="button" className="full-primary" onClick={() => { notify("评价发布成功"); go("orders"); }}>发布评价</button></div>;
 }
 
 function MessagesScreen({ go, unreadCount, markRead }: { go: (page: PageId) => void; unreadCount: number; markRead: () => void }) {
