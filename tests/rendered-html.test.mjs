@@ -61,7 +61,7 @@ test("keeps the established brand assets and design tokens", async () => {
   await Promise.all([
     "xiongzai-logo.png", "xiongzai-icon.png", "home-hero.png", "product-hero.png",
     "icon-home.png", "icon-order.png", "icon-message.png", "icon-mine.png",
-    "ui-star-outline.jpg", "ui-coupon-outline.jpg",
+    "ui-star-outline.jpg", "ui-coupon-outline.jpg", "ui-person-outline.jpg",
   ].map((name) => access(new URL(`../public/assets/${name}`, import.meta.url))));
 });
 
@@ -83,7 +83,12 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(page, /availability-menu/);
   assert.match(page, /order\.price\.toFixed\(2\)/);
   assert.match(page, /服务已提交审核，可在审核中查看/);
-  assert.match(page, /draft-box-fixed/);
+  assert.match(page, /\["草稿箱", 2\]/);
+  assert.doesNotMatch(page, /className="seller-publish-fixed"/);
+  assert.match(page, /ui-person-outline\.jpg/);
+  assert.match(page, /预计 3 分钟内响应/);
+  assert.match(page, /price\.toFixed\(2\)/);
+  assert.match(page, /placeholder="请选择或填写期望服务时间"/);
   assert.match(page, /payment-account-switch/);
   assert.match(page, /EarningsPicker label="年份"/);
   assert.match(page, /EarningsPicker label="月份"/);
@@ -95,6 +100,8 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(css, /\.buyer-assets \.nav-favorite::before/);
   assert.match(css, /\.product-hero \{ height: auto; aspect-ratio: 1 \/ 1; \}/);
   assert.match(css, /\.withdraw-record-list article b \{ font-size: 23px; \}/);
+  assert.match(css, /\.withdraw-form label > div:focus-within/);
+  assert.match(css, /\.seller-service-tabs \{ display: grid; grid-template-columns: repeat\(2,1fr\)/);
   assert.match(css, /--device-safe-top:\s*max\(env\(safe-area-inset-top, 0px\), 12px\)/);
   assert.match(css, /padding-bottom:\s*calc\(88px \+ var\(--device-safe-bottom\)\)/);
   assert.match(css, /\.bottom-nav \{[\s\S]*height:\s*calc\(86px \+ var\(--device-safe-bottom\)\)/);

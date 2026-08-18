@@ -1621,3 +1621,106 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .buyer-contact-card small { margin-top: 6px; font-size: 12px; line-height: 1.4; }
 .buyer-contact-card button { min-width: 86px; height: 44px; font-size: 12px; }
 .manage-account { width: max-content; min-height: 42px; display: block; margin: 8px 0 0 auto; padding: 0 4px; white-space: nowrap; }
+
+/* Buyer and seller polish: square media, larger touch targets and complete form states. */
+.splash-person-icon { width: 48px; height: 48px; flex: none; display: grid; place-items: center; overflow: hidden; border-radius: 14px; background: white; }
+.splash-person-icon img { width: 100%; height: 100%; display: block; object-fit: cover; }
+.agreement-check { align-items: center; }
+.agreement-check input { margin: 0; }
+.agreement-check span { display: block; }
+.setup-avatar img { object-fit: cover; object-position: center; }
+
+.shop-photo,.shop-card.wide .shop-photo,.service-main-image,.store-hero { height: auto; max-height: none; aspect-ratio: 1 / 1; }
+.shop-card.wide { min-height: 112px; grid-template-columns: 112px minmax(0,1fr) 72px; }
+.shop-card.wide .shop-photo { width: 112px; }
+.shop-photo img,.service-main-image,.store-hero > img { object-fit: cover; }
+
+.search-input-row::before { content: ""; position: absolute; z-index: 0; left: 0; right: 60px; top: -2px; bottom: -2px; border: 2px solid transparent; border-radius: 16px; pointer-events: none; transition: border-color .16s ease, box-shadow .16s ease; }
+.search-input-row:focus-within::before { border-color: #4a9bea; box-shadow: 0 0 0 3px rgba(74,155,234,.14); }
+.search-input-row .search-scope-select,.search-input-row > input,.search-input-row > button { position: relative; z-index: 1; }
+.search-input-row > input:focus { outline: 0; box-shadow: none; }
+
+.voice-card { grid-template-columns: minmax(126px,auto) 40px 1fr; }
+.voice-card > span { align-self: center; }
+.voice-card > span b { font-size: 14px; line-height: 1.35; }
+.store-about > p { font-size: 13px; line-height: 1.7; }
+.store-about span b { font-size: 13px; }
+.store-about span small { margin-top: 5px; font-size: 12px; }
+.store-about em { font-size: 11px; }
+.store-reviews p { font-size: 13px; line-height: 1.6; }
+.store-reviews > small { font-size: 11px; line-height: 1.45; }
+.chat-screen .header-actions .icon-button { width: 48px; height: 48px; font-size: 29px; }
+
+.buyer-order-product span b { font-size: 14px; line-height: 1.4; }
+.buyer-order-product span small { margin-top: 6px; font-size: 12px; }
+.buyer-order-product strong { right: 15px; bottom: 55px; font-size: 18px; }
+.order-detail-screen .order-status-hero span { font-size: 14px; }
+.order-detail-screen .order-status-hero h2 { font-size: 25px; }
+.order-detail-screen .order-status-hero p { font-size: 12px; line-height: 1.5; }
+.order-detail-screen .order-timeline b { font-size: 11px; }
+.order-detail-screen .order-seller-card b { font-size: 14px; }
+.order-detail-screen .order-seller-card small { font-size: 11px; }
+.order-detail-screen .order-detail-product b { font-size: 14px; }
+.order-detail-screen .order-detail-product small,.order-detail-screen .order-detail-product em { font-size: 12px; }
+.order-detail-screen .order-facts span,.order-detail-screen .order-facts b { font-size: 13px; }
+.order-detail-screen .order-protection b { font-size: 14px; }
+.order-detail-screen .order-protection small { font-size: 12px; }
+
+.rating-panel button,.rating-panel button.active { width: auto; height: auto; display: block; overflow: visible; border: 0; border-radius: 0; padding: 0; background: transparent; color: #ffb319; font-size: 38px; line-height: 1; box-shadow: none; text-shadow: 0 3px 7px rgba(255,179,25,.18); }
+.rating-panel button:not(.active) { color: #ffb319; text-shadow: none; }
+.rating-panel button img { display: none; }
+
+.buyer-assets .uploaded-asset-icon { position: relative; width: 62px; height: 62px; display: block; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+.buyer-assets .uploaded-asset-icon img { display: none; }
+.buyer-assets .favorite-upload::before { content: ""; position: absolute; inset: 4px; background: var(--orange); clip-path: polygon(50% 0,61% 34%,98% 35%,68% 56%,79% 94%,50% 72%,21% 94%,32% 56%,2% 35%,39% 34%); }
+.buyer-assets .coupon-upload::before { content: ""; position: absolute; left: 4px; right: 4px; top: 13px; height: 36px; border-radius: 5px; background: var(--blue); clip-path: polygon(0 0,100% 0,100% 27%,88% 50%,100% 73%,100% 100%,0 100%,0 73%,12% 50%,0 27%); }
+.buyer-assets .coupon-upload::after { content: ""; position: absolute; left: 29px; top: 18px; height: 26px; border-left: 3px dashed #e4f3ff; }
+
+.settings-screen .seller-identity-card { min-height: 196px; padding: 20px; }
+.settings-screen .seller-identity-card > div { position: relative; z-index: 2; max-width: 58%; }
+.settings-screen .seller-identity-card span { font-size: 10px; }
+.settings-screen .seller-identity-card h2 { font-size: 24px; }
+.settings-screen .seller-identity-card p { font-size: 12px; line-height: 1.55; }
+.settings-screen .seller-identity-card b { font-size: 12px; }
+.settings-screen .seller-identity-card img { right: 11px; top: 50%; width: 145px; height: 145px; object-fit: contain; opacity: .88; transform: translateY(-50%); }
+.settings-screen .seller-identity-card > button { z-index: 3; height: 44px; margin-top: 13px; font-size: 13px; }
+
+.seller-service-tabs { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; height: auto; padding: 6px; }
+.seller-service-tabs button { min-height: 44px; }
+.seller-service-list { padding-bottom: calc(94px + var(--device-safe-bottom)); }
+.seller-service-list article > img { width: 104px; height: 104px; aspect-ratio: 1 / 1; }
+
+.edit-specs > div:not(.section-title) { min-height: 70px; }
+.edit-specs b { font-size: 14px; }
+.edit-specs small { margin-top: 5px; font-size: 12px; }
+.edit-specs strong { font-size: 16px; }
+.edit-specs button { height: 38px; font-size: 11px; }
+.listing-status-copy { position: relative; min-height: 78px; display: grid; grid-template-columns: 1fr 98px; align-items: center; gap: 12px; }
+.listing-status-copy > span b { font-size: 14px; }
+.listing-status-copy > span small { margin-top: 5px; font-size: 12px; }
+.listing-status-picker { position: relative; }
+.listing-status-picker > button { width: 98px; min-height: 44px; display: flex; align-items: center; justify-content: space-between; border: 2px solid #79b8e5; border-radius: 14px; padding: 0 15px; background: linear-gradient(145deg,#f8fcff,#eef8ff); box-shadow: 0 5px 0 #c8e2f3; }
+.listing-status-picker > button b { font-size: 13px; }
+.listing-status-picker > button > i { width: 9px; height: 9px; border-right: 2px solid #377fb8; border-bottom: 2px solid #377fb8; transform: rotate(45deg); }
+.listing-status-picker > button.open > i { transform: rotate(225deg); }
+.listing-status-menu { position: absolute; z-index: 46; right: 0; top: 54px; width: 132px; border: 2px solid #79b8e5; border-radius: 17px; padding: 7px; background: #fffaf0; box-shadow: 0 7px 0 #c8e2f3,0 17px 30px rgba(47,89,123,.2); }
+.listing-status-menu > button { width: 100%; min-height: 44px; display: grid; grid-template-columns: 1fr 22px; align-items: center; border: 0; border-bottom: 1px dashed #d5e4ed; padding: 0 8px; background: transparent; text-align: left; }
+.listing-status-menu > button:last-child { border: 0; }
+.listing-status-menu span { font-size: 13px; }
+.listing-status-menu i { color: var(--orange); font-style: normal; }
+
+.seller-buyer-order-list { padding-bottom: calc(92px + var(--device-safe-bottom)); }
+.seller-buyer-order-card { padding-top: 10px; }
+.seller-order-buyer { display: grid; grid-template-columns: 52px minmax(0,1fr) auto; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.seller-order-buyer b,.seller-order-buyer small { display: block; }
+.seller-order-buyer b { font-size: 14px; }
+.seller-order-buyer small { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.seller-order-buyer em { color: var(--orange); font-size: 13px; font-style: normal; font-weight: 900; }
+.seller-order-product-card img { width: 112px; height: 112px; aspect-ratio: 1 / 1; }
+.seller-buyer-order-actions .contact-buyer { border: 0; background: var(--blue); color: white; font-weight: 900; }
+.seller-buyer-order-actions button:last-child { background: var(--orange); }
+
+.income-records button > span { min-width: 0; }
+.income-records button > span b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.withdraw-form label > div { transition: border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.withdraw-form label > div:focus-within { border: 2px solid var(--blue); background: #f4fbff; box-shadow: 0 0 0 3px rgba(74,155,234,.15); }
