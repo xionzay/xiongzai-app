@@ -906,3 +906,76 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .service-actions .icon-action:first-child .nav-symbol { --icon-surface:#fff; color:#267cbd; }
 .service-actions .icon-action:nth-child(2) .nav-symbol { --icon-surface:#fff; color:var(--orange); }
 .service-actions .icon-action.active .nav-favorite::after { background:currentColor; transform:translateX(-50%) scale(.55); }
+
+/* Exact icon artwork from the user-supplied reference sheet.
+   Every semantic occurrence uses the same source pixels and crop. */
+.nav-symbol {
+  background-image: url('/assets/xiongzai-ui-icon-sheet.png');
+  background-repeat: no-repeat;
+  background-size: 313.5px 313.5px;
+  background-color: transparent;
+  background-clip: border-box;
+  mix-blend-mode: multiply;
+  image-rendering: auto;
+}
+.nav-symbol::before,.nav-symbol::after,.nav-symbol > span,.nav-symbol > span::before,.nav-symbol > span::after {
+  display: none !important;
+  content: none !important;
+}
+.nav-home { background-position: calc(50% - 54.1px) calc(50% - 68.1px); }
+.nav-order { background-position: calc(50% - 129.5px) calc(50% - 68.3px); }
+.nav-message { background-position: calc(50% - 199.3px) calc(50% - 69px); }
+.nav-mine { background-position: calc(50% - 262.8px) calc(50% - 68.3px); }
+.nav-service,.nav-filter { background-position: calc(50% - 54px) calc(50% - 152.5px); }
+.nav-favorite { background-position: calc(50% - 129px) calc(50% - 152.5px); }
+.nav-shield { background-position: calc(50% - 196.5px) calc(50% - 153px); }
+.nav-setting { background-position: calc(50% - 263px) calc(50% - 153.3px); }
+.nav-wallet { background-position: calc(50% - 54.3px) calc(50% - 235.5px); }
+.nav-coupon { background-position: calc(50% - 129.5px) calc(50% - 237px); }
+.nav-withdraw { background-position: calc(50% - 199.5px) calc(50% - 236.8px); }
+
+/* Keep the supplied black geometry unchanged across active and inactive states. */
+.bottom-nav button .nav-symbol,.bottom-nav button.active .nav-symbol,.seller-tool-icon.nav-symbol,.menu-symbol.nav-symbol,.asset-symbol.nav-symbol,.support-entry > .nav-symbol,.header-actions .icon-button > .nav-symbol {
+  color: #111;
+}
+.bottom-nav .nav-symbol { width: 40px; height: 40px; }
+.seller-tool-icon.nav-symbol {
+  width: 46px;
+  height: 46px;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+}
+.menu-symbol.nav-symbol {
+  width: 42px;
+  height: 42px;
+  border-color: transparent !important;
+  background-color: transparent !important;
+}
+.mine-grid .asset-symbol.nav-symbol {
+  width: 48px;
+  height: 48px;
+  border-color: transparent !important;
+  background-color: transparent !important;
+}
+.support-entry > .nav-symbol {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 0;
+  background-color: transparent;
+  transform: none;
+}
+.header-actions .icon-button > .nav-symbol { width: 40px; height: 40px; }
+.store-actions .nav-symbol {
+  width: 40px;
+  height: 40px;
+  margin: -7px;
+  transform: scale(.67);
+}
+.service-actions .icon-action .nav-symbol {
+  width: 40px;
+  height: 40px;
+  margin: -7px 0 -5px;
+  transform: scale(.72);
+}
