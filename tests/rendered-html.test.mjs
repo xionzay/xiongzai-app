@@ -87,6 +87,7 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(page, /placeholder="填写当前段位和星级"/);
   assert.match(page, /已下\{spec\.sold\}单/);
   assert.match(page, /咨询陪玩/);
+  assert.match(page, /star <= rating \? "★" : "☆"/);
   assert.doesNotMatch(page, /<b>服务内容<\/b>/);
   assert.match(page, /卖家自主设计/);
   assert.match(page, /availability-menu/);
@@ -115,6 +116,11 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(css, /\.buyer-assets \.favorite-upload \{ background: var\(--orange\)/);
   assert.match(css, /\.buyer-assets \.coupon-upload \{ background: var\(--blue\)/);
   assert.match(css, /\.publish-cover button \{ min-width: 96px; height: 44px/);
+  assert.match(css, /\.store-actions \.nav-symbol > img \{[\s\S]*filter: none;[\s\S]*mix-blend-mode: multiply;/);
+  assert.match(css, /\.spec-full\.selected \{[\s\S]*border-color: var\(--orange\)/);
+  assert.match(css, /\.buyer-assets \.favorite-upload \{ background: #ffb3a3; \}/);
+  assert.match(css, /\.buyer-assets \.coupon-upload \{ background: #acdafe; \}/);
+  assert.match(css, /\.seller-buyer-order-actions button \{ font-size: 13px; \}/);
   assert.match(css, /\.seller-service-tabs \{ display: grid; grid-template-columns: repeat\(2,1fr\)/);
   assert.match(css, /--device-safe-top:\s*max\(env\(safe-area-inset-top, 0px\), 12px\)/);
   assert.match(css, /padding-bottom:\s*calc\(88px \+ var\(--device-safe-bottom\)\)/);
