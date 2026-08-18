@@ -1085,3 +1085,25 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   padding: 0 19px;
   font-size: 13px;
 }
+
+/* Precise income-card alignment */
+.seller-dashboard-hero {
+  position: relative;
+  display: block;
+}
+.seller-dashboard-hero > div {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.seller-dashboard-hero > button {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  margin: 0;
+}
+.earnings-balance > button {
+  top: 50%;
+  transform: translateY(-50%);
+}
