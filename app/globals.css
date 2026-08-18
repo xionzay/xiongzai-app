@@ -979,3 +979,21 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   margin: -7px 0 -5px;
   transform: scale(.72);
 }
+
+/* Independent crops prevent browser background-position math from showing blanks. */
+.nav-symbol {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+.nav-home { background-image:url('/assets/icon-home.png'); }
+.nav-order { background-image:url('/assets/icon-order.png'); }
+.nav-message { background-image:url('/assets/icon-message.png'); }
+.nav-mine { background-image:url('/assets/icon-mine.png'); }
+.nav-service,.nav-filter { background-image:url('/assets/icon-service.png'); }
+.nav-favorite { background-image:url('/assets/icon-favorite.png'); }
+.nav-shield { background-image:url('/assets/icon-shield.png'); }
+.nav-setting { background-image:url('/assets/icon-setting.png'); }
+.nav-wallet { background-image:url('/assets/icon-wallet.png'); }
+.nav-coupon { background-image:url('/assets/icon-coupon.png'); }
+.nav-withdraw { background-image:url('/assets/icon-withdraw.png'); }
