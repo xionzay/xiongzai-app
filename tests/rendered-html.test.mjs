@@ -62,6 +62,7 @@ test("keeps the established brand assets and design tokens", async () => {
     "xiongzai-logo.png", "xiongzai-icon.png", "home-hero.png", "product-hero.png",
     "icon-home.png", "icon-order.png", "icon-message.png", "icon-mine.png",
     "ui-star-outline.jpg", "ui-coupon-outline.jpg", "ui-person-outline.jpg",
+    "ui-star-latest.jpg", "ui-coupon-latest.jpg",
   ].map((name) => access(new URL(`../public/assets/${name}`, import.meta.url))));
 });
 
@@ -77,9 +78,17 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.doesNotMatch(page, /className="segmented result-tabs"/);
   assert.match(page, /refund-reason-menu/);
   assert.match(page, /complaint-type-menu/);
-  assert.match(page, /ui-star-outline\.jpg/);
-  assert.match(page, /ui-coupon-outline\.jpg/);
+  assert.match(page, /ui-star-latest\.jpg/);
+  assert.match(page, /ui-coupon-latest\.jpg/);
+  assert.match(page, /const \[phone, setPhone\] = useState\(""\)/);
+  assert.match(page, /placeholder="请输入手机号码"/);
   assert.match(page, /placeholder="请输入陪玩昵称"/);
+  assert.match(page, /placeholder="介绍擅长模式、服务风格和沟通特点"/);
+  assert.match(page, /placeholder="填写当前段位和星级"/);
+  assert.match(page, /已下\{spec\.sold\}单/);
+  assert.match(page, /咨询陪玩/);
+  assert.doesNotMatch(page, /<b>服务内容<\/b>/);
+  assert.match(page, /卖家自主设计/);
   assert.match(page, /availability-menu/);
   assert.match(page, /order\.price\.toFixed\(2\)/);
   assert.match(page, /服务已提交审核，可在审核中查看/);
@@ -101,6 +110,11 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(css, /\.product-hero \{ height: auto; aspect-ratio: 1 \/ 1; \}/);
   assert.match(css, /\.withdraw-record-list article b \{ font-size: 23px; \}/);
   assert.match(css, /\.withdraw-form label > div:focus-within/);
+  assert.match(css, /\.big-search i \{ font-size: 28px/);
+  assert.match(css, /\.chat-input \{ height: calc\(58px \+ var\(--device-safe-bottom\)\)/);
+  assert.match(css, /\.buyer-assets \.favorite-upload \{ background: var\(--orange\)/);
+  assert.match(css, /\.buyer-assets \.coupon-upload \{ background: var\(--blue\)/);
+  assert.match(css, /\.publish-cover button \{ min-width: 96px; height: 44px/);
   assert.match(css, /\.seller-service-tabs \{ display: grid; grid-template-columns: repeat\(2,1fr\)/);
   assert.match(css, /--device-safe-top:\s*max\(env\(safe-area-inset-top, 0px\), 12px\)/);
   assert.match(css, /padding-bottom:\s*calc\(88px \+ var\(--device-safe-bottom\)\)/);
