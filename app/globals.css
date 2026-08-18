@@ -550,3 +550,125 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .service-actions .icon-action { width: 76px; height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 0; background: transparent; font-size: 24px; }
 .service-actions .icon-action small { font-size: 11px; font-weight: 900; }
 .service-actions .icon-action:first-child { color: #267cbd; }
+
+/* Navigation geometry, aligned favorite asset, and high-legibility buyer orders */
+.nav-message > span {
+  top: calc(13px + var(--icon-y));
+}
+.nav-home::after {
+  top: calc(12px + var(--icon-y));
+  height: 19px;
+}
+.nav-home > span {
+  top: calc(20px + var(--icon-y));
+  height: 11px;
+}
+
+.asset-favorite::before {
+  left: 50%;
+  top: 7px;
+  width: 23px;
+  height: 30px;
+  border-width: 3px;
+  border-radius: 5px 5px 3px 3px;
+  transform: translateX(-50%);
+}
+.asset-favorite::after {
+  left: 50%;
+  top: 27px;
+  width: 15px;
+  height: 11px;
+  border: 0;
+  background: #fff1e8;
+  clip-path: polygon(0 0,100% 0,50% 100%);
+  transform: translateX(-50%);
+}
+
+.big-order-filter {
+  gap: 24px;
+  padding: 0 10px 13px;
+}
+.big-order-filter button {
+  min-height: 38px;
+  font-size: 12px;
+  font-weight: 900;
+}
+.buyer-order-list {
+  gap: 12px;
+  padding: 4px 7px 14px;
+}
+.buyer-order-card {
+  width: 100%;
+  border-radius: 18px;
+  padding: 15px;
+}
+.buyer-order-head span {
+  font-size: 13px;
+  font-weight: 900;
+}
+.buyer-order-head b {
+  font-size: 12px;
+  font-weight: 900;
+}
+.buyer-order-product {
+  grid-template-columns: 96px minmax(0,1fr) auto;
+  gap: 12px;
+  padding: 14px 0;
+}
+.buyer-order-product img {
+  width: 96px;
+  height: 76px;
+  border-radius: 13px;
+}
+.buyer-order-product span b {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.buyer-order-product span small {
+  margin-top: 7px;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.buyer-order-product strong {
+  font-size: 19px;
+}
+.buyer-order-actions {
+  gap: 9px;
+}
+.buyer-order-actions button {
+  min-width: 76px;
+  height: 40px;
+  padding: 0 13px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.support-entry {
+  width: calc(100% - 14px);
+  min-height: 76px;
+  grid-template-columns: 48px minmax(0,1fr) 30px;
+  gap: 12px;
+  margin: 0 7px 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+}
+.support-entry > span {
+  width: 44px;
+  height: 44px;
+  font-size: 25px;
+}
+.support-entry b {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.support-entry small {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.support-entry em {
+  font-size: 29px;
+  font-weight: 600;
+  text-align: right;
+}
