@@ -62,7 +62,7 @@ test("keeps the established brand assets and design tokens", async () => {
     "xiongzai-logo.png", "xiongzai-icon.png", "home-hero.png", "product-hero.png",
     "icon-home.png", "icon-order.png", "icon-message.png", "icon-mine.png",
     "ui-star-outline.jpg", "ui-coupon-outline.jpg", "ui-person-outline.jpg",
-    "ui-star-latest.jpg", "ui-coupon-latest.jpg",
+    "ui-star-latest.jpg", "ui-coupon-latest.jpg", "ui-star-rounded.jpg", "ui-coupon-rounded.jpg",
   ].map((name) => access(new URL(`../public/assets/${name}`, import.meta.url))));
 });
 
@@ -78,8 +78,6 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.doesNotMatch(page, /className="segmented result-tabs"/);
   assert.match(page, /refund-reason-menu/);
   assert.match(page, /complaint-type-menu/);
-  assert.match(page, /ui-star-latest\.jpg/);
-  assert.match(page, /ui-coupon-latest\.jpg/);
   assert.match(page, /const \[phone, setPhone\] = useState\(""\)/);
   assert.match(page, /placeholder="请输入手机号码"/);
   assert.match(page, /placeholder="请输入陪玩昵称"/);
@@ -87,7 +85,8 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(page, /placeholder="填写当前段位和星级"/);
   assert.match(page, /已下\{spec\.sold\}单/);
   assert.match(page, /咨询陪玩/);
-  assert.match(page, /star <= rating \? "★" : "☆"/);
+  assert.match(page, /ui-star-rounded\.jpg/);
+  assert.match(page, /ui-coupon-rounded\.jpg/);
   assert.doesNotMatch(page, /<b>服务内容<\/b>/);
   assert.match(page, /卖家自主设计/);
   assert.match(page, /availability-menu/);
@@ -121,6 +120,9 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(css, /\.buyer-assets \.favorite-upload \{ background: #ffb3a3; \}/);
   assert.match(css, /\.buyer-assets \.coupon-upload \{ background: #acdafe; \}/);
   assert.match(css, /\.seller-buyer-order-actions button \{ font-size: 13px; \}/);
+  assert.match(css, /\.rating-panel > div \{ gap: 10px; \}/);
+  assert.match(css, /\.rating-panel button\.active \{[\s\S]*background: #ffb319;/);
+  assert.match(css, /\.buyer-assets \.favorite-upload,\.buyer-assets \.coupon-upload \{[\s\S]*clip-path: none;/);
   assert.match(css, /\.seller-service-tabs \{ display: grid; grid-template-columns: repeat\(2,1fr\)/);
   assert.match(css, /--device-safe-top:\s*max\(env\(safe-area-inset-top, 0px\), 12px\)/);
   assert.match(css, /padding-bottom:\s*calc\(88px \+ var\(--device-safe-bottom\)\)/);
