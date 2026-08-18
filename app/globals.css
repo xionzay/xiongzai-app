@@ -1812,12 +1812,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   overflow: visible;
   background: transparent;
   clip-path: none;
+  box-shadow: none;
+  text-shadow: none;
 }
-.rating-star-canvas {
+.rating-star-svg {
   width: 46px;
   height: 46px;
   display: block;
-  mix-blend-mode: multiply;
 }
 .rating-panel button.active { background: transparent; clip-path: none; }
 

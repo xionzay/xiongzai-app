@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useState } from "react";
 
 type BuyerPage = "splash" | "auth" | "profileSetup" | "home" | "search" | "searchResults" | "companion" | "service" | "specs" | "checkout" | "payment" | "paymentResult" | "orders" | "orderDetail" | "refundApply" | "refundDetail" | "complaint" | "review" | "messages" | "chat" | "mine" | "favorites" | "editProfile" | "rules" | "settings" | "apply" | "sellerApplyForm" | "sellerApplyStatus";
 type SellerPage = "seller" | "sellerProfile" | "sellerServices" | "sellerPublish" | "sellerServiceEdit" | "sellerOrders" | "sellerOrderDetail" | "sellerEarnings" | "incomeDetails" | "withdraw" | "withdrawals";
@@ -54,53 +54,13 @@ function AppIcon({ kind, className = "" }: { kind: string; className?: string })
   return <i aria-hidden="true" className={`nav-symbol nav-${kind} ${className}`}><img src={`/assets/icon-${asset}.png`} alt="" /></i>;
 }
 
+type RatingStarState = "StarOutline" | "StarFilled";
+const RATING_STAR_PATH = "M50 7 L62 36 L93 39 L69 59 L78 90 L50 73 L22 90 L31 59 L7 39 L38 36 Z";
+const RATING_STAR_COLOR = "#ffb319";
+
 function RatingStar({ selected }: { selected: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d", { willReadFrequently: true });
-    if (!canvas || !context) return;
-    let cancelled = false;
-    const source = new Image();
-    source.onload = () => {
-      if (cancelled) return;
-      const width = canvas.width;
-      const height = canvas.height;
-      context.clearRect(0, 0, width, height);
-      context.drawImage(source, 0, 0, width, height);
-      if (!selected) return;
-      const image = context.getImageData(0, 0, width, height);
-      const pixels = image.data;
-      let red = 0; let green = 0; let blue = 0; let samples = 0;
-      for (let offset = 0; offset < pixels.length; offset += 4) {
-        if (pixels[offset] > 190 && pixels[offset + 1] > 90 && pixels[offset + 2] < 90) {
-          red += pixels[offset]; green += pixels[offset + 1]; blue += pixels[offset + 2]; samples += 1;
-        }
-      }
-      const fill = samples ? [Math.round(red / samples), Math.round(green / samples), Math.round(blue / samples)] : [255, 179, 25];
-      const visited = new Uint8Array(width * height);
-      const queue = new Int32Array(width * height);
-      let head = 0; let tail = 0;
-      const start = Math.floor(height / 2) * width + Math.floor(width / 2);
-      visited[start] = 1;
-      queue[tail++] = start;
-      while (head < tail) {
-        const point = queue[head++];
-        const offset = point * 4;
-        if (pixels[offset] < 238 || pixels[offset + 1] < 238 || pixels[offset + 2] < 238) continue;
-        pixels[offset] = fill[0]; pixels[offset + 1] = fill[1]; pixels[offset + 2] = fill[2]; pixels[offset + 3] = 255;
-        const x = point % width; const y = Math.floor(point / width);
-        const neighbours = [x > 0 ? point - 1 : -1, x < width - 1 ? point + 1 : -1, y > 0 ? point - width : -1, y < height - 1 ? point + width : -1];
-        for (const next of neighbours) {
-          if (next >= 0 && !visited[next]) { visited[next] = 1; queue[tail++] = next; }
-        }
-      }
-      context.putImageData(image, 0, 0);
-    };
-    source.src = "/assets/ui-star-rounded.jpg";
-    return () => { cancelled = true; };
-  }, [selected]);
-  return <canvas ref={canvasRef} className="rating-star-canvas" width={586} height={586} aria-hidden="true" />;
+  const state: RatingStarState = selected ? "StarFilled" : "StarOutline";
+  return <svg className="rating-star-svg" data-state={state} viewBox="0 0 100 100" aria-hidden="true"><path d={RATING_STAR_PATH} fill={state === "StarFilled" ? RATING_STAR_COLOR : "transparent"} stroke={RATING_STAR_COLOR} strokeWidth="9" strokeLinejoin="round" strokeLinecap="round" /></svg>;
 }
 
 function Header({ title, subtitle, back, actions }: { title: string; subtitle?: string; back?: () => void; actions?: React.ReactNode }) {

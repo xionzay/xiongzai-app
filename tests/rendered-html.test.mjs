@@ -89,7 +89,10 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(page, /ui-coupon-rounded\.jpg/);
   assert.match(page, /function RatingStar\(\{ selected \}/);
   assert.match(page, /<RatingStar selected=\{star <= rating\}/);
-  assert.match(page, /const start = Math\.floor\(height \/ 2\)/);
+  assert.match(page, /type RatingStarState = "StarOutline" \| "StarFilled"/);
+  assert.match(page, /fill=\{state === "StarFilled" \? RATING_STAR_COLOR : "transparent"\}/);
+  assert.match(page, /stroke=\{RATING_STAR_COLOR\}/);
+  assert.match(page, /strokeLinejoin="round" strokeLinecap="round"/);
   assert.doesNotMatch(page, /<b>服务内容<\/b>/);
   assert.match(page, /卖家自主设计/);
   assert.match(page, /availability-menu/);
@@ -124,7 +127,7 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(css, /\.buyer-assets \.coupon-upload \{ background: #acdafe; \}/);
   assert.match(css, /\.seller-buyer-order-actions button \{ font-size: 13px; \}/);
   assert.match(css, /\.rating-panel > div \{ gap: 10px; \}/);
-  assert.match(css, /\.rating-star-canvas \{[\s\S]*mix-blend-mode: multiply;/);
+  assert.match(css, /\.rating-star-svg \{[\s\S]*width: 46px;[\s\S]*height: 46px;/);
   assert.match(css, /\.rating-panel button\.active \{ background: transparent; clip-path: none; \}/);
   assert.match(css, /\.buyer-assets \.favorite-upload,\.buyer-assets \.coupon-upload \{[\s\S]*clip-path: none;/);
   assert.match(css, /\.seller-service-tabs \{ display: grid; grid-template-columns: repeat\(2,1fr\)/);
