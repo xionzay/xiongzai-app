@@ -61,6 +61,7 @@ test("keeps the established brand assets and design tokens", async () => {
   await Promise.all([
     "xiongzai-logo.png", "xiongzai-icon.png", "home-hero.png", "product-hero.png",
     "icon-home.png", "icon-order.png", "icon-message.png", "icon-mine.png",
+    "ui-star-outline.jpg", "ui-coupon-outline.jpg",
   ].map((name) => access(new URL(`../public/assets/${name}`, import.meta.url))));
 });
 
@@ -72,7 +73,15 @@ test("includes the refined buyer and seller interactions", async () => {
   ]);
   assert.match(page, /search-scope-select/);
   assert.match(page, /搜索陪玩昵称或ID/);
+  assert.match(page, /result-scope-label/);
+  assert.doesNotMatch(page, /className="segmented result-tabs"/);
   assert.match(page, /refund-reason-menu/);
+  assert.match(page, /complaint-type-menu/);
+  assert.match(page, /ui-star-outline\.jpg/);
+  assert.match(page, /ui-coupon-outline\.jpg/);
+  assert.match(page, /placeholder="请输入陪玩昵称"/);
+  assert.match(page, /availability-menu/);
+  assert.match(page, /order\.price\.toFixed\(2\)/);
   assert.match(page, /服务已提交审核，可在审核中查看/);
   assert.match(page, /draft-box-fixed/);
   assert.match(page, /payment-account-switch/);
