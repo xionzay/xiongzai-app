@@ -672,3 +672,237 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   font-weight: 600;
   text-align: right;
 }
+
+/* One shared rounded-line icon system based on the supplied six-icon reference */
+.nav-symbol {
+  --icon-surface: #fff;
+  position: relative;
+  width: 38px;
+  height: 38px;
+  display: block;
+  flex: none;
+  color: #272b2e;
+  font-size: 0;
+  box-sizing: border-box;
+}
+.nav-symbol::before,.nav-symbol::after,.nav-symbol > span,.nav-symbol > span::before,.nav-symbol > span::after {
+  position: absolute;
+  content: "";
+  display: block;
+  box-sizing: border-box;
+}
+
+/* Home — identical in buyer navigation and seller overview */
+.nav-home::before {
+  z-index: 1;
+  left: 50%;
+  top: 3px;
+  width: 20px;
+  height: 20px;
+  border: 2.8px solid currentColor;
+  border-right: 0;
+  border-bottom: 0;
+  border-radius: 4px 2px 2px 2px;
+  background: var(--icon-surface);
+  transform: translateX(-50%) rotate(45deg);
+}
+.nav-home::after {
+  z-index: 2;
+  left: 50%;
+  top: 13px;
+  width: 27px;
+  height: 21px;
+  border: 2.8px solid currentColor;
+  border-top: 0;
+  border-radius: 0 0 7px 7px;
+  background: var(--icon-surface);
+  transform: translateX(-50%);
+}
+.nav-home > span {
+  z-index: 3;
+  left: 50%;
+  top: 22px;
+  width: 9px;
+  height: 13px;
+  border: 2.8px solid currentColor;
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: var(--icon-surface);
+  transform: translateX(-50%);
+}
+
+/* Clipboard order */
+.nav-order::before {
+  left: 50%;
+  top: 6px;
+  width: 28px;
+  height: 29px;
+  border: 2.8px solid currentColor;
+  border-radius: 7px;
+  background: transparent;
+  transform: translateX(-50%);
+}
+.nav-order::after {
+  left: 50%;
+  top: 2px;
+  width: 15px;
+  height: 9px;
+  border: 2.8px solid currentColor;
+  border-radius: 5px;
+  background: var(--icon-surface);
+  transform: translateX(-50%);
+}
+.nav-order > span {
+  left: 50%;
+  top: 17px;
+  width: 15px;
+  height: 2.8px;
+  border: 0;
+  border-radius: 2px;
+  background: currentColor;
+  box-shadow: 0 8px 0 currentColor;
+  transform: translateX(-50%);
+}
+
+/* Three-dot message bubble */
+.nav-message::before {
+  left: 50%;
+  top: 5px;
+  width: 32px;
+  height: 26px;
+  border: 2.8px solid currentColor;
+  border-radius: 15px;
+  background: transparent;
+  transform: translateX(-50%);
+}
+.nav-message::after {
+  left: calc(50% - 13px);
+  top: 25px;
+  width: 12px;
+  height: 10px;
+  border: 0;
+  border-left: 2.8px solid currentColor;
+  border-bottom: 2.8px solid currentColor;
+  border-radius: 0 0 0 2px;
+  background: var(--icon-surface);
+  transform: skew(-24deg) rotate(-8deg);
+}
+.nav-message > span {
+  left: 50%;
+  top: 15px;
+  width: 4px;
+  height: 4px;
+  border: 0;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: -8px 0 0 currentColor,8px 0 0 currentColor;
+  transform: translateX(-50%);
+}
+
+/* Person */
+.nav-mine::before {
+  left: 50%;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border: 2.8px solid currentColor;
+  border-radius: 50%;
+  background: transparent;
+  transform: translateX(-50%);
+}
+.nav-mine::after {
+  left: 50%;
+  top: 20px;
+  width: 31px;
+  height: 16px;
+  border: 2.8px solid currentColor;
+  border-bottom: 0;
+  border-radius: 18px 18px 3px 3px;
+  background: transparent;
+  transform: translateX(-50%);
+}
+.nav-mine > span { display: none; }
+
+/* Four-square services */
+.nav-service::before,.nav-service::after,.nav-service > span,.nav-service > span::before {
+  width: 13px;
+  height: 13px;
+  border: 2.8px solid currentColor;
+  border-radius: 5px;
+  background: transparent;
+  transform: none;
+}
+.nav-service::before { left: 4px; top: 4px; }
+.nav-service::after { left: 21px; top: 4px; }
+.nav-service > span { left: 4px; top: 21px; box-shadow: none; }
+.nav-service > span::before { left: 14px; top: -2.8px; }
+
+/* Five-point outline favorite */
+.nav-favorite::before {
+  left: 50%;
+  top: 2px;
+  width: 35px;
+  height: 34px;
+  border: 0;
+  background: currentColor;
+  clip-path: polygon(50% 0,61% 34%,98% 35%,68% 56%,79% 93%,50% 71%,21% 93%,32% 56%,2% 35%,39% 34%);
+  transform: translateX(-50%);
+}
+.nav-favorite::after {
+  left: 50%;
+  top: 7px;
+  width: 25px;
+  height: 24px;
+  border: 0;
+  background: var(--icon-surface);
+  clip-path: polygon(50% 0,61% 34%,98% 35%,68% 56%,79% 93%,50% 71%,21% 93%,32% 56%,2% 35%,39% 34%);
+  transform: translateX(-50%);
+}
+.nav-favorite > span { display: none; }
+
+/* Supporting icons keep the same rounded 2.8px line language */
+.nav-wallet::before { left:50%; top:8px; width:30px; height:23px; border:2.8px solid currentColor; border-radius:7px; background:transparent; transform:translateX(-50%); }
+.nav-wallet::after { left:calc(50% + 2px); top:14px; width:14px; height:11px; border:2.8px solid currentColor; border-radius:5px 0 0 5px; background:var(--icon-surface); }
+.nav-wallet > span { display:none; }
+.nav-coupon::before { left:50%; top:8px; width:33px; height:24px; border:2.8px solid currentColor; border-radius:7px; background:transparent; transform:translateX(-50%); }
+.nav-coupon::after { left:50%; top:11px; width:2px; height:18px; border-left:2.8px dashed currentColor; transform:translateX(-50%); }
+.nav-coupon > span { display:none; }
+.nav-shield::before { left:50%; top:3px; width:28px; height:33px; border:2.8px solid currentColor; border-radius:12px 12px 15px 15px; background:transparent; clip-path:polygon(50% 0,100% 18%,93% 73%,50% 100%,7% 73%,0 18%); transform:translateX(-50%); }
+.nav-shield::after { left:50%; top:13px; width:11px; height:7px; border-left:2.8px solid currentColor; border-bottom:2.8px solid currentColor; background:transparent; transform:translateX(-50%) rotate(-45deg); }
+.nav-shield > span { display:none; }
+.nav-setting::before { left:50%; top:5px; width:29px; height:29px; border:4px dotted currentColor; border-radius:50%; background:transparent; transform:translateX(-50%); }
+.nav-setting::after { left:50%; top:13px; width:13px; height:13px; border:2.8px solid currentColor; border-radius:50%; background:transparent; transform:translateX(-50%); }
+.nav-setting > span { display:none; }
+.nav-filter::before { left:50%; top:6px; width:29px; height:28px; border:2.8px solid currentColor; background:transparent; clip-path:polygon(0 0,100% 0,63% 47%,63% 84%,43% 100%,43% 47%); transform:translateX(-50%); }
+.nav-filter::after,.nav-filter > span { display:none; }
+
+/* Never fill active icons: only color changes, preserving the reference geometry */
+.bottom-nav button.active .nav-symbol { color: var(--orange); }
+.bottom-nav button.active .nav-home::before,.bottom-nav button.active .nav-home::after,.bottom-nav button.active .nav-home > span,.bottom-nav button.active .nav-order::before,.bottom-nav button.active .nav-message::before,.bottom-nav button.active .nav-mine::before { background: var(--icon-surface); }
+.bottom-nav button.active .nav-mine::after { background: transparent; }
+.bottom-nav button.active .nav-order::after { border-color: currentColor; background: var(--icon-surface); }
+.bottom-nav button.active .nav-order > span,.bottom-nav button.active .nav-message > span { background: currentColor; }
+.bottom-nav button.active .nav-order > span { box-shadow:0 8px 0 currentColor; }
+.bottom-nav button.active .nav-message > span { box-shadow:-8px 0 0 currentColor,8px 0 0 currentColor; }
+
+/* Shared component sizing across every page */
+.bottom-nav .nav-symbol { --icon-surface:#fff; width:38px; height:38px; }
+.seller-tool-icon.nav-symbol { --icon-surface:#e1f1ff; width:46px; height:46px; margin:0 auto; color:#2877b9; }
+.seller-tool-icon.nav-symbol::before,.seller-tool-icon.nav-symbol::after,.seller-tool-icon.nav-symbol > span { translate:none !important; }
+.seller-tool-icon.nav-service::before { left:8px; top:8px; }
+.seller-tool-icon.nav-service::after { left:25px; top:8px; }
+.seller-tool-icon.nav-service > span { left:8px; top:25px; }
+.menu-symbol.nav-symbol { --icon-surface:#f8f4ed; width:42px; height:42px; color:#4e555b; }
+.mine-grid .asset-symbol.nav-symbol { width:48px; height:48px; }
+.mine-grid .nav-favorite { --icon-surface:#fff1e8; }
+.mine-grid .nav-coupon { --icon-surface:#e9f3ff; }
+.support-entry > .nav-symbol { --icon-surface:#eef7ff; width:44px; height:44px; border:2px solid #cbe3f4; border-radius:14px; background:#eef7ff; color:#2879b8; transform:scale(.82); }
+.header-actions .icon-button > .nav-symbol { --icon-surface:rgba(255,255,255,.9); width:38px; height:38px; }
+.store-actions button { display:flex; align-items:center; justify-content:center; gap:8px; }
+.store-actions .nav-symbol { width:27px; height:27px; transform:scale(.68); margin:-6px; }
+.store-actions .follow-action .nav-symbol { --icon-surface:#fff7f1; color:var(--orange); }
+.store-actions .consult-action .nav-symbol { --icon-surface:#edf7ff; color:#2479be; }
+.service-actions .icon-action .nav-symbol { width:31px; height:31px; transform:scale(.72); margin:-5px 0 -3px; }
+.service-actions .icon-action:first-child .nav-symbol { --icon-surface:#fff; color:#267cbd; }
+.service-actions .icon-action:nth-child(2) .nav-symbol { --icon-surface:#fff; color:var(--orange); }
+.service-actions .icon-action.active .nav-favorite::after { background:currentColor; transform:translateX(-50%) scale(.55); }
