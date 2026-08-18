@@ -41,7 +41,8 @@ function IconButton({ children, label, onClick, badge }: { children: React.React
 }
 
 function AppIcon({ kind, className = "" }: { kind: string; className?: string }) {
-  return <i aria-hidden="true" className={`nav-symbol nav-${kind} ${className}`}><span /></i>;
+  const asset = kind === "filter" ? "service" : kind;
+  return <i aria-hidden="true" className={`nav-symbol nav-${kind} ${className}`}><img src={`/assets/icon-${asset}.png`} alt="" /></i>;
 }
 
 function Header({ title, subtitle, back, actions }: { title: string; subtitle?: string; back?: () => void; actions?: React.ReactNode }) {
