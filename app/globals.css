@@ -13,6 +13,10 @@
   --sky: #b8dcfb;
   --shadow: 0 10px 24px rgba(75, 57, 32, .11), 0 2px 6px rgba(75, 57, 32, .07);
   --soft-shadow: 0 5px 14px rgba(75, 57, 32, .08), 0 1px 3px rgba(75, 57, 32, .05);
+  --device-safe-top: 32px;
+  --device-safe-right: 0px;
+  --device-safe-bottom: 0px;
+  --device-safe-left: 0px;
 }
 
 * { box-sizing: border-box; }
@@ -200,6 +204,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
 
 @media (max-width: 760px) {
+  :root {
+    --device-safe-top: max(env(safe-area-inset-top, 0px), 12px);
+    --device-safe-right: env(safe-area-inset-right, 0px);
+    --device-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --device-safe-left: env(safe-area-inset-left, 0px);
+  }
   html, body { background: var(--cream); }
   .site-stage { min-height: 100svh; display: block; padding: 0; background: var(--cream); }
   .brand-rail { display: none; }
@@ -1416,3 +1426,59 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .settings-group button > em,.order-seller-card > em,.public-home-preview > em,.seller-todo button > em { min-height: 38px; display: flex; align-items: center; padding-left: 8px; }
 .buyer-order-head button { min-height: 36px; font-size: 14px; }
 .manage-account { font-size: 13px; }
+
+/* Cross-platform device safe areas: iPhone Dynamic Island/notch and Android cutouts */
+.app-screen {
+  padding-top: var(--device-safe-top)!important;
+  padding-right: var(--device-safe-right);
+  padding-bottom: calc(88px + var(--device-safe-bottom));
+  padding-left: var(--device-safe-left);
+  scroll-padding-top: var(--device-safe-top);
+  scroll-padding-bottom: calc(88px + var(--device-safe-bottom));
+}
+.bottom-nav {
+  height: calc(86px + var(--device-safe-bottom));
+  padding-right: calc(15px + var(--device-safe-right));
+  padding-bottom: calc(8px + var(--device-safe-bottom));
+  padding-left: calc(15px + var(--device-safe-left));
+}
+.sticky-actions {
+  min-height: calc(72px + var(--device-safe-bottom));
+  padding-right: calc(12px + var(--device-safe-right));
+  padding-bottom: calc(11px + var(--device-safe-bottom));
+  padding-left: calc(12px + var(--device-safe-left));
+}
+.checkout-bar {
+  height: calc(74px + var(--device-safe-bottom));
+  padding-right: calc(13px + var(--device-safe-right));
+  padding-bottom: calc(10px + var(--device-safe-bottom));
+  padding-left: calc(13px + var(--device-safe-left));
+}
+.publish-submit {
+  padding-right: calc(13px + var(--device-safe-right));
+  padding-bottom: calc(10px + var(--device-safe-bottom));
+  padding-left: calc(13px + var(--device-safe-left));
+}
+.chat-screen { padding-bottom: var(--device-safe-bottom)!important; }
+.chat-input {
+  height: calc(68px + var(--device-safe-bottom));
+  padding-right: calc(12px + var(--device-safe-right));
+  padding-bottom: calc(12px + var(--device-safe-bottom));
+  padding-left: calc(12px + var(--device-safe-left));
+}
+.seller-publish-fixed { bottom: calc(85px + var(--device-safe-bottom)); }
+.draft-box-fixed { bottom: calc(142px + var(--device-safe-bottom)); }
+.app-toast { bottom: calc(96px + var(--device-safe-bottom)); }
+
+@supports (height: 100dvh) {
+  @media (max-width: 760px) {
+    .site-stage,.phone-shell { height: 100dvh; min-height: 100dvh; }
+  }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .app-screen {
+    padding-right: max(var(--device-safe-right), 10px);
+    padding-left: max(var(--device-safe-left), 10px);
+  }
+}

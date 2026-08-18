@@ -65,9 +65,10 @@ test("keeps the established brand assets and design tokens", async () => {
 });
 
 test("includes the refined buyer and seller interactions", async () => {
-  const [page, css] = await Promise.all([
+  const [page, css, layout] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(page, /search-scope-select/);
   assert.match(page, /搜索陪玩昵称或ID/);
@@ -85,4 +86,8 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(css, /\.buyer-assets \.nav-favorite::before/);
   assert.match(css, /\.product-hero \{ height: auto; aspect-ratio: 1 \/ 1; \}/);
   assert.match(css, /\.withdraw-record-list article b \{ font-size: 23px; \}/);
+  assert.match(css, /--device-safe-top:\s*max\(env\(safe-area-inset-top, 0px\), 12px\)/);
+  assert.match(css, /padding-bottom:\s*calc\(88px \+ var\(--device-safe-bottom\)\)/);
+  assert.match(css, /\.bottom-nav \{[\s\S]*height:\s*calc\(86px \+ var\(--device-safe-bottom\)\)/);
+  assert.match(layout, /viewportFit:\s*"cover"/);
 });
