@@ -1,0 +1,35 @@
+{
+  "name": "@xiongzai/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "start": "node --enable-source-maps dist/main.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "pnpm run build && node --test --test-concurrency=1 tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/platform-fastify": "11.1.6",
+    "@xiongzai/auth": "workspace:*",
+    "@xiongzai/application": "workspace:*",
+    "@xiongzai/contracts": "workspace:*",
+    "@xiongzai/database": "workspace:*",
+    "@xiongzai/observability": "workspace:*",
+    "fastify": "5.6.1",
+    "drizzle-orm": "0.45.2",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "zod": "4.1.11"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "pg": "8.16.3",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

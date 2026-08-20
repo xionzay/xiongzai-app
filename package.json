@@ -2,6 +2,7 @@
   "name": "site-creator-vinext-starter",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.19.0",
   "engines": {
     "node": ">=22.13.0"
   },
@@ -9,9 +10,23 @@
     "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext dev",
     "build": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "test": "pnpm run build && node --test tests/*.test.mjs",
+    "lint": "eslint . --ignore-pattern '**/dist/**' --ignore-pattern '.next/**' --ignore-pattern '.vinext/**'",
+    "db:generate": "pnpm --filter @xiongzai/database db:generate",
+    "db:migrate": "pnpm --filter @xiongzai/database db:migrate",
+    "db:check": "pnpm --filter @xiongzai/database db:check",
+    "db:studio": "pnpm --filter @xiongzai/database db:studio",
+    "db:test": "pnpm --filter @xiongzai/database test",
+    "db:local:setup": "node packages/database/scripts/setup-local-postgres.mjs",
+    "db:local:verify": "node --env-file=.env.backend.local packages/database/scripts/verify-local-postgres.mjs",
+    "backend:build": "pnpm --filter './packages/**' --filter './apps/**' build",
+    "backend:typecheck": "pnpm run backend:build && pnpm --filter './packages/**' --filter './apps/**' typecheck",
+    "backend:test": "pnpm --filter './packages/**' --filter './apps/**' test",
+    "e2e:test": "pnpm --filter @xiongzai/api build && node --env-file=.env.backend.local --test apps/api/tests/user-journey.e2e.test.mjs",
+    "api:dev": "pnpm --filter @xiongzai/api dev",
+    "admin:bootstrap": "pnpm --filter @xiongzai/api build && node --env-file=.env.backend.local apps/api/scripts/bootstrap-admin.mjs",
+    "worker:dev": "pnpm --filter @xiongzai/worker dev",
+    "scheduler:dev": "pnpm --filter @xiongzai/scheduler dev"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

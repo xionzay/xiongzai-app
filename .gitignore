@@ -2,6 +2,8 @@
 
 # dependencies
 /node_modules
+/packages/*/node_modules/
+/apps/*/node_modules/
 /.pnpm-store/
 /.pnp
 .pnp.*
@@ -36,6 +38,13 @@ yarn-error.log*
 .vercel
 
 /dist/
+/packages/*/dist/
+/apps/*/dist/
+*.tsbuildinfo
 /.wrangler/
 /outputs/
 /work/
+/.local/
+
+# generated document render/visual-QA artifacts
+/docs/prd-qa*/

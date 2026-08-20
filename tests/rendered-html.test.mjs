@@ -28,23 +28,30 @@ test("contains all buyer and seller MVP route groups", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   const buyerPages = [
     "splash", "auth", "profileSetup", "home", "search", "searchResults",
-    "companion", "service", "specs", "favorites", "messages", "chat",
+    "companion", "service", "specs", "favorites", "allReviews", "reviewDetail",
+    "messages", "notifications", "notificationDetail", "chat", "customerService",
     "checkout", "payment", "paymentResult", "orders", "orderDetail",
-    "refundApply", "refundDetail", "complaint", "review", "mine",
-    "editProfile", "rules", "settings",
+    "refundApply", "refundDetail", "complaint", "complaintDetail", "review",
+    "transactionStates", "mine", "buyerProfile", "coupons", "editProfile",
+    "privacySecurity", "rules", "settings", "globalStates",
   ];
   const sellerPages = [
     "sellerApplyForm", "sellerApplyStatus", "seller", "sellerProfile",
     "sellerPublish", "sellerServices", "sellerServiceEdit", "sellerOrders",
-    "sellerOrderDetail", "sellerEarnings", "incomeDetails", "withdraw", "withdrawals",
+    "sellerOrderDetail", "sellerEarnings", "incomeDetails", "withdraw",
+    "payoutAccounts", "withdrawals", "sellerStateMatrix",
   ];
   for (const route of [...buyerPages, ...sellerPages]) {
     assert.match(page, new RegExp(`case "${route}"|page: "${route}"`), `missing route ${route}`);
   }
-  assert.match(page, /买家端 25 页 · 陪玩中心 14 页/);
+  assert.match(page, /买家端、陪玩中心与全局状态已整合/);
   assert.match(page, /支付成功/);
   assert.match(page, /投诉与平台介入/);
   assert.match(page, /收益提现/);
+  assert.match(page, /系统通知/);
+  assert.match(page, /投诉详情/);
+  assert.match(page, /收款账户管理/);
+  assert.match(page, /0 张可用/);
 });
 
 test("keeps the established brand assets and design tokens", async () => {
@@ -88,6 +95,15 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(page, /ui-star-rounded\.jpg/);
   assert.match(page, /ui-coupon-rounded\.jpg/);
   assert.match(page, /function RatingStar\(\{ selected \}/);
+  assert.match(page, /function CompanionFavoriteIcon\(\{ selected \}/);
+  assert.match(page, /fill=\{selected \? color : "transparent"\}/);
+  assert.match(page, /aria-pressed=\{favorite\}/);
+  assert.match(page, /className="companion-message-svg"/);
+  assert.match(page, /strokeWidth="6" strokeLinejoin="round"/);
+  assert.match(page, /className="icon-action consult-service-action"/);
+  assert.match(page, /className=\{`icon-action favorite-service-action/);
+  assert.match(page, /className="message-order-notice-icon" src="\/assets\/icon-order\.png"/);
+  assert.match(page, /className="apply-media-upload"/);
   assert.match(page, /<RatingStar selected=\{star <= rating\}/);
   assert.match(page, /type RatingStarState = "StarOutline" \| "StarFilled"/);
   assert.match(page, /fill=\{state === "StarFilled" \? RATING_STAR_COLOR : "transparent"\}/);
@@ -98,12 +114,12 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(page, /availability-menu/);
   assert.match(page, /order\.price\.toFixed\(2\)/);
   assert.match(page, /服务已提交审核，可在审核中查看/);
-  assert.match(page, /\["草稿箱", 2\]/);
+  assert.match(page, /counts\[name\] \?\? 0/);
   assert.doesNotMatch(page, /className="seller-publish-fixed"/);
   assert.match(page, /ui-person-outline\.jpg/);
   assert.match(page, /预计 3 分钟内响应/);
   assert.match(page, /price\.toFixed\(2\)/);
-  assert.match(page, /placeholder="请选择或填写期望服务时间"/);
+  assert.match(page, /选择陪玩可接单的时间/);
   assert.match(page, /payment-account-switch/);
   assert.match(page, /EarningsPicker label="年份"/);
   assert.match(page, /EarningsPicker label="月份"/);
@@ -135,4 +151,169 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.match(css, /padding-bottom:\s*calc\(88px \+ var\(--device-safe-bottom\)\)/);
   assert.match(css, /\.bottom-nav \{[\s\S]*height:\s*calc\(86px \+ var\(--device-safe-bottom\)\)/);
   assert.match(layout, /viewportFit:\s*"cover"/);
+});
+
+test("includes the latest page-scoped accessibility polish", async () => {
+  const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(css, /\.complaint-detail-screen \.case-timeline > \.section-title \{[\s\S]*display: flex;[\s\S]*writing-mode: horizontal-tb;/);
+  assert.match(css, /\.privacy-screen \.security-list button,[\s\S]*min-height: 72px;/);
+  assert.match(css, /\.settings-screen \.identity-settings button b,[\s\S]*font-size: 15px;/);
+  assert.match(css, /\.companion-screen \.store-actions \.follow-action,[\s\S]*background: transparent!important;[\s\S]*box-shadow: none!important;/);
+  assert.match(css, /\.companion-action-icon \{[\s\S]*background: transparent;[\s\S]*box-shadow: none;/);
+  assert.match(css, /\.companion-action-label \{[\s\S]*align-items: center;[\s\S]*min-height: 34px;/);
+  assert.match(css, /\.companion-message-svg \{[\s\S]*color: #2f8fe5;/);
+  assert.match(css, /\.service-actions \.favorite-service-action,[\s\S]*color: #ff5a1f;/);
+  assert.match(css, /\.favorite-companion-list \.shop-copy \{[\s\S]*grid-template-rows: 22px 19px 32px 20px;/);
+  assert.match(css, /\.seller-apply-form-screen \.apply-form \.apply-media-upload \{[\s\S]*aspect-ratio: 1 \/ 1;/);
+  assert.match(css, /\.payment-result-screen \.result-hero > span \{[\s\S]*transform: none;/);
+  assert.match(css, /\.privacy-switch-list button\[role="switch"\] \{[\s\S]*height: 22px;/);
+  assert.match(css, /\.seller-order-detail-screen \.order-facts span \{[\s\S]*font-size: 13px;/);
+  assert.match(css, /\.seller-refund-screen \.seller-refund-evidence p \{[\s\S]*font-size: 13px;/);
+  assert.match(css, /\.withdrawal-detail-screen \.withdrawal-detail-facts b \{[\s\S]*font-size: 14px;/);
+  assert.match(css, /\.seller-service-edit-screen \.edit-review-notice b \{[\s\S]*font-size: 14px;/);
+  assert.match(css, /\.withdraw-screen \.withdraw-form label > div:focus-within \{[\s\S]*box-shadow: none;/);
+  assert.match(css, /\.withdraw-screen \.withdraw-form label > div > input:focus-visible \{[\s\S]*outline: 0!important;[\s\S]*box-shadow: none!important;/);
+  assert.match(css, /\.payout-accounts-screen \.account-list article > button \{[\s\S]*border: 1px solid #7eb6e5;[\s\S]*font-size: 12px;/);
+  assert.match(css, /\.search-results-screen \.result-search em \{[\s\S]*font-size: 13px;/);
+  assert.match(css, /\.seller-screen \.header-actions \.icon-button,[\s\S]*place-items: center;/);
+});
+
+test("covers every newly completed MVP state route and PRD transition", async () => {
+  const [page, css, prd] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../docs/熊崽电竞-和平精英C2C游戏陪玩交易平台-PRD-V2.0.md", import.meta.url), "utf8"),
+  ]);
+  const routes = [
+    "agreementDetail", "authGuard", "serviceUnavailable", "bookingSchedule", "paymentExceptions",
+    "paymentProcessing", "paymentFailure", "paymentCancelled", "paymentClosed",
+    "orderPendingPayment", "orderAccepted", "orderInService", "orderPendingConfirm", "orderCompleted",
+    "orderReviewed", "orderCancelled", "orderSellerRejected", "orderAfterSale", "orderRefunded",
+    "refundRejected", "refundPlatform", "refundProcessing", "refundCompleted", "refundClosed",
+    "complaintEvidence", "complaintCompleted", "complaintClosed",
+    "reviewStates", "chatStates", "mediaWorkflow", "permissionCenter",
+    "phoneSecurity", "privacySettings", "dataExport", "accountCancellation",
+    "sellerApplyReview", "sellerApplySupplement", "sellerApplyRejected", "sellerApplySuspended",
+    "serviceAuditDetail", "sellerOrderAccepted", "sellerOrderInService", "sellerOrderPendingConfirm", "sellerOrderCompleted",
+    "sellerOrderClosed", "sellerOrderRefunded", "sellerRefund", "withdrawalDetail",
+    "emptySearch", "emptyOrders", "emptyMessages", "emptyFavorites", "emptyIncome", "restrictedAccess",
+  ];
+  for (const route of routes) assert.match(page, new RegExp(`case "${route}"`), `missing completed route ${route}`);
+  assert.match(page, /function PaymentProcessingScreen/);
+  assert.match(page, /function ServiceAuditDetailScreen/);
+  assert.match(page, /function SellerRefundScreen/);
+  assert.match(page, /function WithdrawalDetailScreen/);
+  assert.match(page, /function CustomerServiceScreen/);
+  assert.match(page, /function ContextStateScreen/);
+  assert.match(page, /function AgreementDetailScreen/);
+  assert.match(page, /function BookingScheduleScreen/);
+  assert.match(page, /function ServiceUnavailableScreen/);
+  assert.match(page, /function PaymentExceptionsScreen/);
+  assert.match(page, /function MediaWorkflowScreen/);
+  assert.match(page, /function PermissionCenterScreen/);
+  assert.match(page, /function ChatStatesScreen/);
+  assert.match(page, /function ReviewStatesScreen/);
+  assert.match(page, /const \[agreed, setAgreed\] = useState\(false\)/);
+  assert.match(css, /\.flow-overlay/);
+  assert.match(css, /\.security-subpage-screen/);
+  assert.match(css, /\.context-state-body/);
+  assert.match(css, /\.booking-slots button\.active/);
+  assert.match(css, /\.disabled-purchase-bar/);
+  assert.match(css, /\.media-canvas/);
+  assert.match(css, /\.permission-list/);
+  assert.match(css, /\.order-state-accepted/);
+  assert.match(prd, /B39 \| 注销账号/);
+  assert.match(prd, /B40 \| 平台客服/);
+  assert.match(prd, /B43 \| 预约时间/);
+  assert.match(prd, /B47 \| 消息发送全状态/);
+  assert.doesNotMatch(prd, /\| B36 \| 登录设备管理/);
+  assert.doesNotMatch(prd, /\| B39 \| 黑名单管理/);
+  assert.match(prd, /S17 \| 服务审核详情/);
+  assert.match(prd, /S19 \| 卖家订单待开始/);
+  assert.match(prd, /G09 \| 媒体上传与裁剪/);
+  assert.match(prd, /G10 \| 系统权限说明/);
+  assert.match(prd, /状态页跳转补充/);
+});
+
+test("connects login, profile, privacy, policy and identity screens to the real API without browser token storage", async () => {
+  const [page, controller] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/api/src/identity-user.controllers.ts", import.meta.url), "utf8"),
+  ]);
+  for (const endpoint of [
+    "/auth/sms/send", "/auth/sms/login", "/auth/token/refresh", "/auth/logout",
+    "/me/profile", "/me/privacy-settings", "/me/identity-verification",
+    "/policies/current", "/policies/acceptances",
+  ]) assert.match(page, new RegExp(endpoint.replaceAll("/", "\\/")), `missing API connection ${endpoint}`);
+  assert.match(page, /credentials:\s*"include"/);
+  assert.match(controller, /token_transport:\s*"http_only_cookie"/);
+  assert.doesNotMatch(page, /localStorage\.(setItem|getItem)\([^)]*(access|refresh|token)/i);
+});
+
+test("connects buyer checkout, payment, order views and seller fulfillment actions to the real API", async () => {
+  const [page, orderController, sellerController] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/api/src/order-payment.controllers.ts", import.meta.url), "utf8"),
+    readFile(new URL("../apps/api/src/seller-product.controllers.ts", import.meta.url), "utf8"),
+  ]);
+  for (const endpoint of [
+    "/orders/preview", "/orders", "/payments", "/mock-confirm", "/seller/orders", "/availability",
+  ]) assert.match(page, new RegExp(endpoint.replaceAll("/", "\\/")), `missing transaction UI connection ${endpoint}`);
+  assert.match(page, /"idempotency-key"/);
+  assert.match(page, /discount_cent/);
+  assert.match(orderController, /Idempotency-Key 必须为 8 到 128 个字符/);
+  for (const route of ["accept", "start", "complete"]) assert.match(orderController, new RegExp(`:orderId/${route}`));
+  assert.match(sellerController, /:sellerId\/availability/);
+});
+
+test("does not replace empty core API responses with demo transactions", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(page, /const buyerOrders\s*=/);
+  assert.doesNotMatch(page, /const fallbackVisible\s*=/);
+  assert.match(page, /useState<Companion\[\]>\(\[\]\)/);
+  assert.match(page, /useState<Service\[\]>\(\[\]\)/);
+  assert.match(page, /className="paper-panel live-data-state failed"/);
+  assert.match(page, /onRetry=\{\(\) => void loadDiscovery\(\)\}/);
+});
+
+test("connects chat, support cases and notifications to the real API", async () => {
+  const [page, controller] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/api/src/chat-support-notification.controllers.ts", import.meta.url), "utf8"),
+  ]);
+  for (const endpoint of [
+    "/conversations?limit=50", "/conversations/consultations", "/conversations/orders",
+    "/support-cases", "/notifications?limit=50", "/notifications/${item.id}/read",
+  ]) assert.ok(page.includes(endpoint), `missing chat UI connection ${endpoint}`);
+  assert.match(page, /client_message_id/);
+  assert.match(page, /last_read_sequence_no/);
+  assert.match(controller, /evidence-view/);
+  assert.match(controller, /RequirePermissions\("conversation\.evidence\.read"\)/);
+});
+
+test("connects refunds, complaints and immutable reviews to the real API", async () => {
+  const [page, controller] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../apps/api/src/after-sale.controllers.ts", import.meta.url), "utf8"),
+  ]);
+  for (const endpoint of ["/refunds", "/seller/refunds", "/complaints", "/reviews", "/reviews?limit=100"]) {
+    assert.ok(page.includes(endpoint), `missing after-sale UI connection ${endpoint}`);
+  }
+  assert.match(page, /requested_amount_cent/);
+  assert.match(page, /target_type:\s*"ORDER"/);
+  assert.match(controller, /approved_amount_cent/);
+  assert.match(controller, /:complaintId\/evidences/);
+  assert.match(controller, /rating:\s*z\.number\(\)\.int\(\)\.min\(1\)\.max\(5\)/);
+  assert.match(controller, /:reviewId\/moderation/);
+});
+
+test("connects seller income, payout accounts and withdrawals to bigint finance APIs", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  for (const endpoint of ["/seller/finance/summary", "/seller/finance/incomes", "/seller/finance/liabilities", "/seller/payout-accounts", "/seller/withdrawals"]) {
+    assert.ok(page.includes(endpoint), `missing finance UI connection ${endpoint}`);
+  }
+  assert.match(page, /amount_cent:amountCent/);
+  assert.match(page, /"idempotency-key"/);
+  assert.match(page, /提现申请已提交，收益已按 FIFO 锁定/);
+  assert.doesNotMatch(page, /const fee = Number\(amount/);
 });
