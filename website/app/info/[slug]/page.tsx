@@ -40,3 +40,5 @@ export default async function InformationPage({ params }: { params: Promise<{ sl
     <footer>© 2026 重庆熊崽网络科技有限公司</footer>
   </main>;
 }
+
+

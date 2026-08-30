@@ -6,3 +6,5 @@
 @keyframes drift{to{background-position:70px 70px}}
 @media(max-width:600px){.page{padding:10px 12px 25px}.page>header{min-height:62px;border-radius:18px;padding:0 10px}.page>header img{width:43px;height:43px}.page>header b{font-size:15px}.page article{margin:65px auto;padding:30px 22px;border-radius:26px}.page h1{margin-bottom:27px}.page article>div p{font-size:13px}.page>header>a:last-child{padding:10px 12px}}
 @media(prefers-reduced-motion:reduce){.stars{animation:none}}
+
+
