@@ -1,38 +1,33 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
 import "./globals.css";
+
+const title = "熊崽电竞官网 · 让每个人都能创造价值";
+const description = "熊崽电竞是重庆熊崽网络科技有限公司旗下的游戏服务产品，提供服务发现、陪玩主页、服务选择、订单记录与平台支持体验。";
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: "#fff9ee",
+  themeColor: "#101dc5",
 };
 
-export async function generateMetadata(): Promise<Metadata> {
-  const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost:3000";
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
-  const imageUrl = `${protocol}://${host}/og.png`;
-  const title = "熊崽电竞 · 和平精英陪玩交易";
-  const description = "熊崽电竞是面向和平精英玩家的买家端与陪玩中心一体化 C2C 游戏服务交易平台。";
-  return {
-    title,
-    description,
-    icons: { icon: "/assets/xiongzai-icon.png", shortcut: "/assets/xiongzai-icon.png" },
-    openGraph: { title, description, images: [{ url: imageUrl, width: 1536, height: 1024, alt: "熊崽电竞和平精英陪玩交易" }] },
-    twitter: { card: "summary_large_image", title, description, images: [imageUrl] },
-  };
-}
+export const metadata: Metadata = {
+  title,
+  description,
+  keywords: ["熊崽电竞", "重庆熊崽网络科技有限公司", "游戏服务", "陪玩服务", "和平精英陪玩"],
+  icons: { icon: "/assets/xiongzai-icon.png", shortcut: "/assets/xiongzai-icon.png", apple: "/assets/xiongzai-icon.png" },
+  openGraph: { title, description, type: "website", locale: "zh_CN", siteName: "熊崽电竞", images: [{ url: "/og.png", width: 1536, height: 1024, alt: "熊崽电竞，让每个人都能创造价值" }] },
+  twitter: { card: "summary_large_image", title, description, images: ["/og.png"] },
+  robots: { index: true, follow: true },
+};
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  return (
-    <html lang="zh-CN">
-      <body>{children}</body>
-    </html>
-  );
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      { "@type": "Organization", name: "重庆熊崽网络科技有限公司", brand: { "@type": "Brand", name: "熊崽电竞" } },
+      { "@type": "SoftwareApplication", name: "熊崽电竞", applicationCategory: "GameApplication", operatingSystem: "iOS, Android, Web", description },
+    ],
+  };
+  return <html lang="zh-CN"><body>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} /></body></html>;
 }

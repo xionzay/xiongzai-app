@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>熊崽电竞官网真实用户端立体手机版</title>
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;width:633px;height:1333px;overflow:hidden;background:#10111c;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+    .stage{position:relative;width:633px;height:1333px;overflow:hidden;background:#fff}
+    .artboard{position:absolute;left:0;top:0;width:864px;height:1821px;overflow:hidden;background:#fff;transform:scale(.732015);transform-origin:top left}
+    .master{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+    .product-clean{position:absolute;z-index:2;left:0;top:695px;width:864px;height:620px;overflow:hidden;perspective:1500px;background:linear-gradient(180deg,transparent 0%,transparent 84%,#d4f4f0 100%),radial-gradient(circle at 49% 78%,rgba(255,208,192,.96),transparent 35%),linear-gradient(115deg,#a96ee4 0%,#d977c5 27%,#f185a7 62%,#ffae82 100%)}
+    .product-clean:before,.product-clean:after{content:"";position:absolute;border-radius:50%;opacity:.32;filter:blur(1px)}
+    .product-clean:before{width:360px;height:260px;left:-110px;top:40px;background:#9f67ef}.product-clean:after{width:350px;height:270px;right:-130px;top:75px;background:#ffc083}
+    .floor-shadow{position:absolute;z-index:3;left:95px;right:95px;bottom:79px;height:88px;border-radius:50%;background:radial-gradient(ellipse,rgba(72,42,86,.30),rgba(72,42,86,0) 70%);filter:blur(9px)}
+    .dashed{position:absolute;z-index:4;left:60px;right:60px;bottom:31px;height:78px;border-bottom:2px dashed rgba(255,255,255,.82);border-radius:50%}
+    .helper{position:absolute;z-index:12;left:50%;bottom:10px;transform:translateX(-50%);width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 9px 8px rgba(70,66,122,.25))}
+    .bubble{position:absolute;z-index:12;bottom:66px;padding:10px 15px;border-radius:17px;background:rgba(255,255,255,.94);color:#f06a65;font-size:13px;font-weight:800;box-shadow:0 8px 19px rgba(150,74,103,.18)}
+    .bubble.left{left:30px}.bubble.right{right:30px}
+
+    .device{position:absolute;z-index:7;width:238px;height:510px;padding:10px;border-radius:43px;background:linear-gradient(145deg,#fff 0%,#d2d4dc 18%,#fefefe 37%,#bfc2cc 56%,#f9f9fb 77%,#c3c5ce 100%);border:1px solid rgba(255,255,255,.96);box-shadow:0 29px 46px rgba(67,40,67,.34),0 8px 13px rgba(71,39,59,.20),inset 0 0 0 2px rgba(79,75,89,.20),inset 3px 3px 7px rgba(255,255,255,.96);transform-style:preserve-3d;backface-visibility:hidden}
+    .device:before{content:"";position:absolute;z-index:-1;left:-8px;top:82px;width:9px;height:93px;border-radius:7px 0 0 7px;background:linear-gradient(90deg,#858894,#e7e8ed 68%,#a0a3ad);box-shadow:-2px 4px 7px rgba(50,44,57,.25)}
+    .device:after{content:"";position:absolute;pointer-events:none;inset:3px;border-radius:39px;border:2px solid rgba(255,255,255,.72);box-shadow:inset -5px -5px 9px rgba(79,72,87,.18),inset 4px 4px 8px rgba(255,255,255,.82)}
+    .device.left{left:58px;top:30px;z-index:7;transform:rotateY(13deg) rotateZ(-5.2deg) translateZ(22px)}
+    .device.center{left:313px;top:12px;z-index:10;transform:translateZ(52px) scale(1.025)}
+    .device.right{left:568px;top:30px;z-index:7;transform:rotateY(-13deg) rotateZ(5.2deg) translateZ(22px)}
+    .screen{position:relative;width:100%;height:100%;overflow:hidden;border-radius:34px;background:#fff9ee;box-shadow:inset 0 0 0 2px rgba(34,31,38,.50),inset 0 0 17px rgba(32,25,38,.24)}
+    .screen iframe{position:absolute;left:-6px;top:0;width:430px;height:900px;border:0;transform:scale(.536);transform-origin:top left;pointer-events:none;background:#fff9ee}
+    .screen-shine{position:absolute;z-index:3;pointer-events:none;inset:0;border-radius:33px;background:linear-gradient(115deg,rgba(255,255,255,.20),transparent 24%,transparent 74%,rgba(255,255,255,.13));box-shadow:inset 0 0 14px rgba(0,0,0,.14)}
+    .speaker{position:absolute;z-index:9;left:50%;top:7px;width:45px;height:4px;border-radius:3px;transform:translateX(-50%);background:rgba(46,45,51,.36)}
+
+    .download-panel{position:absolute;z-index:4;left:46px;top:1684px;width:772px;height:104px;border-radius:19px;background:rgba(247,255,253,.97);border:1px solid #fff;box-shadow:0 8px 26px rgba(45,104,103,.12);display:flex;align-items:center;padding:15px 24px;color:#123f4e}
+    .download-copy{width:255px}.download-copy h3{margin:0;font-size:21px;color:#153f61}.download-copy p{margin:6px 0 0;font-size:11px;color:#53808c}.download-actions{flex:1;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px}.download-btn{height:39px;min-width:157px;border-radius:14px;color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 18px rgba(69,91,238,.2)}.ios{background:linear-gradient(135deg,#4353f4,#587ff8)}.android{background:linear-gradient(135deg,#24a977,#49c59b)}.download-links{width:100%;text-align:right;margin-top:-3px;font-size:10px;color:#477385}
+  </style>
+</head>
+<body><div class="stage"><main class="artboard">
+  <img class="master" src="/design-preview/exact-four/base.png" alt="熊崽电竞官网参考设计" />
+  <section class="product-clean" aria-label="真实用户端产品展示">
+    <div class="floor-shadow"></div><div class="dashed"></div><span class="bubble left">发现陪玩</span><span class="bubble right">查看订单</span><img class="helper" src="/assets/xiongzai-icon.png" alt="熊崽小助手" />
+    <article class="device left" aria-label="立体手机：首页显示两个陪玩"><span class="speaker"></span><div class="screen"><iframe src="/website-ui-preview?screen=home" title="真实用户端首页"></iframe><span class="screen-shine"></span></div></article>
+    <article class="device center" aria-label="立体手机：真实陪玩主页"><span class="speaker"></span><div class="screen"><iframe src="/website-ui-preview?screen=companion" title="真实用户端陪玩主页"></iframe><span class="screen-shine"></span></div></article>
+    <article class="device right" aria-label="立体手机：真实订单页面"><span class="speaker"></span><div class="screen"><iframe src="/website-ui-preview?screen=orders" title="真实用户端订单页面"></iframe><span class="screen-shine"></span></div></article>
+  </section>
+  <section class="download-panel"><div class="download-copy"><h3>下载熊崽电竞</h3><p>iPhone 与 Android 均可安装</p></div><div class="download-actions"><div class="download-btn ios">▯　iPhone版下载</div><div class="download-btn android">▯　Android版下载</div><div class="download-links">安装帮助　·　版本说明　·　用户支持</div></div></section>
+</main></div></body></html>

@@ -1,0 +1,38 @@
+html:has(.website-ui-preview),body:has(.website-ui-preview){margin:0;width:430px;height:900px;min-height:900px;overflow:hidden;background:#fff9ee}
+.website-ui-preview{width:430px;height:900px;overflow:hidden;background:#fff9ee}
+.website-ui-preview .app-screen{width:430px;height:900px;min-height:900px;padding-top:0!important;padding-right:0!important;padding-left:0!important;padding-bottom:88px!important}
+.website-ui-preview .home-screen .home-section{padding-bottom:15px}
+.website-ui-preview .shop-grid{grid-template-columns:1fr 1fr}
+.website-ui-preview .shop-card{min-width:0}
+.website-ui-preview .shop-photo{height:128px;aspect-ratio:auto}
+.website-ui-preview .shop-copy{padding:9px}
+.website-ui-preview .shop-copy>strong{white-space:nowrap}
+.website-ui-preview .store-hero{height:364px;aspect-ratio:auto}
+.website-ui-preview .store-hero>img{object-position:center 22%}
+.website-ui-preview .sticky-actions{position:absolute}
+.website-ui-preview .website-orders-screen{padding-bottom:84px!important}
+.website-ui-preview .website-orders-screen .screen-header{min-height:72px}
+.website-ui-preview .website-orders-screen .big-order-filter{height:42px;overflow:hidden;padding:0 12px 7px;gap:10px}
+.website-ui-preview .website-orders-screen .big-order-filter button{font-size:9px;white-space:nowrap}
+.website-ui-preview .website-orders-screen .buyer-order-list{gap:6px;padding:3px 10px 7px}
+.website-ui-preview .website-orders-screen .buyer-order-card{border-radius:14px;padding:8px 9px 7px}
+.website-ui-preview .website-orders-screen .buyer-order-head{height:23px;padding-bottom:5px}
+.website-ui-preview .website-orders-screen .buyer-order-head button{min-height:18px;font-size:9px}
+.website-ui-preview .website-orders-screen .buyer-order-head b{font-size:8px}
+.website-ui-preview .website-orders-screen .buyer-order-product{grid-template-columns:66px minmax(0,1fr) auto;gap:8px;padding:6px 0}
+.website-ui-preview .website-orders-screen .buyer-order-product img{width:66px;height:66px;border-radius:10px}
+.website-ui-preview .website-orders-screen .buyer-order-product span b{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.website-ui-preview .website-orders-screen .buyer-order-product span small{margin-top:4px;font-size:7px;white-space:nowrap}
+.website-ui-preview .website-orders-screen .buyer-order-product strong{font-size:13px;color:var(--orange)}
+.website-ui-preview .website-orders-screen .buyer-order-actions{height:27px}
+.website-ui-preview .website-orders-screen .buyer-order-actions button{height:27px;border-radius:9px;padding:0 10px;font-size:7px}
+.website-ui-preview .website-service-screen{padding-bottom:82px!important}
+.website-ui-preview .website-service-screen .screen-header{min-height:62px}
+.website-ui-preview .website-service-screen .service-main-image{height:265px;aspect-ratio:auto;object-position:center}
+.website-ui-preview .website-service-screen .service-title-card{padding:11px 12px}
+.website-ui-preview .website-service-screen .service-title-card h2{font-size:14px}
+.website-ui-preview .website-service-screen .spec-panel{margin:0 12px 9px;padding:11px}
+.website-ui-preview .website-service-screen .spec-grid{gap:7px;margin-top:8px}
+.website-ui-preview .website-service-screen .spec-card{min-height:84px}
+.website-ui-preview .website-service-screen .service-store-card{margin-bottom:8px;padding:9px}
+.website-ui-preview .website-service-screen .avatar-md{width:48px;height:48px}
