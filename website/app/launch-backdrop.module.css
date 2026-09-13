@@ -1,0 +1,62 @@
+.backdrop {
+  --space-x: 0px; --space-y: 0px; --space-scroll: 0px;
+  position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none;
+  background: radial-gradient(ellipse at 80% 64%, #458fe1b3, transparent 52%), linear-gradient(135deg, #152954 8%, #244a94 47%, #508dd9 82%, #9cb8ee);
+}
+.planetLayer {
+  position: absolute; right: -15%; top: -38%; width: min(1050px, 76vw);
+  transform: translate3d(calc(var(--space-x) * -.25), calc(var(--space-y) * -.2 - var(--space-scroll) * .2), 0);
+  mask-image: linear-gradient(#000 50%, #000000b3 75%, transparent 100%);
+}
+.planet { display: block; width: 100%; height: auto; opacity: .73; animation: planetDrift 26s ease-in-out -6s infinite alternate; }
+.sunrise {
+  position: absolute; right: -5%; bottom: 2%; width: 73%; height: 77%;
+  background: radial-gradient(ellipse at 75% 70%, #a3e8ff88, #b4b7fc24 43%, transparent 69%);
+  animation: daylight 10s ease-in-out infinite;
+}
+.horizon {
+  position: absolute; inset: auto -4% -3%; height: 50%;
+  transform: translate3d(calc(var(--space-x) * -.3), calc(var(--space-y) * -.25 - var(--space-scroll) * .25), 0);
+  mask-image: linear-gradient(transparent, #000 42%);
+}
+.cloudSea { width: 100%; height: 100%; object-fit: cover; object-position: 78% 55%; animation: horizonDrift 28s ease-in-out -8s infinite alternate; }
+.midLayer { position: absolute; right: -15%; bottom: 5%; width: 53%; transform: translate3d(calc(var(--space-x) * .5), calc(var(--space-y) * .4 - var(--space-scroll) * .5), 0); }
+.midCloud { display: block; width: 100%; height: auto; opacity: .72; animation: cloudDrift 19s ease-in-out -5s infinite alternate; }
+.nearLayer { position: absolute; left: -14%; bottom: -8%; width: 65%; transform: translate3d(calc(var(--space-x) * .8), calc(var(--space-y) * .5 - var(--space-scroll) * .7), 0); }
+.nearCloud { display: block; width: 100%; height: auto; opacity: .85; animation: cloudDrift 14s ease-in-out -3s infinite alternate-reverse; }
+.readingShade { position: absolute; inset: 0; background: linear-gradient(90deg, #12295399, #15336655 36%, transparent 65%); mask-image: linear-gradient(#000 67%, transparent 95%); }
+.stardust { position: absolute; inset: 0; }
+.stardust i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #dbefff; box-shadow: 0 0 7px #bddcffb3; animation: twinkle 6s ease-in-out infinite; }
+.stardust i:nth-child(4n) { width: 2px; height: 2px; }
+.stardust i:nth-child(5n) { background: #ffe8ba; width: 4px; height: 4px; }
+.starA, .starB { position: absolute; animation: starDrift 9s ease-in-out infinite alternate; }
+.starA { width: 46px; top: 24%; right: 31%; }
+.starB { width: 30px; top: 65%; right: 4%; animation-delay: -4s; }
+.starA img, .starB img { display: block; width: 100%; height: auto; }
+@keyframes daylight { 0%, 100% { opacity: .65; transform: scale(.98); } 50% { opacity: .95; transform: scale(1.02); } }
+@keyframes planetDrift { from { transform: translate3d(-8px, 3px, 0) rotate(-.6deg); } to { transform: translate3d(12px, -9px, 0) rotate(.6deg); } }
+@keyframes horizonDrift { from { transform: translate3d(-2%, 0, 0) scale(1.06); } to { transform: translate3d(2%, 1%, 0) scale(1.06); } }
+@keyframes cloudDrift { from { transform: translate3d(-6%, 2%, 0); } to { transform: translate3d(6%, -3%, 0); } }
+@keyframes twinkle { 0%, 100% { opacity: .2; transform: translateY(2px) scale(.8); } 50% { opacity: .95; transform: translateY(-2px) scale(1.15); } }
+@keyframes starDrift { from { transform: translateY(-4px) rotate(-5deg); } to { transform: translateY(5px) rotate(5deg); } }
+@media (max-width: 900px) {
+  .planetLayer { width: 85vw; right: -28%; top: -16%; opacity: .6; }
+  .horizon { height: 42%; }
+  .starA { right: 12%; top: 20%; }
+}
+@media (max-width: 700px) {
+  .backdrop { background: radial-gradient(ellipse at 70% 86%, #8dc4f4, transparent 55%), linear-gradient(160deg, #162c5a, #315da9 65%, #8faee7); }
+  .planetLayer { width: 520px; right: -330px; top: -130px; opacity: .43; }
+  .horizon { height: 29%; left: -15%; right: -15%; mask-image: linear-gradient(transparent, #000 38%); }
+  .cloudSea { object-position: 80% 60%; animation-duration: 36s; }
+  .planet { animation-duration: 34s; }
+  .midLayer, .starA, .stardust i:nth-child(n+13) { display: none; }
+  .nearLayer { left: -16%; bottom: -4%; width: 110%; }
+  .readingShade { background: linear-gradient(#142c5733 0 50%, transparent 75%); }
+  .sunrise { bottom: 5%; width: 90%; height: 35%; }
+  .starB { top: 72%; right: 5%; width: 24px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .backdrop { --space-x: 0px !important; --space-y: 0px !important; --space-scroll: 0px !important; }
+  .planet, .sunrise, .cloudSea, .midCloud, .nearCloud, .stardust i, .starA, .starB { animation: none; }
+}

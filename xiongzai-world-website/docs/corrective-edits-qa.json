@@ -1,0 +1,28 @@
+{
+  "edit_requests": 2,
+  "retries": 0,
+  "assets": [
+    {
+      "path": "/Applications/c2c游戏服务软件/output/world-website-assets-20260912/04-whale-bay-final.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0918a-75e5-7ad3-8b3e-39104ffee4b9/exec-5f50f26e-b9f6-4256-b1a4-53024f58712e.png",
+      "dimensions": [
+        1086,
+        1448
+      ],
+      "mode": "RGB",
+      "qa": "Visually verified compact four-string ukulele with exactly four tuning pegs; both visible bear soles retain four small blue toe pads.",
+      "composition": "Preserved original scene, framing and character poses; subtle imagegen texture differences may exist outside corrected region."
+    },
+    {
+      "path": "/Applications/c2c游戏服务软件/output/world-website-assets-20260912/07-aurora-snowfield-final.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0918a-75e5-7ad3-8b3e-39104ffee4b9/exec-c8020ca8-69dd-4470-bd63-ba2965788b9b.png",
+      "dimensions": [
+        1086,
+        1448
+      ],
+      "mode": "RGB",
+      "qa": "Visually verified foreground lifted sole now has four distinct small blue toe pads above one larger central blue pad.",
+      "composition": "Preserved original scene, framing and character poses; subtle imagegen texture differences may exist outside corrected region."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "currentManifest": "fidelity-assets.json",
+  "currentPrompts": "../output/fidelity-repair/prompts.json",
+  "report": "fidelity-repair-report.md",
+  "historicalManifest": "asset-sources-initial.json",
+  "note": "Current revision uses 17 separately reconstructed illustrations, original user logo and original download JPG. Prior artwork sources are retained only as build history."
+}

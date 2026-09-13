@@ -1,0 +1,106 @@
+[
+  {
+    "file": "01-hero-world.png",
+    "width": 2172,
+    "height": 724,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ready"
+  },
+  {
+    "file": "02-hero-train.png",
+    "width": 1774,
+    "height": 887,
+    "color_type": 6,
+    "has_alpha": true,
+    "status": "ready"
+  },
+  {
+    "file": "03-sleeping-bear-final.png",
+    "width": 1774,
+    "height": 887,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ALPHA_FAILED_DO_NOT_USE"
+  },
+  {
+    "file": "03-sleeping-bear.png",
+    "width": 1774,
+    "height": 887,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ALPHA_FAILED_DO_NOT_USE"
+  },
+  {
+    "file": "04-cosmic-banner.png",
+    "width": 2172,
+    "height": 724,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ready"
+  },
+  {
+    "file": "05-town.png",
+    "width": 1086,
+    "height": 1448,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ready"
+  },
+  {
+    "file": "06-hero-bear-platform-final.png",
+    "width": 1536,
+    "height": 1024,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ALPHA_FAILED_DO_NOT_USE"
+  },
+  {
+    "file": "06-hero-bear-platform.png",
+    "width": 1536,
+    "height": 1024,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ALPHA_FAILED_DO_NOT_USE"
+  },
+  {
+    "file": "07-download-clean.png",
+    "width": 2138,
+    "height": 735,
+    "color_type": 2,
+    "has_alpha": false,
+    "status": "ready"
+  },
+  {
+    "file": "03-sleeping-sky.png",
+    "width": 1774,
+    "height": 887,
+    "has_alpha": false,
+    "status": "ready_opaque_background",
+    "limitation": "Viewer-left sole four toe dots; viewer-right sole has five, despite four requested. No checkerboard."
+  },
+  {
+    "file": "03-sleeping-sky-final.png",
+    "width": 1774,
+    "height": 887,
+    "has_alpha": false,
+    "status": "READY",
+    "verification": "No checkerboard. Both visible foot soles now have exactly four small blue toe pads and one large central blue pad. Original composition preserved."
+  },
+  {
+    "file": "06-hero-bear-sky.png",
+    "width": 1536,
+    "height": 1024,
+    "has_alpha": false,
+    "status": "READY",
+    "verification": "No checkerboard. Original bear/penguin/backpack/platform composition preserved. Both feet retain four small blue toe pads and one large pad. Opaque sky/cloud background is more saturated than requested #b6dfff, following reference01 sky."
+  },
+  {
+    "file": "06-hero-clean-cutout.png",
+    "width": 1536,
+    "height": 1024,
+    "has_alpha": true,
+    "status": "READY_TRUE_ALPHA",
+    "verification": "RGBA PNG; decoded alpha range0-254. 55.3374 percent of pixels fully transparent; sampled outer background points alpha0, foreground sample253. Foreground composition and four-toe anatomy visually retained. All source files preserved."
+  }
+]

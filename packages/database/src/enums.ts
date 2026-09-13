@@ -10,6 +10,39 @@ export const identityVerificationStatusEnum = pgEnum("identity_verification_stat
 ]);
 export const deviceTypeEnum = pgEnum("device_type", ["WEB", "IOS", "ANDROID", "ADMIN_WEB"]);
 export const policyStatusEnum = pgEnum("policy_status", ["DRAFT", "PUBLISHED", "RETIRED"]);
+export const policyAcceptanceSceneEnum = pgEnum("policy_acceptance_scene", [
+  "LOGIN",
+  "ORDER_PAYMENT",
+  "CHAT_ENTRY",
+  "SELLER_ONBOARDING",
+  "IDENTITY_VERIFICATION",
+  "VOICE_SAMPLE_UPLOAD",
+  "COMPLAINT_SUBMISSION",
+  "LEGACY_UNSCOPED",
+]);
+export const policyConfirmationMethodEnum = pgEnum("policy_confirmation_method", ["ONLINE_CONFIRM"]);
+export const phoneChangeRequestStatusEnum = pgEnum("phone_change_request_status", [
+  "PENDING_OLD_VERIFICATION",
+  "PENDING_NEW_VERIFICATION",
+  "READY",
+  "COMPLETED",
+  "CANCELLED",
+  "EXPIRED",
+]);
+export const personalDataExportStatusEnum = pgEnum("personal_data_export_status", [
+  "PENDING",
+  "PROCESSING",
+  "COMPLETED",
+  "FAILED",
+  "EXPIRED",
+]);
+export const accountCancellationStatusEnum = pgEnum("account_cancellation_status", [
+  "REQUESTED",
+  "CANCELLED",
+  "PROCESSING",
+  "COMPLETED",
+  "REJECTED",
+]);
 
 export const sellerStatusEnum = pgEnum("seller_status", [
   "DRAFT",
@@ -127,6 +160,7 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "PARTIALLY_REFUNDED",
   "REFUNDED",
 ]);
+export const paymentChannelEnum = pgEnum("payment_channel", ["WECHAT_APP", "ALIPAY_APP", "MOCK"]);
 export const afterSaleStatusEnum = pgEnum("after_sale_status", ["NONE", "IN_PROGRESS", "RESOLVED"]);
 export const operatorRoleEnum = pgEnum("operator_role", ["BUYER", "SELLER", "ADMIN", "SYSTEM", "PAYMENT_PROVIDER"]);
 export const refundStatusEnum = pgEnum("refund_status", [
@@ -211,10 +245,11 @@ export const fileTypeEnum = pgEnum("file_type", [
   "PAYMENT_PAYLOAD",
   "COMPLAINT_EVIDENCE",
   "ADMIN_EVIDENCE",
+  "DATA_EXPORT",
 ]);
 export const fileUploadStatusEnum = pgEnum("file_upload_status", ["PENDING", "UPLOADED", "VERIFIED", "FAILED", "DELETED"]);
 export const fileVisibilityEnum = pgEnum("file_visibility", ["PUBLIC", "PRIVATE", "SIGNED"]);
-export const fileUsageTypeEnum = pgEnum("file_usage_type", ["AVATAR", "COVER", "GALLERY", "VOICE", "EVIDENCE", "PAYLOAD"]);
+export const fileUsageTypeEnum = pgEnum("file_usage_type", ["AVATAR", "COVER", "GALLERY", "VOICE", "EVIDENCE", "PAYLOAD", "EXPORT"]);
 export const configStatusEnum = pgEnum("config_status", ["DRAFT", "ACTIVE", "RETIRED"]);
 
 export const adminStatusEnum = pgEnum("admin_status", ["ACTIVE", "LOCKED", "DISABLED"]);

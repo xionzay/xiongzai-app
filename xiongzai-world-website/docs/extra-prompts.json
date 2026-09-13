@@ -1,0 +1,17 @@
+{
+  "tool": "built-in image_gen",
+  "assets": [
+    {
+      "id": "09-hero-panorama",
+      "prompt": "Use case: stylized-concept. Generate ONE magnificent premium 3D cartoon environment-only website hero background, 1536x1024 pixels LANDSCAPE 3:2. Use reference solely for art style, sky blue clear fantasy clouds, pastel castles, floating islands and rail engineering; DO NOT reproduce the webpage, type, characters, trains or whale. Main scene: bright sky-blue cloud fantasy world with voluminous cream clouds, multiple richly detailed floating islands with lush grass, little pastel blue-roof castles with gold spires, soft waterfalls and delicate gardens. An intricate curved elevated BLUE AND CREAM WHITE railway bridge occupies the RIGHT HALF foreground and curves away elegantly toward the floating city at horizon. Bridge pillars coherently support track, consistent perspective, believable continuous rails. Keep LEFT 40 percent calm clear pale blue sky with only soft distant clouds for readable HTML text. Center-right has breathable visual room for a separately composited mascot, lower right room above supported railway ledge. Soft warm sun, strong foreground/midground/background depth, elegant high-end animated feature quality. NO bears, NO animals, NO whale, NO train, NO people, NO text, NO logos, NO symbols, NO UI, NO watermark. Do not draw an empty webpage layout; entire output is environment illustration."
+    },
+    {
+      "id": "10-blue-whale",
+      "prompt": "Use case: stylized-concept. Generate ONE isolated friendly blue whale for a layered fantasy website, 1536x1024 horizontal 3:2 canvas. True transparent alpha-channel background. Premium soft 3D cartoon blue whale in full profile FACING LEFT, slightly buoyant elegant swimming pose, entire head, both visible flippers, body and tail flukes comfortably within canvas, wide horizontal silhouette. Soft sky blue pearlescent upper skin with restrained luminous speckles, creamy pale icy-blue pleated underside, gentle brown-black eye and subtle kindly smile. Rounded appealing proportions but recognizable whale. Soft bright daylight shading coherent with pale-blue cloud world. Only whale cutout. NO bear, NO cloud, NO water, NO ocean, NO ground plane, NO drop shadow, NO text/logo/watermark, NO white border, NO checkerboard pattern, NO solid colored background. Background pixels must genuinely be transparent, clean antialiased edges."
+    },
+    {
+      "id": "11-cloud-train",
+      "prompt": "Use case: stylized-concept. Generate ONE isolated small fantasy passenger train for layered website animation, horizontal 1536x1024 canvas. TRUE transparent alpha background. Full train consists of rounded streamlined engine at LEFT plus exactly TWO short linked carriages extending to RIGHT. Profile with a subtle front three-quarter perspective facing LEFT, mostly side view suitable for a visible horizontal distant track, all wheels and full train comfortably inside frame. Sky blue and creamy white body, deep blue windows, small warm golden window highlights, rounded premium high-quality 3D cartoon styling. Soft daylight lighting. Full engine and both short carriages form one continuous coherent connected train. NO rails, NO track, NO platform, NO smoke, NO ground plane, NO shadow, NO surroundings, NO mascot, NO text, NO logo, NO watermark, NO white outline, NO checkerboard. Truly transparent background with clean antialiased edges. No bear face motif."
+    }
+  ]
+}

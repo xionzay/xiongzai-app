@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { AppError, type PaymentChannel } from "@xiongzai/contracts";
 
 export type PaymentCallbackPayload = {
   event_id: string;
@@ -17,8 +18,10 @@ export type RefundCallbackPayload = {
 };
 
 export interface PaymentProvider {
-  readonly channel: string;
+  readonly channel: PaymentChannel;
+  readonly mode: "mock" | "live";
   createPayment(input: { paymentNo: string; orderNo: string; amountCent: bigint; expiresAt: Date }): Promise<{ providerRequestId: string; clientPayload: Record<string, unknown> }>;
+  queryPayment?(input: { paymentNo: string; providerTransactionId: string | null; platformStatus: string }): Promise<{ status: "PENDING" | "SUCCEEDED" | "FAILED" | "CLOSED"; providerTransactionId?: string }>;
   verifyCallback(payload: PaymentCallbackPayload, signature: string | undefined): boolean;
   /** Must be idempotent for the same refundNo, including retries after an unknown outcome. */
   createRefund?(input: { refundNo: string; paymentNo: string; providerTransactionId: string | null; amountCent: bigint }): Promise<{ providerRefundNo: string }>;
@@ -26,14 +29,35 @@ export interface PaymentProvider {
 }
 
 export class MockPaymentProvider implements PaymentProvider {
-  readonly channel = "MOCK";
-  constructor(private readonly webhookSecret: string) {}
+  readonly mode = "mock";
+  private readonly paymentStates = new Map<string, { status: "PENDING" | "SUCCEEDED" | "FAILED" | "CLOSED"; providerTransactionId?: string }>();
+
+  constructor(private readonly webhookSecret: string, readonly channel: PaymentChannel = "WECHAT_APP") {}
 
   async createPayment(input: { paymentNo: string; orderNo: string; amountCent: bigint; expiresAt: Date }) {
+    this.paymentStates.set(input.paymentNo, { status: "PENDING" });
     return {
-      providerRequestId: `mock-${input.paymentNo}`,
-      clientPayload: { mode: "mock", payment_no: input.paymentNo, order_no: input.orderNo, amount_cent: input.amountCent.toString(), expires_at: input.expiresAt.toISOString() },
+      providerRequestId: `mock-${this.channel.toLowerCase()}-${input.paymentNo}`,
+      clientPayload: { mode: "mock", payment_channel: this.channel, payment_no: input.paymentNo, order_no: input.orderNo, amount_cent: input.amountCent.toString(), expires_at: input.expiresAt.toISOString() },
     };
+  }
+
+  async queryPayment(input: { paymentNo: string; providerTransactionId: string | null; platformStatus: string }) {
+    const persistedStatus = ["PAID", "REFUNDING", "PARTIALLY_REFUNDED", "REFUNDED"].includes(input.platformStatus)
+      ? "SUCCEEDED" as const
+      : input.platformStatus === "FAILED" ? "FAILED" as const : input.platformStatus === "CLOSED" ? "CLOSED" as const : "PENDING" as const;
+    return this.paymentStates.get(input.paymentNo) ?? { status: persistedStatus, ...(input.providerTransactionId ? { providerTransactionId: input.providerTransactionId } : {}) };
+  }
+
+  recordPaymentCallback(payload: PaymentCallbackPayload): void {
+    this.paymentStates.set(payload.payment_no, {
+      status: payload.event_type === "PAYMENT_SUCCEEDED" ? "SUCCEEDED" : "FAILED",
+      providerTransactionId: payload.provider_transaction_id,
+    });
+  }
+
+  recordPaymentClosed(paymentNo: string): void {
+    this.paymentStates.set(paymentNo, { status: "CLOSED" });
   }
 
   verifyCallback(payload: PaymentCallbackPayload, signature: string | undefined): boolean {
@@ -61,5 +85,23 @@ export class MockPaymentProvider implements PaymentProvider {
 
   signRefund(payload: RefundCallbackPayload): string {
     return createHmac("sha256", this.webhookSecret).update(JSON.stringify(payload)).digest("hex");
+  }
+}
+
+export class PaymentProviderRouter {
+  private readonly providers = new Map<PaymentChannel, PaymentProvider>();
+
+  constructor(providers: readonly PaymentProvider[]) {
+    for (const provider of providers) {
+      if (!provider || !["WECHAT_APP", "ALIPAY_APP"].includes(provider.channel)) continue;
+      if (this.providers.has(provider.channel)) throw new Error(`Duplicate payment provider: ${provider.channel}`);
+      this.providers.set(provider.channel, provider);
+    }
+  }
+
+  get(channel: PaymentChannel | string): PaymentProvider {
+    const provider = this.providers.get(channel as PaymentChannel);
+    if (!provider) throw new AppError({ code: "PAYMENT_CHANNEL_UNAVAILABLE", message: "所选支付渠道暂不可用", statusCode: 503 });
+    return provider;
   }
 }

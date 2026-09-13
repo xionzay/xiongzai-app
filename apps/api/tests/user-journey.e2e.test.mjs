@@ -22,10 +22,13 @@ let app;
 let buyer;
 let seller;
 let admin;
+let finalAdmin;
 let sellerId;
 let productId;
 let skuId;
 let slotId;
+let loginPolicyIds = [];
+let paymentPolicyId;
 
 const config = loadApiConfig({
   NODE_ENV: "test", DATABASE_URL: databaseUrl ?? "postgresql://test:test@127.0.0.1:5432/test",
@@ -46,10 +49,18 @@ before(async () => {
   await migrationClient.query(`SET search_path TO "${schemaName}", public`);
   await runMigration("0000_initial_schema.sql");
   await runMigration("0001_core_invariants.sql");
+  await runMigration("0002_admin_stage2_permissions.sql");
+  await runMigration("0003_admin_query_performance.sql");
+  await runMigration("0004_payment_channels_voice_constraints.sql");
+  await runMigration("0005_policy_acceptance_context.sql");
+  await runMigration("0006_policy_version_bindings.sql");
+  await runMigration("0009_clear_rhodey.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-user-journey-e2e", options: `-c search_path=${schemaName},public`, max: 16 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async (delivery) => deliveries.push({ ...delivery }) }, logger: new JsonLogger("user-journey-e2e", (line) => logs.push(line)) });
-  admin = await seedAdmin(["order.read", "withdrawal.read", "withdrawal.manage"]);
+  admin = await seedAdmin(["order.read", "withdrawal.read", "withdrawal.manage", "withdrawal.review.initial"]);
+  finalAdmin = await seedAdmin(["withdrawal.read", "withdrawal.review.final"]);
   await seedConfigs();
+  ({ loginPolicyIds, paymentPolicyId } = await seedPolicies());
   seller = await loginUser("13900001001", "E2E陪玩");
   buyer = await loginUser("13900001002", "E2E买家");
   await seedCatalog();
@@ -72,7 +83,10 @@ test("用户端与陪玩端可完成从登录到提现、退款的真实全链�
 
   const favorite = await request(buyer, "PUT", `/api/v1/favorites/PRODUCT/${productId}`);
   assert.equal(favorite.statusCode, 200, favorite.body);
-  assert.equal((await request(buyer, "GET", "/api/v1/favorites")).json().length, 1);
+  const favorites = await request(buyer, "GET", "/api/v1/favorites");
+  assert.equal(favorites.statusCode, 200, favorites.body);
+  assert.equal(favorites.json().items.length, 1);
+  assert.equal(favorites.json().next_cursor, null);
 
   const start = new Date(Date.now() + 24 * 60 * 60 * 1000);
   const draft = { product_id: productId, sku_id: skuId, slot_id: slotId, quantity: 1, service_starts_at: start.toISOString(), buyer_note: "E2E 全链路预约" };
@@ -86,7 +100,10 @@ test("用户端与陪玩端可完成从登录到提现、退款的真实全链�
   assert.equal(replay.json().id, created.json().id);
   let order = created.json();
 
-  const payment = await request(buyer, "POST", "/api/v1/payments", { order_id: order.id }, { "idempotency-key": `journey-payment-${randomUUID()}` });
+  const acceptedPaymentRules = await request(buyer, "POST", "/api/v1/policies/acceptances", { acceptance_scene: "ORDER_PAYMENT", confirmation_method: "ONLINE_CONFIRM", policy_version_ids: [paymentPolicyId] });
+  assert.equal(acceptedPaymentRules.statusCode, 201, acceptedPaymentRules.body);
+
+  const payment = await request(buyer, "POST", "/api/v1/payments", { order_id: order.id, payment_channel: "WECHAT_APP" }, { "idempotency-key": `journey-payment-${randomUUID()}` });
   assert.equal(payment.statusCode, 201, payment.body);
   const paid = await request(buyer, "POST", `/api/v1/payments/${payment.json().id}/mock-confirm`);
   assert.equal(paid.statusCode, 201, paid.body);
@@ -102,6 +119,7 @@ test("用户端与陪玩端可完成从登录到提现、退款的真实全链�
   assert.equal(messageReplay.json().id, message.json().id);
 
   order = (await request(seller, "POST", `/api/v1/seller/orders/${order.id}/accept`, { version: order.version })).json();
+  await migrationClient.query("UPDATE orders SET service_starts_at = now() - interval '1 minute' WHERE id = $1", [order.id]);
   order = (await request(seller, "POST", `/api/v1/seller/orders/${order.id}/start`, { version: order.version })).json();
   order = (await request(seller, "POST", `/api/v1/seller/orders/${order.id}/complete`, { version: order.version })).json();
   order = (await request(buyer, "POST", `/api/v1/orders/${order.id}/confirm`, { version: order.version })).json();
@@ -166,7 +184,7 @@ async function loginUser(phone, nickname) {
   const sent = await app.inject({ method: "POST", url: "/api/v1/auth/sms/send", payload: { phone } });
   assert.equal(sent.statusCode, 202, sent.body);
   const code = deliveries.findLast((delivery) => delivery.phone === phone)?.code;
-  const loggedIn = await app.inject({ method: "POST", url: "/api/v1/auth/sms/login", payload: { phone, code, device_id: `e2e-${randomUUID()}`, device_type: "WEB" } });
+  const loggedIn = await app.inject({ method: "POST", url: "/api/v1/auth/sms/login", payload: { phone, code, device_id: `e2e-${randomUUID()}`, device_type: "WEB", policy_version_ids: loginPolicyIds } });
   assert.equal(loggedIn.statusCode, 200, loggedIn.body);
   const actor = { id: loggedIn.json().user.id, cookies: cookieHeader(loggedIn) };
   const profile = await request(actor, "PATCH", "/api/v1/me/profile", { nickname, version: 0, user_version: loggedIn.json().user.version });
@@ -199,8 +217,24 @@ async function seedConfigs() {
   }
 }
 
+async function seedPolicies() {
+  const loginDefinitions = [
+    ["USER_SERVICE_AGREEMENT", "用户服务协议"], ["PRIVACY_POLICY", "隐私政策"],
+    ["PERSONAL_INFORMATION_COLLECTION_LIST", "个人信息收集清单"], ["THIRD_PARTY_SDK_SHARING_LIST", "第三方 SDK 及共享清单"],
+    ["SYSTEM_PERMISSION_NOTICE", "系统权限说明"], ["MINOR_PROTECTION_NOTICE", "未成年人保护说明"],
+  ];
+  const ids = [];
+  for (const [type, title] of loginDefinitions) {
+    const id = randomUUID(); ids.push(id);
+    await migrationClient.query("INSERT INTO policy_versions (id,policy_type,title,content,version_no,status,published_at,effective_at,created_by_admin_id) VALUES ($1,$2,$3,$4,1,'PUBLISHED',now(),now(),$5)", [id, type, title, `${title} E2E 测试版`, admin.id]);
+  }
+  const paymentId = randomUUID();
+  await migrationClient.query("INSERT INTO policy_versions (id,policy_type,title,content,version_no,status,published_at,effective_at,created_by_admin_id) VALUES ($1,'ORDER_PAYMENT_REFUND_RULES','交易和退款规则','交易和退款规则 E2E 测试版',1,'PUBLISHED',now(),now(),$2)", [paymentId, admin.id]);
+  return { loginPolicyIds: ids, paymentPolicyId: paymentId };
+}
+
 function request(actor, method, url, payload, headers = {}) { return app.inject({ method, url, headers: { ...(actor ? { cookie: actor.cookies } : {}), ...headers }, ...(payload === undefined ? {} : { payload }) }); }
-function adminRequest(method, url, payload) { return app.inject({ method, url, headers: { authorization: `Bearer ${admin.token}` }, ...(payload === undefined ? {} : { payload }) }); }
+async function adminRequest(method, url, payload) { const first=await app.inject({ method, url, headers: { authorization: `Bearer ${admin.token}` }, ...(payload === undefined ? {} : { payload }) });if(method==="POST"&&url.endsWith("/approve")&&first.statusCode===201&&first.json().status==="RISK_REVIEW")return app.inject({method:"POST",url:url.replace(/\/approve$/u,"/final-approve"),headers:{authorization:`Bearer ${finalAdmin.token}`},payload:{...payload,version:first.json().version,reason:`独立复核：${payload.reason}`}});return first; }
 function cookieHeader(response) { const values = Array.isArray(response.headers["set-cookie"]) ? response.headers["set-cookie"] : [response.headers["set-cookie"]]; return values.filter(Boolean).map((value) => value.split(";", 1)[0]).join("; "); }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(name) { let source = await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }

@@ -1,0 +1,462 @@
+[
+  {
+    "id": "1f43b",
+    "label": "bear-face"
+  },
+  {
+    "id": "1f9f8",
+    "label": "teddy-bear"
+  },
+  {
+    "id": "1f430",
+    "label": "bunny"
+  },
+  {
+    "id": "1f431",
+    "label": "cat"
+  },
+  {
+    "id": "1f436",
+    "label": "dog"
+  },
+  {
+    "id": "1f98a",
+    "label": "fox"
+  },
+  {
+    "id": "1f428",
+    "label": "koala"
+  },
+  {
+    "id": "1f439",
+    "label": "hamster"
+  },
+  {
+    "id": "1f42d",
+    "label": "mouse"
+  },
+  {
+    "id": "1f981",
+    "label": "lion"
+  },
+  {
+    "id": "1f42f",
+    "label": "tiger"
+  },
+  {
+    "id": "1f434",
+    "label": "horse"
+  },
+  {
+    "id": "1f984",
+    "label": "unicorn"
+  },
+  {
+    "id": "1f993",
+    "label": "zebra"
+  },
+  {
+    "id": "1f992",
+    "label": "giraffe"
+  },
+  {
+    "id": "1f418",
+    "label": "elephant"
+  },
+  {
+    "id": "1f99b",
+    "label": "hippopotamus"
+  },
+  {
+    "id": "1f999",
+    "label": "llama"
+  },
+  {
+    "id": "1f998",
+    "label": "kangaroo"
+  },
+  {
+    "id": "1f9a5",
+    "label": "sloth"
+  },
+  {
+    "id": "1f9a6",
+    "label": "otter"
+  },
+  {
+    "id": "1f9ab",
+    "label": "beaver"
+  },
+  {
+    "id": "1f994",
+    "label": "hedgehog"
+  },
+  {
+    "id": "1f43f",
+    "label": "chipmunk"
+  },
+  {
+    "id": "1f427",
+    "label": "penguin"
+  },
+  {
+    "id": "1f424",
+    "label": "chick"
+  },
+  {
+    "id": "1f986",
+    "label": "duck"
+  },
+  {
+    "id": "1f989",
+    "label": "owl"
+  },
+  {
+    "id": "1f99c",
+    "label": "parrot"
+  },
+  {
+    "id": "1f9a9",
+    "label": "flamingo"
+  },
+  {
+    "id": "1f433",
+    "label": "whale"
+  },
+  {
+    "id": "1f42c",
+    "label": "dolphin"
+  },
+  {
+    "id": "1f9ad",
+    "label": "seal"
+  },
+  {
+    "id": "1f419",
+    "label": "octopus"
+  },
+  {
+    "id": "1f980",
+    "label": "crab"
+  },
+  {
+    "id": "1f422",
+    "label": "turtle"
+  },
+  {
+    "id": "1f438",
+    "label": "frog"
+  },
+  {
+    "id": "1f40c",
+    "label": "snail"
+  },
+  {
+    "id": "1f41d",
+    "label": "honeybee"
+  },
+  {
+    "id": "1f41e",
+    "label": "ladybug"
+  },
+  {
+    "id": "1f409",
+    "label": "dragon"
+  },
+  {
+    "id": "1f40a",
+    "label": "crocodile"
+  },
+  {
+    "id": "1f43e",
+    "label": "paw-print"
+  },
+  {
+    "id": "1f3a7",
+    "label": "headphones"
+  },
+  {
+    "id": "1f3ae",
+    "label": "game-controller"
+  },
+  {
+    "id": "1f579",
+    "label": "joystick"
+  },
+  {
+    "id": "2b50",
+    "label": "star"
+  },
+  {
+    "id": "2764",
+    "label": "heart"
+  },
+  {
+    "id": "26a1",
+    "label": "lightning-bolt"
+  },
+  {
+    "id": "1f680",
+    "label": "rocket"
+  },
+  {
+    "id": "1fa90",
+    "label": "ringed-planet"
+  },
+  {
+    "id": "1f319",
+    "label": "crescent-moon"
+  },
+  {
+    "id": "2604",
+    "label": "comet"
+  },
+  {
+    "id": "1f6f8",
+    "label": "flying-saucer"
+  },
+  {
+    "id": "2601",
+    "label": "cloud"
+  },
+  {
+    "id": "2600",
+    "label": "sun"
+  },
+  {
+    "id": "1f308",
+    "label": "rainbow"
+  },
+  {
+    "id": "26f5",
+    "label": "sailboat"
+  },
+  {
+    "id": "1f6b2",
+    "label": "bicycle"
+  },
+  {
+    "id": "1f682",
+    "label": "locomotive"
+  },
+  {
+    "id": "1f6f9",
+    "label": "skateboard"
+  },
+  {
+    "id": "1fa81",
+    "label": "kite"
+  },
+  {
+    "id": "1fa82",
+    "label": "parachute"
+  },
+  {
+    "id": "2708",
+    "label": "airplane"
+  },
+  {
+    "id": "1f6f4",
+    "label": "kick-scooter"
+  },
+  {
+    "id": "1f5b1",
+    "label": "computer-mouse"
+  },
+  {
+    "id": "2328",
+    "label": "keyboard"
+  },
+  {
+    "id": "1f3a4",
+    "label": "microphone"
+  },
+  {
+    "id": "1f4f7",
+    "label": "camera"
+  },
+  {
+    "id": "1f4fc",
+    "label": "videocassette"
+  },
+  {
+    "id": "1f50a",
+    "label": "speaker"
+  },
+  {
+    "id": "1f3c6",
+    "label": "trophy"
+  },
+  {
+    "id": "1f451",
+    "label": "crown"
+  },
+  {
+    "id": "23f0",
+    "label": "alarm-clock"
+  },
+  {
+    "id": "1f352",
+    "label": "cherries"
+  },
+  {
+    "id": "1f353",
+    "label": "strawberry"
+  },
+  {
+    "id": "1f34d",
+    "label": "pineapple"
+  },
+  {
+    "id": "1f349",
+    "label": "watermelon"
+  },
+  {
+    "id": "1f351",
+    "label": "peach"
+  },
+  {
+    "id": "1f34c",
+    "label": "banana"
+  },
+  {
+    "id": "1f347",
+    "label": "grapes"
+  },
+  {
+    "id": "1f34b",
+    "label": "lemon"
+  },
+  {
+    "id": "1f34e",
+    "label": "apple"
+  },
+  {
+    "id": "1f965",
+    "label": "coconut"
+  },
+  {
+    "id": "1f369",
+    "label": "doughnut"
+  },
+  {
+    "id": "1f9c1",
+    "label": "cupcake"
+  },
+  {
+    "id": "1f366",
+    "label": "ice-cream"
+  },
+  {
+    "id": "1f37f",
+    "label": "popcorn"
+  },
+  {
+    "id": "1f35e",
+    "label": "bread"
+  },
+  {
+    "id": "1f354",
+    "label": "hamburger"
+  },
+  {
+    "id": "1f36c",
+    "label": "wrapped-candy"
+  },
+  {
+    "id": "1f968",
+    "label": "pretzel"
+  },
+  {
+    "id": "1fad6",
+    "label": "teapot"
+  },
+  {
+    "id": "1f95b",
+    "label": "glass-of-milk"
+  },
+  {
+    "id": "2615",
+    "label": "mug"
+  },
+  {
+    "id": "1f36a",
+    "label": "cookie"
+  },
+  {
+    "id": "1f355",
+    "label": "pizza"
+  },
+  {
+    "id": "1f950",
+    "label": "croissant"
+  },
+  {
+    "id": "1f381",
+    "label": "gift"
+  },
+  {
+    "id": "1f4d6",
+    "label": "open-book"
+  },
+  {
+    "id": "270f",
+    "label": "pencil"
+  },
+  {
+    "id": "1f392",
+    "label": "backpack"
+  },
+  {
+    "id": "2602",
+    "label": "umbrella"
+  },
+  {
+    "id": "1fab4",
+    "label": "potted-plant"
+  },
+  {
+    "id": "1f335",
+    "label": "cactus"
+  },
+  {
+    "id": "1f343",
+    "label": "leaf"
+  },
+  {
+    "id": "1f330",
+    "label": "chestnut"
+  },
+  {
+    "id": "1f41a",
+    "label": "spiral-shell"
+  },
+  {
+    "id": "1f3b5",
+    "label": "musical-note"
+  },
+  {
+    "id": "1f9e9",
+    "label": "puzzle-piece"
+  },
+  {
+    "id": "26be",
+    "label": "baseball"
+  },
+  {
+    "id": "1fa80",
+    "label": "yo-yo"
+  },
+  {
+    "id": "26fa",
+    "label": "camping-tent"
+  },
+  {
+    "id": "1f3a8",
+    "label": "paint-palette"
+  },
+  {
+    "id": "1f9f2",
+    "label": "magnet"
+  }
+]

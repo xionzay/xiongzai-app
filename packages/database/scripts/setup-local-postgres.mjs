@@ -22,6 +22,7 @@ try {
   const databasePassword = secret(32);
   localConfig = {
     NODE_ENV: "development",
+    DEPLOYMENT_ENV: "development",
     DATABASE_URL: databaseUrl(databases[0], databasePassword),
     TEST_DATABASE_URL: databaseUrl(databases[1], databasePassword),
     API_HOST: "127.0.0.1",
@@ -35,6 +36,10 @@ try {
     AUTH_HMAC_KEY: secret(48),
     SMS_PROVIDER_MODE: "development",
     SMS_DEVELOPMENT_CODE: "246810",
+    PAYMENT_PROVIDER_MODE: "mock",
+    PAYMENT_WEBHOOK_SECRET: secret(48),
+    PAYOUT_PROVIDER_MODE: "mock",
+    PAYOUT_WEBHOOK_SECRET: secret(48),
     SMS_CODE_TTL_SECONDS: "300",
     SMS_MAX_ATTEMPTS: "5",
     SMS_MINIMUM_INTERVAL_SECONDS: "60",
@@ -42,22 +47,42 @@ try {
     REFRESH_TOKEN_TTL_SECONDS: "2592000",
     API_CORS_ORIGINS: "http://localhost:3001,http://127.0.0.1:3001",
     EVENT_PUBLISHER_MODE: "log",
+    WORKER_ID: "worker-local-1",
+    WORKER_BATCH_SIZE: "50",
+    WORKER_POLL_INTERVAL_MS: "2000",
+    OUTBOX_MAX_ATTEMPTS: "8",
+    SCHEDULER_ID: "scheduler-local-1",
+    SCHEDULER_BATCH_SIZE: "50",
+    SCHEDULER_POLL_INTERVAL_MS: "5000",
   };
   await writeFile(envPath, renderEnv(localConfig), { encoding: "utf8", mode: 0o600, flag: "wx" });
 }
 
 const localDefaults = {
+  DEPLOYMENT_ENV: () => "development",
   PII_ENCRYPTION_KEY: () => secret(48),
   PII_HMAC_KEY: () => secret(48),
   AUTH_HMAC_KEY: () => secret(48),
   SMS_PROVIDER_MODE: () => "development",
   SMS_DEVELOPMENT_CODE: () => "246810",
+  PAYMENT_PROVIDER_MODE: () => "mock",
+  PAYMENT_WEBHOOK_SECRET: () => secret(48),
+  PAYOUT_PROVIDER_MODE: () => "mock",
+  PAYOUT_WEBHOOK_SECRET: () => secret(48),
   SMS_CODE_TTL_SECONDS: () => "300",
   SMS_MAX_ATTEMPTS: () => "5",
   SMS_MINIMUM_INTERVAL_SECONDS: () => "60",
   ACCESS_TOKEN_TTL_SECONDS: () => "900",
   REFRESH_TOKEN_TTL_SECONDS: () => "2592000",
   API_CORS_ORIGINS: () => "http://localhost:3001,http://127.0.0.1:3001",
+  EVENT_PUBLISHER_MODE: () => "log",
+  WORKER_ID: () => "worker-local-1",
+  WORKER_BATCH_SIZE: () => "50",
+  WORKER_POLL_INTERVAL_MS: () => "2000",
+  OUTBOX_MAX_ATTEMPTS: () => "8",
+  SCHEDULER_ID: () => "scheduler-local-1",
+  SCHEDULER_BATCH_SIZE: () => "50",
+  SCHEDULER_POLL_INTERVAL_MS: () => "5000",
 };
 for (const [key, createValue] of Object.entries(localDefaults)) {
   if (!localConfig[key]) {

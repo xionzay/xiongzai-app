@@ -1,0 +1,12 @@
+[
+  {
+    "id": "07-aurora-snowfield-final",
+    "target": "07-aurora-snowfield",
+    "prompt": "Targeted minimal edit of attached image. Preserve image composition, portrait 3:4 framing, all scenery and ALL characters EXACTLY. Make ONLY ONE correction inside the white visible foot sole of foreground bear (lower-left, rear-view walking bear): change the current THREE little blue toe pads into exactly FOUR clearly separate small round blue toe pads arranged as an arc ABOVE the existing ONE larger central blue paw pad. There must be four small toe circles plus one large central pad, five blue shapes total on that sole. Match soft blue material and lighting. Preserve foot outline, legs, body, hoodie, fin, rear tails, and depth of field unchanged. Preserve the main waving bear face and all surrounding pixels as closely as possible. Do not alter main bear, no new accessory, no crop, no text. This is a local anatomy correction, NOT a new illustration."
+  },
+  {
+    "id": "04-whale-bay-final",
+    "target": "04-whale-bay",
+    "prompt": "Targeted minimal edit of attached portrait image. Preserve entire composition, 3:4 portrait framing, main mascot face, hands/paws/feet with FOUR blue toe pads on each sole, clothing, emblem, pendant, background whale, bay, props and lighting EXACTLY. ONLY correct the musical instrument in bear's paws: turn it into a clearly SMALL FOUR-STRING SOPRANO UKULELE. Keep warm wood body in same place, recognizable compact ukulele body and short neck. Show exactly FOUR strings along bridge, soundhole and neck, and exactly FOUR tuning pegs on headstock, two on each side. Remove any extra fifth/sixth tuning pegs or strings. The paws should remain naturally holding/strumming the ukulele with original anatomy and pose. No six-string guitar. Do not change anything beyond instrument and tiny necessary contact area. No text, watermark or new objects. This is local prop correction, NOT a new illustration."
+  }
+]

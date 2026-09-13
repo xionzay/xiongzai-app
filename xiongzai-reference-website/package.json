@@ -1,0 +1,10 @@
+{
+  "name": "xiongzai-reference-website",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "python3 -m http.server 3030 --bind 127.0.0.1 --directory dist",
+    "check": "node --check dist/app.js"
+  }
+}

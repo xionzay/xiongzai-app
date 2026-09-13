@@ -2,13 +2,21 @@ import { randomBytes, randomInt } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { issueAccessToken } from "@xiongzai/auth";
 import { OutboxService } from "@xiongzai/application";
-import { AppError, errorCodes } from "@xiongzai/contracts";
+import {
+  AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize, policyTypes,
+  requiredPolicyTypes, type PolicyAcceptanceScene, type PolicyConfirmationMethod,
+} from "@xiongzai/contracts";
 import {
   adminOperationLogs,
   authSessions,
+  favorites,
+  fileUsages,
+  files,
   identityVerifications,
+  orders,
   policyVersions,
   privacySettings,
+  reviews,
   securityLogs,
   smsCodes,
   userDevices,
@@ -16,10 +24,11 @@ import {
   userProfiles,
   users,
   uuidv7,
+  type Database,
   type DatabaseClient,
   type DatabaseTransaction,
 } from "@xiongzai/database";
-import { and, desc, eq, gt, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ilike, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { ApiConfig } from "./config.js";
 import { SensitiveDataProtector } from "./sensitive-data.js";
 import type { SmsProvider } from "./sms-provider.js";
@@ -92,6 +101,9 @@ export class IdentityUserService {
     code: string;
     deviceId: string;
     deviceType: "WEB" | "IOS" | "ANDROID";
+    deviceName?: string;
+    appVersion?: string;
+    policyVersionIds: string[];
   }, metadata: RequestMetadata): Promise<SessionTokens> {
     const phone = this.protector.normalizePhone(input.phone);
     const phoneHash = this.protector.piiHash("phone", phone);
@@ -120,6 +132,15 @@ export class IdentityUserService {
       }
       if (!user || user.status !== "NORMAL") return { blocked: true } as const;
 
+      await this.acceptPoliciesWithExecutor(
+        transaction,
+        user.id,
+        "LOGIN",
+        "ONLINE_CONFIRM",
+        input.policyVersionIds,
+        metadata,
+      );
+
       await transaction.insert(privacySettings).values({ userId: user.id }).onConflictDoNothing();
       await transaction.insert(userDevices).values({
         id: uuidv7(), userId: user.id, deviceId: input.deviceId, deviceType: input.deviceType,
@@ -139,7 +160,14 @@ export class IdentityUserService {
       });
       await transaction.insert(securityLogs).values({
         id: uuidv7(), userId: user.id, eventType: "LOGIN_SUCCESS", status: "RESOLVED", riskScore: 0,
-        metadataJson: { device_type: input.deviceType, new_user: newUser }, ip: metadata.ip, userAgent: metadata.userAgent,
+        metadataJson: {
+          device_type: input.deviceType,
+          client_kind: input.deviceName ? "MOBILE" : "WEB",
+          new_user: newUser,
+          ...(input.appVersion ? { app_version: input.appVersion } : {}),
+        },
+        ip: metadata.ip,
+        userAgent: metadata.userAgent,
       });
       await this.outbox.enqueue(transaction, {
         aggregateType: "USER", aggregateId: user.id, eventType: newUser ? "UserRegistered" : "UserLoggedIn",
@@ -163,7 +191,7 @@ export class IdentityUserService {
     };
   }
 
-  async refresh(refreshToken: string): Promise<SessionTokens> {
+  async refresh(refreshToken: string, expectedDeviceId?: string): Promise<SessionTokens> {
     const oldHash = this.protector.authHash("refresh-token", refreshToken);
     const nextRefreshToken = randomBytes(48).toString("base64url");
     const nextHash = this.protector.authHash("refresh-token", nextRefreshToken);
@@ -172,6 +200,16 @@ export class IdentityUserService {
       const [session] = await transaction.select().from(authSessions)
         .where(eq(authSessions.refreshTokenHash, oldHash)).limit(1).for("update");
       if (!session || session.revokedAt || session.expiresAt <= now) return undefined;
+      if (expectedDeviceId !== undefined) {
+        if (session.deviceId !== expectedDeviceId || !["IOS", "ANDROID"].includes(session.deviceType)) return undefined;
+        const [device] = await transaction.select({ id: userDevices.id }).from(userDevices).where(and(
+          eq(userDevices.userId, session.userId),
+          eq(userDevices.deviceId, expectedDeviceId),
+          eq(userDevices.deviceType, session.deviceType),
+          isNull(userDevices.revokedAt),
+        )).limit(1).for("share");
+        if (!device) return undefined;
+      }
       const [user] = await transaction.select().from(users).where(eq(users.id, session.userId)).limit(1);
       if (!user || user.status !== "NORMAL") return undefined;
       const rotated = await transaction.update(authSessions).set({ refreshTokenHash: nextHash, lastUsedAt: now })
@@ -202,14 +240,14 @@ export class IdentityUserService {
     });
   }
 
-  async listSessions(userId: string): Promise<Array<Record<string, unknown>>> {
+  async listSessions(userId: string, currentSessionId: string): Promise<Array<Record<string, unknown>>> {
     const rows = await this.database.db.select({
       id: authSessions.id, deviceId: authSessions.deviceId, deviceType: authSessions.deviceType,
       expiresAt: authSessions.expiresAt, revokedAt: authSessions.revokedAt, lastUsedAt: authSessions.lastUsedAt, createdAt: authSessions.createdAt,
     }).from(authSessions).where(eq(authSessions.userId, userId)).orderBy(desc(authSessions.lastUsedAt));
     return rows.map((row) => ({
-      id: row.id, device_id: row.deviceId, device_type: row.deviceType, expires_at: row.expiresAt,
-      revoked_at: row.revokedAt, last_used_at: row.lastUsedAt, created_at: row.createdAt,
+      id: row.id, device_id_mask: maskDeviceId(row.deviceId), device_type: row.deviceType, current: row.id === currentSessionId,
+      expires_at: row.expiresAt, revoked_at: row.revokedAt, last_used_at: row.lastUsedAt, created_at: row.createdAt,
     }));
   }
 
@@ -249,6 +287,27 @@ export class IdentityUserService {
     };
   }
 
+  async getPublicProfile(userId: string) {
+    const [row] = await this.database.db.select({ id: users.id, status: users.status, nickname: userProfiles.nickname, avatarFileId: userProfiles.avatarFileId, bio: userProfiles.bio, publicUserNo: userProfiles.publicUserNo, showPublicProfile: privacySettings.showPublicProfile, showOnlineStatus: privacySettings.showOnlineStatus, lastActiveAt: users.lastActiveAt, createdAt: users.createdAt })
+      .from(users).innerJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt))).leftJoin(privacySettings, eq(privacySettings.userId, users.id)).where(eq(users.id, userId)).limit(1);
+    if (!row || row.status !== "NORMAL" || row.showPublicProfile === false) throw new AppError({ code: "PUBLIC_PROFILE_NOT_FOUND", message: "用户公开主页不存在", statusCode: 404 });
+    const [[following], [reviewSummary], publicReviews] = await Promise.all([
+      this.database.db.select({ count: sql<number>`count(*)::integer` }).from(favorites).where(and(eq(favorites.userId, userId), eq(favorites.targetType, "SELLER"))),
+      this.database.db.select({ count: sql<number>`count(*)::integer` }).from(reviews).where(and(eq(reviews.buyerId, userId), eq(reviews.status, "PUBLIC"), eq(reviews.anonymous, false), isNull(reviews.hiddenAt))),
+      this.database.db.select({ id: reviews.id, rating: reviews.rating, content: reviews.content, sellerName: orders.sellerNameSnapshot, serviceTitle: reviews.serviceTitleSnapshot, createdAt: reviews.createdAt })
+        .from(reviews).innerJoin(orders, eq(orders.id, reviews.orderId))
+        .where(and(eq(reviews.buyerId, userId), eq(reviews.status, "PUBLIC"), eq(reviews.anonymous, false), isNull(reviews.hiddenAt)))
+        .orderBy(desc(reviews.createdAt), desc(reviews.id)).limit(3),
+    ]);
+    const onlineStatus = row.showOnlineStatus === false ? null : row.lastActiveAt && Date.now() - row.lastActiveAt.getTime() <= 5 * 60 * 1000 ? "ONLINE" : "OFFLINE";
+    return {
+      id: row.id, nickname: row.nickname, avatar_file_id: row.avatarFileId, bio: row.bio, public_user_no: row.publicUserNo,
+      online_status: onlineStatus, following_count: following?.count ?? 0, public_review_count: reviewSummary?.count ?? 0,
+      public_reviews: publicReviews.map((review) => ({ id: review.id, rating: review.rating, content: review.content, seller_name: review.sellerName, service_title: review.serviceTitle, created_at: review.createdAt })),
+      created_at: row.createdAt,
+    };
+  }
+
   async updateProfile(userId: string, input: {
     nickname: string;
     bio?: string | null;
@@ -261,6 +320,10 @@ export class IdentityUserService {
       if (!user) throw new AppError({ code: errorCodes.USER_NOT_FOUND, message: "用户不存在", statusCode: 404 });
       const [profile] = await transaction.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1).for("update");
       if ((profile?.version ?? 0) !== input.version || user.version !== input.userVersion) throw versionConflict();
+      if (input.avatarFileId) {
+        const [avatar] = await transaction.select({ id: files.id }).from(files).where(and(eq(files.id, input.avatarFileId), eq(files.ownerUserId, userId), eq(files.fileType, "USER_AVATAR"), eq(files.uploadStatus, "VERIFIED"), eq(files.moderationStatus, "APPROVED"), isNull(files.deletedAt))).limit(1);
+        if (!avatar) throw new AppError({ code: "PROFILE_AVATAR_INVALID", message: "头像文件不存在、无权使用或尚未通过审核", statusCode: 400, fieldErrors: [{ field: "avatar_file_id", code: "PROFILE_AVATAR_INVALID", message: "请选择已上传并审核通过的用户头像" }] });
+      }
 
       if (profile) {
         const updated = await transaction.update(userProfiles).set({
@@ -276,6 +339,9 @@ export class IdentityUserService {
           publicUserNo: `XZU${uuidv7().replaceAll("-", "").slice(-12).toUpperCase()}`,
         });
       }
+      if (input.avatarFileId !== undefined) {
+        await this.syncUserAvatarUsage(transaction, userId, input.avatarFileId);
+      }
       const userUpdated = await transaction.update(users).set({
         profileInitialized: true, version: sql`${users.version} + 1`, updatedAt: new Date(),
       }).where(and(eq(users.id, userId), eq(users.version, input.userVersion))).returning({ id: users.id });
@@ -286,6 +352,25 @@ export class IdentityUserService {
       });
     });
     return this.getMe(userId);
+  }
+
+  private async syncUserAvatarUsage(transaction: DatabaseTransaction, userId: string, fileId: string | null) {
+    const active = await transaction.select({ id: fileUsages.id, fileId: fileUsages.fileId }).from(fileUsages).where(and(
+      eq(fileUsages.targetType, "USER"),
+      eq(fileUsages.targetId, userId),
+      eq(fileUsages.usageType, "AVATAR"),
+      isNull(fileUsages.deletedAt),
+    ));
+    const preserved = fileId ? active.find((usage) => usage.fileId === fileId) : undefined;
+    const obsoleteIds = active.filter((usage) => usage.id !== preserved?.id).map((usage) => usage.id);
+    if (obsoleteIds.length) {
+      await transaction.update(fileUsages).set({ deletedAt: new Date() }).where(inArray(fileUsages.id, obsoleteIds));
+    }
+    if (fileId && !preserved) {
+      await transaction.insert(fileUsages).values({
+        id: uuidv7(), fileId, usageType: "AVATAR", targetType: "USER", targetId: userId,
+      });
+    }
   }
 
   async getPrivacySettings(userId: string) {
@@ -329,35 +414,124 @@ export class IdentityUserService {
     };
   }
 
-  async currentPolicies() {
+  async currentPolicies(scene?: PolicyAcceptanceScene) {
+    if (scene) return (await this.latestPoliciesForScene(this.database.db, scene)).map(policyView);
+    const now = new Date();
     const rows = await this.database.db.select({
       id: policyVersions.id, policyType: policyVersions.policyType, title: policyVersions.title,
       content: policyVersions.content, versionNo: policyVersions.versionNo, publishedAt: policyVersions.publishedAt,
-    }).from(policyVersions).where(eq(policyVersions.status, "PUBLISHED"))
+      effectiveAt: policyVersions.effectiveAt, requiresReacceptance: policyVersions.requiresReacceptance,
+    }).from(policyVersions).where(and(eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, now), inArray(policyVersions.policyType, policyTypes)))
       .orderBy(policyVersions.policyType, desc(policyVersions.versionNo));
     const latest = new Map<string, typeof rows[number]>();
     for (const row of rows) if (!latest.has(row.policyType)) latest.set(row.policyType, row);
-    return [...latest.values()].map((row) => ({
-      id: row.id, policy_type: row.policyType, title: row.title, content: row.content,
-      version_no: row.versionNo, published_at: row.publishedAt,
-    }));
+    return [...latest.values()].map(policyView);
   }
 
-  async acceptPolicies(userId: string, policyVersionIds: string[], metadata: RequestMetadata) {
+  async getPublishedPolicy(policyVersionId: string) {
+    const [row] = await this.database.db.select({ id: policyVersions.id, policyType: policyVersions.policyType, title: policyVersions.title, content: policyVersions.content, versionNo: policyVersions.versionNo, publishedAt: policyVersions.publishedAt, effectiveAt: policyVersions.effectiveAt, requiresReacceptance: policyVersions.requiresReacceptance })
+      .from(policyVersions).where(and(eq(policyVersions.id, policyVersionId), eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, new Date()))).limit(1);
+    if (!row) throw new AppError({ code: errorCodes.POLICY_NOT_FOUND, message: "协议版本不存在或未发布", statusCode: 404 });
+    return policyView(row);
+  }
+
+  async acceptPolicies(
+    userId: string,
+    scene: PolicyAcceptanceScene,
+    confirmationMethod: PolicyConfirmationMethod,
+    policyVersionIds: string[],
+    metadata: RequestMetadata,
+  ) {
+    return this.acceptPoliciesWithExecutor(this.database.db, userId, scene, confirmationMethod, policyVersionIds, metadata);
+  }
+
+  async requirePolicyAcceptances(
+    executor: Database | DatabaseTransaction,
+    userId: string,
+    scene: PolicyAcceptanceScene,
+  ) {
+    const required = await this.latestPoliciesForScene(executor, scene);
+    const requiredIds = required.map((policy) => policy.id);
+    const accepted = await executor.select({ policyVersionId: userPolicyAcceptances.policyVersionId })
+      .from(userPolicyAcceptances)
+      .where(and(
+        eq(userPolicyAcceptances.userId, userId),
+        eq(userPolicyAcceptances.acceptanceScene, scene),
+        inArray(userPolicyAcceptances.policyVersionId, requiredIds),
+      ));
+    const acceptedIds = new Set(accepted.map((row) => row.policyVersionId));
+    const missingIds = requiredIds.filter((id) => !acceptedIds.has(id));
+    if (missingIds.length > 0) {
+      throw new AppError({
+        code: errorCodes.POLICY_ACCEPTANCE_REQUIRED,
+        message: "请先确认当前业务场景所需协议",
+        statusCode: 409,
+        details: { acceptance_scene: scene, required_policy_version_ids: requiredIds, missing_policy_version_ids: missingIds },
+      });
+    }
+    return required;
+  }
+
+  private async acceptPoliciesWithExecutor(
+    executor: Database | DatabaseTransaction,
+    userId: string,
+    scene: PolicyAcceptanceScene,
+    confirmationMethod: PolicyConfirmationMethod,
+    policyVersionIds: string[],
+    metadata: RequestMetadata,
+  ) {
     const uniqueIds = [...new Set(policyVersionIds)];
-    const published = await this.database.db.select({ id: policyVersions.id }).from(policyVersions)
-      .where(and(inArray(policyVersions.id, uniqueIds), eq(policyVersions.status, "PUBLISHED")));
-    if (published.length !== uniqueIds.length) throw new AppError({ code: errorCodes.POLICY_NOT_FOUND, message: "协议版本不存在或未发布", statusCode: 404 });
-    await this.database.db.insert(userPolicyAcceptances).values(uniqueIds.map((policyVersionId) => ({
-      userId, policyVersionId, ip: metadata.ip, userAgent: metadata.userAgent,
+    const required = await this.latestPoliciesForScene(executor, scene);
+    const requiredIds = required.map((policy) => policy.id);
+    if (uniqueIds.length !== requiredIds.length || requiredIds.some((id) => !uniqueIds.includes(id))) {
+      throw new AppError({
+        code: errorCodes.POLICY_ACCEPTANCE_MISMATCH,
+        message: "提交的协议版本与当前场景要求不一致，请刷新协议后重新确认",
+        statusCode: 409,
+        details: { acceptance_scene: scene, required_policy_version_ids: requiredIds },
+      });
+    }
+    await executor.insert(userPolicyAcceptances).values(uniqueIds.map((policyVersionId) => ({
+      userId, policyVersionId, acceptanceScene: scene, confirmationMethod,
+      ip: metadata.ip, userAgent: metadata.userAgent,
     }))).onConflictDoNothing();
-    return { accepted_policy_version_ids: uniqueIds };
+    return { acceptance_scene: scene, confirmation_method: confirmationMethod, accepted_policy_version_ids: uniqueIds };
+  }
+
+  async listPolicyAcceptances(userId: string) {
+    const rows = await this.database.db.select({ policyVersionId: userPolicyAcceptances.policyVersionId, acceptanceScene: userPolicyAcceptances.acceptanceScene, confirmationMethod: userPolicyAcceptances.confirmationMethod, acceptedAt: userPolicyAcceptances.acceptedAt, policyType: policyVersions.policyType, title: policyVersions.title, versionNo: policyVersions.versionNo, publishedAt: policyVersions.publishedAt })
+      .from(userPolicyAcceptances).innerJoin(policyVersions, eq(policyVersions.id, userPolicyAcceptances.policyVersionId))
+      .where(eq(userPolicyAcceptances.userId, userId)).orderBy(desc(userPolicyAcceptances.acceptedAt));
+    return rows.map((row) => ({ policy_version_id: row.policyVersionId, policy_type: row.policyType, title: row.title, version_no: row.versionNo, published_at: row.publishedAt, acceptance_scene: row.acceptanceScene, confirmation_method: row.confirmationMethod, accepted_at: row.acceptedAt }));
+  }
+
+  private async latestPoliciesForScene(executor: Database | DatabaseTransaction, scene: PolicyAcceptanceScene) {
+    const types = requiredPolicyTypes(scene);
+    const rows = await executor.select({
+      id: policyVersions.id, policyType: policyVersions.policyType, title: policyVersions.title,
+      content: policyVersions.content, versionNo: policyVersions.versionNo, publishedAt: policyVersions.publishedAt,
+      effectiveAt: policyVersions.effectiveAt, requiresReacceptance: policyVersions.requiresReacceptance,
+    }).from(policyVersions).where(and(eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, new Date()), inArray(policyVersions.policyType, types)))
+      .orderBy(policyVersions.policyType, desc(policyVersions.versionNo));
+    const latest = new Map<string, typeof rows[number]>();
+    for (const row of rows) if (!latest.has(row.policyType)) latest.set(row.policyType, row);
+    const missing = types.filter((type) => !latest.has(type));
+    if (missing.length > 0) {
+      throw new AppError({
+        code: errorCodes.POLICY_CONFIGURATION_INCOMPLETE,
+        message: "当前场景的本地测试协议尚未完整发布",
+        statusCode: 503,
+        details: { acceptance_scene: scene, missing_policy_types: missing },
+      });
+    }
+    return types.map((type) => latest.get(type)!);
   }
 
   async submitIdentity(userId: string, input: { legalName: string; documentNumber: string }, metadata: RequestMetadata) {
     const legalName = this.protector.normalizeLegalName(input.legalName);
     const document = this.protector.normalizeDocument(input.documentNumber);
     const created = await this.database.db.transaction(async (transaction) => {
+      await this.requirePolicyAcceptances(transaction, userId, "IDENTITY_VERIFICATION");
       const [active] = await transaction.select({ id: identityVerifications.id }).from(identityVerifications)
         .where(and(eq(identityVerifications.userId, userId), inArray(identityVerifications.status, ["PENDING", "VERIFIED"])))
         .orderBy(desc(identityVerifications.submittedAt)).limit(1).for("update");
@@ -395,13 +569,56 @@ export class IdentityUserService {
     return identity ? this.identityView(identity) : null;
   }
 
-  async listIdentities(status: "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRED" | "REVOKED", limit: number) {
+  async listIdentities(input: { status: "PENDING" | "VERIFIED" | "REJECTED" | "EXPIRED" | "REVOKED"; cursor?: string; limit?: number; keyword?: string; sort: "created_desc" | "created_asc" }) {
+    const limit = normalizePageSize(input.limit, 50);
+    const scope = `admin-identities:${input.status}:${input.keyword ?? ""}:${input.sort}`;
+    const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
+    if (cursor && cursor.scope !== scope) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "分页游标与实名认证筛选条件不匹配", statusCode: 400 });
+    const ascending = input.sort === "created_asc";
+    const cursorDate = cursor ? new Date(cursor.sort_value) : undefined;
+    const keyword = input.keyword ? `%${input.keyword}%` : undefined;
     const rows = await this.database.db.select({
       id: identityVerifications.id, userId: identityVerifications.userId, status: identityVerifications.status,
+      provider: identityVerifications.provider, providerReference: identityVerifications.providerReference,
       legalNameMask: identityVerifications.legalNameMask, documentMask: identityVerifications.documentMask,
-      submittedAt: identityVerifications.submittedAt, verifiedAt: identityVerifications.verifiedAt, version: identityVerifications.version,
-    }).from(identityVerifications).where(eq(identityVerifications.status, status)).orderBy(desc(identityVerifications.submittedAt)).limit(limit);
-    return rows.map((row) => ({ user_id: row.userId, ...this.identityView(row) }));
+      rejectionCode: identityVerifications.rejectionCode, rejectionReason: identityVerifications.rejectionReason,
+      submittedAt: identityVerifications.submittedAt, verifiedAt: identityVerifications.verifiedAt, expiresAt: identityVerifications.expiresAt, version: identityVerifications.version,
+      nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask,
+    }).from(identityVerifications)
+      .innerJoin(users, eq(users.id, identityVerifications.userId))
+      .leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt)))
+      .where(and(
+        eq(identityVerifications.status, input.status),
+        keyword ? or(ilike(userProfiles.nickname, keyword), ilike(userProfiles.publicUserNo, keyword), ilike(users.phoneMask, keyword), sql<boolean>`${identityVerifications.id}::text ILIKE ${keyword}`) : undefined,
+        cursor && cursorDate ? ascending
+          ? or(gt(identityVerifications.submittedAt, cursorDate), and(eq(identityVerifications.submittedAt, cursorDate), gt(identityVerifications.id, cursor.id)))
+          : or(lt(identityVerifications.submittedAt, cursorDate), and(eq(identityVerifications.submittedAt, cursorDate), lt(identityVerifications.id, cursor.id)))
+          : undefined,
+      ))
+      .orderBy(ascending ? asc(identityVerifications.submittedAt) : desc(identityVerifications.submittedAt), ascending ? asc(identityVerifications.id) : desc(identityVerifications.id))
+      .limit(limit + 1);
+    const page = rows.slice(0, limit);
+    const last = page.at(-1);
+    return {
+      items: page.map((row) => this.adminIdentityView(row)),
+      next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.submittedAt.toISOString(), id: last.id, scope }, this.config.cursorSigningSecret) : null,
+    };
+  }
+
+  async getAdminIdentity(verificationId: string) {
+    const [row] = await this.database.db.select({
+      id: identityVerifications.id, userId: identityVerifications.userId, status: identityVerifications.status,
+      provider: identityVerifications.provider, providerReference: identityVerifications.providerReference,
+      legalNameMask: identityVerifications.legalNameMask, documentMask: identityVerifications.documentMask,
+      rejectionCode: identityVerifications.rejectionCode, rejectionReason: identityVerifications.rejectionReason,
+      submittedAt: identityVerifications.submittedAt, verifiedAt: identityVerifications.verifiedAt, expiresAt: identityVerifications.expiresAt, version: identityVerifications.version,
+      nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask,
+    }).from(identityVerifications)
+      .innerJoin(users, eq(users.id, identityVerifications.userId))
+      .leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt)))
+      .where(eq(identityVerifications.id, verificationId)).limit(1);
+    if (!row) throw new AppError({ code: errorCodes.IDENTITY_NOT_FOUND, message: "实名认证记录不存在", statusCode: 404 });
+    return this.adminIdentityView(row);
   }
 
   async reviewIdentity(adminId: string, verificationId: string, input: {
@@ -415,6 +632,7 @@ export class IdentityUserService {
       const [current] = await transaction.select().from(identityVerifications)
         .where(eq(identityVerifications.id, verificationId)).limit(1).for("update");
       if (!current) throw new AppError({ code: errorCodes.IDENTITY_NOT_FOUND, message: "实名认证记录不存在", statusCode: 404 });
+      if (current.version !== input.version) throw versionConflict();
       if (current.status !== "PENDING") throw new AppError({ code: errorCodes.IDENTITY_STATUS_INVALID, message: "当前实名认证状态不可审核", statusCode: 409 });
       if (input.decision === "REJECTED" && !input.rejectionReason) {
         throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "拒绝时必须填写原因", statusCode: 400 });
@@ -473,7 +691,7 @@ export class IdentityUserService {
 
   private issueUserAccessToken(userId: string, sessionId: string): string {
     return issueAccessToken(
-      { sub: userId, principal_type: "user", token_use: "access", session_id: sessionId },
+      { sub: userId, principal_type: "user", token_use: "access", session_id: sessionId, jti: uuidv7() },
       { secret: this.config.userTokenSecret, issuer: this.config.tokenIssuer, audience: this.config.userTokenAudience, expiresInSeconds: this.config.accessTokenTtlSeconds },
     );
   }
@@ -500,8 +718,46 @@ export class IdentityUserService {
       verified_at: identity.verifiedAt ?? null, version: identity.version,
     };
   }
+
+  private adminIdentityView(identity: {
+    id: string; userId: string; status: string; provider: string; providerReference: string;
+    legalNameMask: string; documentMask: string; rejectionCode?: string | null; rejectionReason?: string | null;
+    submittedAt: Date; verifiedAt?: Date | null; expiresAt?: Date | null; version: number;
+    nickname?: string | null; publicUserNo?: string | null; phoneMask: string;
+  }) {
+    return {
+      user_id: identity.userId,
+      user: { nickname: identity.nickname ?? "未初始化用户", public_user_no: identity.publicUserNo ?? null, phone_mask: identity.phoneMask },
+      provider: identity.provider, provider_reference: identity.providerReference,
+      ...this.identityView(identity), expires_at: identity.expiresAt ?? null,
+    };
+  }
 }
 
 function versionConflict(): AppError {
   return new AppError({ code: errorCodes.RESOURCE_VERSION_CONFLICT, message: "数据已被其他操作更新，请刷新后重试", statusCode: 409 });
+}
+
+function maskDeviceId(deviceId: string) { return `••••${deviceId.slice(-4)}`; }
+
+function policyView(row: {
+  id: string;
+  policyType: string;
+  title: string;
+  content: string;
+  versionNo: number;
+  publishedAt: Date | null;
+  effectiveAt: Date | null;
+  requiresReacceptance: boolean;
+}) {
+  return {
+    id: row.id,
+    policy_type: row.policyType,
+    title: row.title,
+    content: row.content,
+    version_no: row.versionNo,
+    published_at: row.publishedAt,
+    effective_at: row.effectiveAt,
+    requires_reacceptance: row.requiresReacceptance,
+  };
 }

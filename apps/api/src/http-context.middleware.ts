@@ -4,6 +4,15 @@ import { uuidv7 } from "@xiongzai/database";
 import { JsonLogger, requestContext } from "@xiongzai/observability";
 import { API_LOGGER } from "./tokens.js";
 
+const tokenEndpoints = new Set([
+  "/api/v1/auth/sms/login",
+  "/api/v1/auth/token/refresh",
+  "/api/v1/auth/logout",
+  "/api/v1/auth/mobile/sms/login",
+  "/api/v1/auth/mobile/token/refresh",
+  "/api/v1/auth/mobile/logout",
+]);
+
 @Injectable()
 export class HttpContextMiddleware implements NestMiddleware {
   constructor(@Inject(API_LOGGER) private readonly logger: JsonLogger) {}
@@ -11,6 +20,10 @@ export class HttpContextMiddleware implements NestMiddleware {
   use(request: IncomingMessage, response: ServerResponse, next: () => void): void {
     const requestId = safeId(request.headers["x-request-id"]) ?? uuidv7();
     const traceId = traceIdFromTraceparent(request.headers.traceparent) ?? safeId(request.headers["x-trace-id"]) ?? uuidv7().replaceAll("-", "");
+    if (isSensitiveEndpoint(request.url)) {
+      response.setHeader("cache-control", "no-store");
+      response.setHeader("pragma", "no-cache");
+    }
     response.setHeader("x-request-id", requestId);
     response.setHeader("x-trace-id", traceId);
     const startedAt = performance.now();
@@ -24,6 +37,11 @@ export class HttpContextMiddleware implements NestMiddleware {
       next();
     });
   }
+}
+
+function isSensitiveEndpoint(url: string | undefined): boolean {
+  const path = url?.split("?", 1)[0];
+  return path !== undefined && (tokenEndpoints.has(path) || path.startsWith("/admin-api/v1/"));
 }
 
 function safeId(value: string | string[] | undefined): string | undefined {

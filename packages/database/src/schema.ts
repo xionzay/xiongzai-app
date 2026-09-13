@@ -17,6 +17,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import {
+  accountCancellationStatusEnum,
   adminStatusEnum,
   afterSaleStatusEnum,
   availabilitySlotStatusEnum,
@@ -50,9 +51,14 @@ import {
   operatorRoleEnum,
   orderStatusEnum,
   outboxStatusEnum,
+  paymentChannelEnum,
   paymentStatusEnum,
+  personalDataExportStatusEnum,
+  phoneChangeRequestStatusEnum,
   payoutAccountTypeEnum,
   payoutVerificationStatusEnum,
+  policyAcceptanceSceneEnum,
+  policyConfirmationMethodEnum,
   policyStatusEnum,
   productReviewActionEnum,
   productStatusEnum,
@@ -103,6 +109,7 @@ export const users = pgTable(
   (table) => [
     uniqueIndex("users_phone_hash_uq").on(table.phoneHash),
     index("users_status_idx").on(table.status),
+    index("users_status_created_id_idx").on(table.status, table.createdAt, table.id),
     index("users_last_active_idx").on(table.lastActiveAt),
   ],
 );
@@ -183,7 +190,12 @@ export const files = pgTable(
     uniqueIndex("files_bucket_object_uq").on(table.bucket, table.objectKey),
     index("files_owner_idx").on(table.ownerUserId, table.createdAt),
     index("files_sha256_idx").on(table.sha256),
+    index("files_admin_queue_created_id_idx").on(table.uploadStatus, table.moderationStatus, table.createdAt, table.id).where(sql`${table.deletedAt} IS NULL`),
     check("files_size_positive", sql`${table.sizeBytes} > 0`),
+    check(
+      "files_voice_metadata_valid",
+      sql`${table.fileType} <> 'VOICE_SAMPLE' OR (${table.mimeType} IN ('audio/aac', 'audio/mp4', 'audio/mpeg') AND (${table.uploadStatus} <> 'VERIFIED' OR ${table.durationMs} BETWEEN 10000 AND 30000))`,
+    ),
   ],
 );
 
@@ -267,6 +279,112 @@ export const smsCodes = pgTable(
   (table) => [index("sms_codes_lookup_idx").on(table.phoneHash, table.purpose, table.expiresAt), check("sms_attempts_valid", sql`${table.attemptCount} >= 0 AND ${table.maxAttempts} > 0`)],
 );
 
+export const phoneChangeRequests = pgTable(
+  "phone_change_requests",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+    idempotencyKey: varchar("idempotency_key", { length: 160 }).notNull(),
+    oldPhoneCiphertext: text("old_phone_ciphertext").notNull(),
+    oldPhoneHash: char("old_phone_hash", { length: 64 }).notNull(),
+    oldPhoneMask: varchar("old_phone_mask", { length: 32 }).notNull(),
+    newPhoneCiphertext: text("new_phone_ciphertext").notNull(),
+    newPhoneHash: char("new_phone_hash", { length: 64 }).notNull(),
+    newPhoneMask: varchar("new_phone_mask", { length: 32 }).notNull(),
+    oldSmsCodeId: uuid("old_sms_code_id").references(() => smsCodes.id, { onDelete: "restrict" }),
+    newSmsCodeId: uuid("new_sms_code_id").references(() => smsCodes.id, { onDelete: "restrict" }),
+    status: phoneChangeRequestStatusEnum("status").default("PENDING_OLD_VERIFICATION").notNull(),
+    oldAttemptCount: integer("old_attempt_count").default(0).notNull(),
+    newAttemptCount: integer("new_attempt_count").default(0).notNull(),
+    maxAttempts: integer("max_attempts").default(5).notNull(),
+    userVersionAtRequest: integer("user_version_at_request").notNull(),
+    oldVerifiedAt: timestamp("old_verified_at", { withTimezone: true }),
+    newVerifiedAt: timestamp("new_verified_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    version: integer("version").default(0).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("phone_change_requests_user_idempotency_uq").on(table.userId, table.idempotencyKey),
+    uniqueIndex("phone_change_requests_one_active_user_uq")
+      .on(table.userId)
+      .where(sql`${table.status} IN ('PENDING_OLD_VERIFICATION','PENDING_NEW_VERIFICATION','READY')`),
+    uniqueIndex("phone_change_requests_one_active_new_phone_uq")
+      .on(table.newPhoneHash)
+      .where(sql`${table.status} IN ('PENDING_OLD_VERIFICATION','PENDING_NEW_VERIFICATION','READY')`),
+    uniqueIndex("phone_change_requests_old_sms_code_uq")
+      .on(table.oldSmsCodeId)
+      .where(sql`${table.oldSmsCodeId} IS NOT NULL`),
+    uniqueIndex("phone_change_requests_new_sms_code_uq")
+      .on(table.newSmsCodeId)
+      .where(sql`${table.newSmsCodeId} IS NOT NULL`),
+    index("phone_change_requests_user_created_idx").on(table.userId, table.createdAt, table.id),
+    index("phone_change_requests_expiry_idx").on(table.status, table.expiresAt, table.id),
+    check("phone_change_requests_distinct_phones", sql`${table.oldPhoneHash} <> ${table.newPhoneHash}`),
+    check(
+      "phone_change_requests_sensitive_values_present",
+      sql`length(btrim(${table.oldPhoneCiphertext})) > 0 AND length(btrim(${table.newPhoneCiphertext})) > 0 AND length(btrim(${table.oldPhoneHash})) = 64 AND length(btrim(${table.newPhoneHash})) = 64 AND length(btrim(${table.oldPhoneMask})) > 0 AND length(btrim(${table.newPhoneMask})) > 0`,
+    ),
+    check(
+      "phone_change_requests_attempts_valid",
+      sql`${table.oldAttemptCount} BETWEEN 0 AND ${table.maxAttempts} AND ${table.newAttemptCount} BETWEEN 0 AND ${table.maxAttempts} AND ${table.maxAttempts} > 0`,
+    ),
+    check(
+      "phone_change_requests_versions_valid",
+      sql`${table.version} >= 0 AND ${table.userVersionAtRequest} >= 0`,
+    ),
+    check("phone_change_requests_expiry_valid", sql`${table.expiresAt} > ${table.createdAt}`),
+    check(
+      "phone_change_requests_sms_verification_pairs",
+      sql`(${table.oldSmsCodeId} IS NULL) = (${table.oldVerifiedAt} IS NULL) AND (${table.newSmsCodeId} IS NULL) = (${table.newVerifiedAt} IS NULL) AND (${table.oldSmsCodeId} IS NULL OR ${table.newSmsCodeId} IS NULL OR ${table.oldSmsCodeId} <> ${table.newSmsCodeId})`,
+    ),
+    check(
+      "phone_change_requests_state_consistent",
+      sql`(${table.status} = 'PENDING_OLD_VERIFICATION' AND ${table.oldVerifiedAt} IS NULL AND ${table.newVerifiedAt} IS NULL AND ${table.completedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'PENDING_NEW_VERIFICATION' AND ${table.oldVerifiedAt} IS NOT NULL AND ${table.newVerifiedAt} IS NULL AND ${table.completedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'READY' AND ${table.oldVerifiedAt} IS NOT NULL AND ${table.newVerifiedAt} IS NOT NULL AND ${table.completedAt} IS NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'COMPLETED' AND ${table.oldVerifiedAt} IS NOT NULL AND ${table.newVerifiedAt} IS NOT NULL AND ${table.completedAt} IS NOT NULL AND ${table.cancelledAt} IS NULL) OR (${table.status} = 'CANCELLED' AND ${table.completedAt} IS NULL AND ${table.cancelledAt} IS NOT NULL) OR (${table.status} = 'EXPIRED' AND ${table.completedAt} IS NULL AND ${table.cancelledAt} IS NULL)`,
+    ),
+  ],
+);
+
+export const personalDataExportJobs = pgTable(
+  "personal_data_export_jobs",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+    idempotencyKey: varchar("idempotency_key", { length: 160 }).notNull(),
+    status: personalDataExportStatusEnum("status").default("PENDING").notNull(),
+    outputFileId: uuid("output_file_id").references(() => files.id, { onDelete: "restrict" }),
+    failureCode: varchar("failure_code", { length: 64 }),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    version: integer("version").default(0).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("personal_data_export_jobs_user_idempotency_uq").on(table.userId, table.idempotencyKey),
+    uniqueIndex("personal_data_export_jobs_one_active_user_uq")
+      .on(table.userId)
+      .where(sql`${table.status} IN ('PENDING','PROCESSING')`),
+    uniqueIndex("personal_data_export_jobs_output_file_uq")
+      .on(table.outputFileId)
+      .where(sql`${table.outputFileId} IS NOT NULL`),
+    index("personal_data_export_jobs_user_created_idx").on(table.userId, table.createdAt, table.id),
+    index("personal_data_export_jobs_dispatch_idx").on(table.status, table.createdAt, table.id),
+    index("personal_data_export_jobs_expiry_idx").on(table.status, table.expiresAt, table.id),
+    check("personal_data_export_jobs_version_valid", sql`${table.version} >= 0`),
+    check("personal_data_export_jobs_expiry_valid", sql`${table.expiresAt} > ${table.requestedAt}`),
+    check(
+      "personal_data_export_jobs_state_consistent",
+      sql`(${table.status} = 'PENDING' AND ${table.startedAt} IS NULL AND ${table.finishedAt} IS NULL AND ${table.outputFileId} IS NULL AND ${table.failureCode} IS NULL) OR (${table.status} = 'PROCESSING' AND ${table.startedAt} IS NOT NULL AND ${table.finishedAt} IS NULL AND ${table.failureCode} IS NULL) OR (${table.status} = 'COMPLETED' AND ${table.startedAt} IS NOT NULL AND ${table.finishedAt} IS NOT NULL AND ${table.outputFileId} IS NOT NULL AND ${table.failureCode} IS NULL) OR (${table.status} = 'FAILED' AND ${table.finishedAt} IS NOT NULL AND ${table.failureCode} IS NOT NULL AND length(btrim(${table.failureCode})) > 0) OR (${table.status} = 'EXPIRED' AND ${table.finishedAt} IS NOT NULL AND ${table.outputFileId} IS NOT NULL AND ${table.failureCode} IS NULL)`,
+    ),
+  ],
+);
+
 export const userDevices = pgTable(
   "user_devices",
   {
@@ -332,17 +450,33 @@ export const policyVersions = pgTable("policy_versions", {
   versionNo: integer("version_no").notNull(),
   status: policyStatusEnum("status").default("DRAFT").notNull(),
   publishedAt: timestamp("published_at", { withTimezone: true }),
+  effectiveAt: timestamp("effective_at", { withTimezone: true }),
+  requiresReacceptance: boolean("requires_reacceptance").default(false).notNull(),
   createdByAdminId: uuid("created_by_admin_id").references(() => adminAccounts.id, { onDelete: "restrict" }),
   createdAt: createdAt(),
-}, (table) => [uniqueIndex("policy_type_version_uq").on(table.policyType, table.versionNo), index("policy_status_idx").on(table.status, table.publishedAt)]);
+}, (table) => [
+  uniqueIndex("policy_type_version_uq").on(table.policyType, table.versionNo),
+  index("policy_status_idx").on(table.status, table.effectiveAt, table.publishedAt),
+  check("policy_version_no_positive", sql`${table.versionNo} > 0`),
+  check(
+    "policy_published_timestamps_present",
+    sql`${table.status} = 'DRAFT' OR (${table.publishedAt} IS NOT NULL AND ${table.effectiveAt} IS NOT NULL)`,
+  ),
+]);
 
 export const userPolicyAcceptances = pgTable("user_policy_acceptances", {
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
   policyVersionId: uuid("policy_version_id").notNull().references(() => policyVersions.id, { onDelete: "restrict" }),
+  acceptanceScene: policyAcceptanceSceneEnum("acceptance_scene").default("LEGACY_UNSCOPED").notNull(),
+  confirmationMethod: policyConfirmationMethodEnum("confirmation_method").default("ONLINE_CONFIRM").notNull(),
   acceptedAt: timestamp("accepted_at", { withTimezone: true }).defaultNow().notNull(),
   ip: varchar("ip", { length: 64 }).notNull(),
   userAgent: text("user_agent").notNull(),
-}, (table) => [primaryKey({ columns: [table.userId, table.policyVersionId], name: "user_policy_acceptances_pk" })]);
+}, (table) => [
+  primaryKey({ columns: [table.userId, table.policyVersionId], name: "user_policy_acceptances_pk" }),
+  index("user_policy_acceptances_scene_idx").on(table.userId, table.acceptanceScene, table.acceptedAt),
+  check("user_policy_acceptances_evidence_present", sql`length(btrim(${table.ip})) > 0 AND length(btrim(${table.userAgent})) > 0`),
+]);
 
 export const sellerProfiles = pgTable(
   "seller_profiles",
@@ -360,6 +494,7 @@ export const sellerProfiles = pgTable(
     playStyle: varchar("play_style", { length: 128 }),
     gameExperience: varchar("game_experience", { length: 500 }),
     voiceFileId: uuid("voice_file_id").references(() => files.id, { onDelete: "set null" }),
+    voiceAuthorizationPolicyVersionId: uuid("voice_authorization_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
     voiceDurationMs: integer("voice_duration_ms"),
     acceptingOrders: boolean("accepting_orders").default(false).notNull(),
     ratingAvg: numeric("rating_avg", { precision: 3, scale: 2 }).default("0").notNull(),
@@ -387,6 +522,7 @@ export const sellerApplications = pgTable(
     id: uuid("id").primaryKey(),
     sellerId: uuid("seller_id").notNull().references(() => sellerProfiles.id, { onDelete: "restrict" }),
     versionNo: integer("version_no").notNull(),
+    onboardingPolicyVersionId: uuid("onboarding_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
     snapshotJson: jsonb("snapshot_json").notNull(),
     status: sellerApplicationStatusEnum("status").default("DRAFT").notNull(),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
@@ -573,6 +709,8 @@ export const orders = pgTable(
     sellerId: uuid("seller_id").notNull().references(() => sellerProfiles.id, { onDelete: "restrict" }),
     productId: uuid("product_id").notNull().references(() => products.id, { onDelete: "restrict" }),
     skuId: uuid("sku_id").notNull().references(() => productSkus.id, { onDelete: "restrict" }),
+    transactionPolicyVersionId: uuid("transaction_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
+    refundPolicyVersionId: uuid("refund_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
     productTitleSnapshot: varchar("product_title_snapshot", { length: 120 }).notNull(),
     productImageSnapshot: text("product_image_snapshot").notNull(),
     productDescriptionSnapshot: text("product_description_snapshot").notNull(),
@@ -630,6 +768,10 @@ export const orders = pgTable(
     check("orders_commission_bps_valid", sql`${table.commissionRateBpsSnapshot} BETWEEN 0 AND 10000`),
     check("orders_split_formula", sql`${table.platformFeeCent} + ${table.sellerIncomeCent} = ${table.payableAmountCent}`),
     check("orders_service_time_valid", sql`${table.serviceEndsAt} > ${table.serviceStartsAt}`),
+    check(
+      "orders_policy_versions_complete",
+      sql`(${table.transactionPolicyVersionId} IS NULL AND ${table.refundPolicyVersionId} IS NULL) OR (${table.transactionPolicyVersionId} IS NOT NULL AND ${table.refundPolicyVersionId} IS NOT NULL)`,
+    ),
   ],
 );
 
@@ -680,7 +822,7 @@ export const payments = pgTable(
     id: uuid("id").primaryKey(),
     orderId: uuid("order_id").notNull().references(() => orders.id, { onDelete: "restrict" }),
     paymentNo: varchar("payment_no", { length: 64 }).notNull(),
-    channel: varchar("channel", { length: 32 }).notNull(),
+    channel: paymentChannelEnum("channel").notNull(),
     providerTransactionId: varchar("provider_transaction_id", { length: 128 }),
     idempotencyKey: varchar("idempotency_key", { length: 128 }).notNull(),
     amountCent: money("amount_cent").notNull(),
@@ -709,7 +851,7 @@ export const paymentEvents = pgTable(
   {
     id: uuid("id").primaryKey(),
     paymentId: uuid("payment_id").notNull().references(() => payments.id, { onDelete: "restrict" }),
-    channel: varchar("channel", { length: 32 }).notNull(),
+    channel: paymentChannelEnum("channel").notNull(),
     providerEventId: varchar("provider_event_id", { length: 160 }).notNull(),
     eventType: varchar("event_type", { length: 64 }).notNull(),
     signatureVerified: boolean("signature_verified").default(false).notNull(),
@@ -823,7 +965,14 @@ export const complaintEvidences = pgTable(
     description: varchar("description", { length: 500 }),
     createdAt: createdAt(),
   },
-  (table) => [uniqueIndex("complaint_evidence_file_uq").on(table.complaintId, table.fileId), index("complaint_evidences_complaint_idx").on(table.complaintId, table.createdAt)],
+  (table) => [
+    uniqueIndex("complaint_evidence_file_uq").on(table.complaintId, table.fileId),
+    index("complaint_evidences_complaint_idx").on(table.complaintId, table.createdAt, table.id),
+    check(
+      "complaint_evidences_submitter_xor",
+      sql`(CASE WHEN ${table.submittedByUserId} IS NULL THEN 0 ELSE 1 END) + (CASE WHEN ${table.submittedByAdminId} IS NULL THEN 0 ELSE 1 END) = 1`,
+    ),
+  ],
 );
 
 export const complaintLogs = pgTable(
@@ -862,6 +1011,8 @@ export const reviews = pgTable(
     hiddenAt: timestamp("hidden_at", { withTimezone: true }),
     hiddenByAdminId: uuid("hidden_by_admin_id").references(() => adminAccounts.id, { onDelete: "restrict" }),
     hiddenReason: text("hidden_reason"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    version: integer("version").default(0).notNull(),
     createdAt: createdAt(),
   },
   (table) => [
@@ -1083,6 +1234,10 @@ export const withdrawals = pgTable(
     idempotencyKey: varchar("idempotency_key", { length: 160 }).notNull(),
     providerPayoutNo: varchar("provider_payout_no", { length: 128 }),
     assignedAdminId: uuid("assigned_admin_id").references(() => adminAccounts.id, { onDelete: "restrict" }),
+    initialReviewAdminId: uuid("initial_review_admin_id").references(() => adminAccounts.id, { onDelete: "restrict" }),
+    initialReviewedAt: timestamp("initial_reviewed_at", { withTimezone: true }),
+    finalReviewAdminId: uuid("final_review_admin_id").references(() => adminAccounts.id, { onDelete: "restrict" }),
+    finalReviewedAt: timestamp("final_reviewed_at", { withTimezone: true }),
     processingAt: timestamp("processing_at", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     failedAt: timestamp("failed_at", { withTimezone: true }),
@@ -1099,6 +1254,7 @@ export const withdrawals = pgTable(
     index("withdrawals_status_created_idx").on(table.status, table.createdAt),
     check("withdrawals_amount_positive", sql`${table.amountCent} > 0 AND ${table.feeCent} >= 0 AND ${table.actualAmountCent} > 0`),
     check("withdrawals_amount_formula", sql`${table.actualAmountCent} = ${table.amountCent} - ${table.feeCent}`),
+    check("withdrawals_dual_review_admins", sql`${table.finalReviewAdminId} IS NULL OR (${table.initialReviewAdminId} IS NOT NULL AND ${table.finalReviewAdminId} <> ${table.initialReviewAdminId})`),
   ],
 );
 
@@ -1392,7 +1548,47 @@ export const adminOperationLogs = pgTable(
     userAgent: text("user_agent").notNull(),
     createdAt: createdAt(),
   },
-  (table) => [index("admin_operation_logs_target_idx").on(table.targetType, table.targetId, table.createdAt), index("admin_operation_logs_admin_idx").on(table.adminId, table.createdAt), index("admin_operation_logs_request_idx").on(table.requestId)],
+  (table) => [index("admin_operation_logs_target_idx").on(table.targetType, table.targetId, table.createdAt), index("admin_operation_logs_admin_idx").on(table.adminId, table.createdAt), index("admin_operation_logs_request_idx").on(table.requestId), index("admin_operation_logs_created_id_idx").on(table.createdAt, table.id)],
+);
+
+export const accountCancellationRequests = pgTable(
+  "account_cancellation_requests",
+  {
+    id: uuid("id").primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+    idempotencyKey: varchar("idempotency_key", { length: 160 }).notNull(),
+    status: accountCancellationStatusEnum("status").default("REQUESTED").notNull(),
+    reason: varchar("reason", { length: 500 }).notNull(),
+    requestedAt: timestamp("requested_at", { withTimezone: true }).defaultNow().notNull(),
+    waitingPeriodEndsAt: timestamp("waiting_period_ends_at", { withTimezone: true }).notNull(),
+    processingAt: timestamp("processing_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    rejectedAt: timestamp("rejected_at", { withTimezone: true }),
+    rejectionReason: varchar("rejection_reason", { length: 500 }),
+    decisionAdminOperationLogId: uuid("decision_admin_operation_log_id").references(() => adminOperationLogs.id, { onDelete: "restrict" }),
+    version: integer("version").default(0).notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex("account_cancellation_requests_user_idempotency_uq").on(table.userId, table.idempotencyKey),
+    uniqueIndex("account_cancellation_requests_one_active_user_uq")
+      .on(table.userId)
+      .where(sql`${table.status} IN ('REQUESTED','PROCESSING')`),
+    uniqueIndex("account_cancellation_requests_decision_log_uq")
+      .on(table.decisionAdminOperationLogId)
+      .where(sql`${table.decisionAdminOperationLogId} IS NOT NULL`),
+    index("account_cancellation_requests_user_created_idx").on(table.userId, table.createdAt, table.id),
+    index("account_cancellation_requests_waiting_idx").on(table.status, table.waitingPeriodEndsAt, table.id),
+    check("account_cancellation_requests_reason_present", sql`length(btrim(${table.reason})) > 0`),
+    check("account_cancellation_requests_version_valid", sql`${table.version} >= 0`),
+    check("account_cancellation_requests_waiting_valid", sql`${table.waitingPeriodEndsAt} > ${table.requestedAt}`),
+    check(
+      "account_cancellation_requests_state_consistent",
+      sql`(${table.status} = 'REQUESTED' AND ${table.processingAt} IS NULL AND ${table.cancelledAt} IS NULL AND ${table.completedAt} IS NULL AND ${table.rejectedAt} IS NULL AND ${table.rejectionReason} IS NULL AND ${table.decisionAdminOperationLogId} IS NULL) OR (${table.status} = 'CANCELLED' AND ${table.cancelledAt} IS NOT NULL AND ${table.completedAt} IS NULL AND ${table.rejectedAt} IS NULL AND ${table.rejectionReason} IS NULL AND ${table.decisionAdminOperationLogId} IS NULL) OR (${table.status} = 'PROCESSING' AND ${table.processingAt} IS NOT NULL AND ${table.cancelledAt} IS NULL AND ${table.completedAt} IS NULL AND ${table.rejectedAt} IS NULL AND ${table.rejectionReason} IS NULL) OR (${table.status} = 'COMPLETED' AND ${table.processingAt} IS NOT NULL AND ${table.cancelledAt} IS NULL AND ${table.completedAt} IS NOT NULL AND ${table.rejectedAt} IS NULL AND ${table.rejectionReason} IS NULL) OR (${table.status} = 'REJECTED' AND ${table.cancelledAt} IS NULL AND ${table.completedAt} IS NULL AND ${table.rejectedAt} IS NOT NULL AND ${table.rejectionReason} IS NOT NULL AND length(btrim(${table.rejectionReason})) > 0 AND ${table.decisionAdminOperationLogId} IS NOT NULL)`,
+    ),
+  ],
 );
 
 export const securityLogs = pgTable(
@@ -1411,7 +1607,7 @@ export const securityLogs = pgTable(
     resolvedAt: timestamp("resolved_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
-  (table) => [index("security_logs_status_idx").on(table.status, table.createdAt), index("security_logs_user_idx").on(table.userId, table.createdAt), check("security_logs_risk_score_valid", sql`${table.riskScore} BETWEEN 0 AND 100`)],
+  (table) => [index("security_logs_status_idx").on(table.status, table.createdAt), index("security_logs_status_created_id_idx").on(table.status, table.createdAt, table.id), index("security_logs_user_idx").on(table.userId, table.createdAt), check("security_logs_risk_score_valid", sql`${table.riskScore} BETWEEN 0 AND 100`)],
 );
 
 export const riskEvents = pgTable(
@@ -1432,7 +1628,7 @@ export const riskEvents = pgTable(
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (table) => [index("risk_events_status_severity_idx").on(table.status, table.severity, table.createdAt), index("risk_events_target_idx").on(table.targetType, table.targetId)],
+  (table) => [index("risk_events_status_severity_idx").on(table.status, table.severity, table.createdAt), index("risk_events_status_created_id_idx").on(table.status, table.createdAt, table.id), index("risk_events_target_idx").on(table.targetType, table.targetId)],
 );
 
 export const outboxEvents = pgTable(

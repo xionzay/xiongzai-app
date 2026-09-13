@@ -16,6 +16,8 @@ const logLines = [];
 let migrationClient;
 let database;
 let app;
+let loginPolicyIds = [];
+let identityPolicyId;
 
 const config = loadApiConfig({
   NODE_ENV: "test",
@@ -45,6 +47,13 @@ before(async () => {
   await migrationClient.query(`SET search_path TO "${schemaName}", public`);
   await runMigration("0000_initial_schema.sql");
   await runMigration("0001_core_invariants.sql");
+  await runMigration("0002_admin_stage2_permissions.sql");
+  await runMigration("0003_admin_query_performance.sql");
+  await runMigration("0004_payment_channels_voice_constraints.sql");
+  await runMigration("0005_policy_acceptance_context.sql");
+  await runMigration("0006_policy_version_bindings.sql");
+  loginPolicyIds = await seedPolicies();
+  identityPolicyId = await seedPolicy("IDENTITY_INFORMATION_SEPARATE_CONSENT", "实名信息单独同意");
 
   database = createDatabaseClient({
     connectionString: databaseUrl,
@@ -135,7 +144,10 @@ test("login keeps tokens out of JSON, rotates refresh tokens, revokes sessions, 
   const removable = await createSession("13200000003");
   const sessions = await app.inject({ method: "GET", url: "/api/v1/me/sessions", headers: { cookie: removable.cookies } });
   assert.equal(sessions.statusCode, 200);
-  assert.ok(sessions.json().some((item) => item.id === removable.sessionId));
+  const currentSession = sessions.json().find((item) => item.id === removable.sessionId);
+  assert.equal(currentSession.current, true);
+  assert.match(currentSession.device_id_mask, /^••••/u);
+  assert.equal(Object.hasOwn(currentSession, "device_id"), false);
   const removed = await app.inject({ method: "DELETE", url: `/api/v1/me/sessions/${removable.sessionId}`, headers: { cookie: removable.cookies } });
   assert.equal(removed.statusCode, 204);
   const removedSession = await app.inject({ method: "GET", url: "/api/v1/me", headers: { cookie: removable.cookies } });
@@ -143,10 +155,13 @@ test("login keeps tokens out of JSON, rotates refresh tokens, revokes sessions, 
 });
 
 test("profile, policy acceptance and privacy updates use authenticated ownership and optimistic locks", { skip: !enabled }, async () => {
-  const policyIds = await seedPolicies();
+  const policyIds = loginPolicyIds;
   const currentPolicies = await app.inject({ method: "GET", url: "/api/v1/policies/current" });
   assert.equal(currentPolicies.statusCode, 200);
-  assert.equal(currentPolicies.json().length, 3);
+  assert.equal(currentPolicies.json().length, 7);
+  const loginPolicies = await app.inject({ method: "GET", url: "/api/v1/policies/current?scene=LOGIN" });
+  assert.equal(loginPolicies.statusCode, 200);
+  assert.deepEqual(loginPolicies.json().map((item) => item.id), policyIds);
 
   const session = await createSession("13300000001");
   const unauthorized = await app.inject({ method: "GET", url: "/api/v1/me" });
@@ -158,13 +173,35 @@ test("profile, policy acceptance and privacy updates use authenticated ownership
   });
   assert.equal(profile.statusCode, 200);
   assert.equal(profile.json().profile.nickname, "集成测试玩家");
+  const staleProfile = await app.inject({
+    method: "PATCH", url: "/api/v1/me/profile", headers: { cookie: session.cookies },
+    payload: { nickname: "不应覆盖的新昵称", version: 0, user_version: session.user.version },
+  });
+  assert.equal(staleProfile.statusCode, 409);
+  assert.equal(staleProfile.json().code, "RESOURCE_VERSION_CONFLICT");
 
   const accepted = await app.inject({
-    method: "POST", url: "/api/v1/policies/acceptances", headers: { cookie: session.cookies }, payload: { policy_version_ids: policyIds },
+    method: "POST", url: "/api/v1/policies/acceptances", headers: { cookie: session.cookies }, payload: { acceptance_scene: "LOGIN", confirmation_method: "ONLINE_CONFIRM", policy_version_ids: policyIds },
   });
   assert.equal(accepted.statusCode, 201);
+  assert.equal(accepted.json().acceptance_scene, "LOGIN");
+  assert.equal(accepted.json().confirmation_method, "ONLINE_CONFIRM");
   const acceptanceCount = await migrationClient.query("SELECT count(*)::integer AS count FROM user_policy_acceptances WHERE user_id = $1", [session.user.id]);
-  assert.equal(acceptanceCount.rows[0].count, 3);
+  assert.equal(acceptanceCount.rows[0].count, 6);
+  const mismatch = await app.inject({
+    method: "POST", url: "/api/v1/policies/acceptances", headers: { cookie: session.cookies }, payload: { acceptance_scene: "LOGIN", confirmation_method: "ONLINE_CONFIRM", policy_version_ids: policyIds.slice(0, 1) },
+  });
+  assert.equal(mismatch.statusCode, 409);
+  assert.equal(mismatch.json().code, "POLICY_ACCEPTANCE_MISMATCH");
+  const policyDetail = await app.inject({ method: "GET", url: `/api/v1/policies/${policyIds[0]}` });
+  assert.equal(policyDetail.statusCode, 200);
+  assert.equal(policyDetail.json().id, policyIds[0]);
+  assert.equal(policyDetail.json().version_no, 1);
+  const acceptanceList = await app.inject({ method: "GET", url: "/api/v1/policies/acceptances", headers: { cookie: session.cookies } });
+  assert.equal(acceptanceList.statusCode, 200);
+  assert.equal(acceptanceList.json().length, 6);
+  assert.deepEqual(new Set(acceptanceList.json().map((item) => item.policy_version_id)), new Set(policyIds));
+  assert.equal(acceptanceList.json().every((item) => item.acceptance_scene === "LOGIN" && item.confirmation_method === "ONLINE_CONFIRM"), true);
 
   const privacy = await app.inject({ method: "GET", url: "/api/v1/me/privacy-settings", headers: { cookie: session.cookies } });
   assert.equal(privacy.statusCode, 200);
@@ -184,8 +221,40 @@ test("profile, policy acceptance and privacy updates use authenticated ownership
 
 test("identity data stays encrypted and masked while admin review is versioned and audited", { skip: !enabled }, async () => {
   const session = await createSession("13400000001");
+  const identityAcceptance = await app.inject({
+    method: "POST", url: "/api/v1/policies/acceptances", headers: { cookie: session.cookies },
+    payload: { acceptance_scene: "IDENTITY_VERIFICATION", confirmation_method: "ONLINE_CONFIRM", policy_version_ids: [identityPolicyId] },
+  });
+  assert.equal(identityAcceptance.statusCode, 201, identityAcceptance.body);
   const legalName = "张安全";
   const documentNumber = "110101199001011234";
+  const currentIdentityPolicyId = randomUUID();
+  await migrationClient.query(
+    "INSERT INTO policy_versions (id, policy_type, title, content, version_no, status, published_at, effective_at, requires_reacceptance) VALUES ($1, 'IDENTITY_INFORMATION_SEPARATE_CONSENT', '实名信息单独同意', '实名信息单独同意集成测试第二版', 2, 'PUBLISHED', now(), now(), true)",
+    [currentIdentityPolicyId],
+  );
+  const blockedByNewPolicy = await app.inject({
+    method: "POST", url: "/api/v1/me/identity-verification", headers: { cookie: session.cookies },
+    payload: { legal_name: legalName, document_number: documentNumber },
+  });
+  assert.equal(blockedByNewPolicy.statusCode, 409, blockedByNewPolicy.body);
+  assert.equal(blockedByNewPolicy.json().code, "POLICY_ACCEPTANCE_REQUIRED");
+  assert.deepEqual(blockedByNewPolicy.json().details.missing_policy_version_ids, [currentIdentityPolicyId]);
+  const reaccepted = await app.inject({
+    method: "POST", url: "/api/v1/policies/acceptances", headers: { cookie: session.cookies },
+    payload: { acceptance_scene: "IDENTITY_VERIFICATION", confirmation_method: "ONLINE_CONFIRM", policy_version_ids: [currentIdentityPolicyId] },
+  });
+  assert.equal(reaccepted.statusCode, 201, reaccepted.body);
+  const repeatedAcceptance = await app.inject({
+    method: "POST", url: "/api/v1/policies/acceptances", headers: { cookie: session.cookies },
+    payload: { acceptance_scene: "IDENTITY_VERIFICATION", confirmation_method: "ONLINE_CONFIRM", policy_version_ids: [currentIdentityPolicyId] },
+  });
+  assert.equal(repeatedAcceptance.statusCode, 201, repeatedAcceptance.body);
+  const reacceptanceCount = await migrationClient.query(
+    "SELECT count(*)::integer AS count FROM user_policy_acceptances WHERE user_id = $1 AND policy_version_id = $2 AND acceptance_scene = 'IDENTITY_VERIFICATION'",
+    [session.user.id, currentIdentityPolicyId],
+  );
+  assert.equal(reacceptanceCount.rows[0].count, 1);
   const submitted = await app.inject({
     method: "POST", url: "/api/v1/me/identity-verification", headers: { cookie: session.cookies },
     payload: { legal_name: legalName, document_number: documentNumber },
@@ -203,6 +272,30 @@ test("identity data stays encrypted and masked while admin review is versioned a
   assert.match(stored.rows[0].document_hash, /^[a-f0-9]{64}$/);
 
   const admin = await seedIdentityReviewer();
+  const listed = await app.inject({
+    method: "GET", url: "/admin-api/v1/identity-verifications?status=PENDING&limit=20&sort=created_desc",
+    headers: { authorization: `Bearer ${admin.token}` },
+  });
+  assert.equal(listed.statusCode, 200, listed.body);
+  assert.equal(listed.json().items.length, 1);
+  assert.equal(listed.json().items[0].id, verificationId);
+  assert.equal(listed.json().items[0].legal_name_mask, "张*全");
+  assert.equal(listed.json().items[0].document_mask, "**************1234");
+  assert.equal(Object.hasOwn(listed.json().items[0], "legal_name_ciphertext"), false);
+  assert.equal(Object.hasOwn(listed.json().items[0], "document_ciphertext"), false);
+  assert.equal(listed.body.includes(legalName), false);
+  assert.equal(listed.body.includes(documentNumber), false);
+
+  const detail = await app.inject({
+    method: "GET", url: `/admin-api/v1/identity-verifications/${verificationId}`,
+    headers: { authorization: `Bearer ${admin.token}` },
+  });
+  assert.equal(detail.statusCode, 200, detail.body);
+  assert.equal(detail.json().id, verificationId);
+  assert.equal(detail.json().legal_name_mask, "张*全");
+  assert.equal(detail.body.includes(legalName), false);
+  assert.equal(detail.body.includes(documentNumber), false);
+
   const reviewed = await app.inject({
     method: "POST", url: `/admin-api/v1/identity-verifications/${verificationId}/review`,
     headers: { authorization: `Bearer ${admin.token}` },
@@ -212,6 +305,14 @@ test("identity data stays encrypted and masked while admin review is versioned a
   assert.equal(reviewed.json().status, "VERIFIED");
   assert.equal(reviewed.body.includes(legalName), false);
   assert.equal(reviewed.body.includes(documentNumber), false);
+
+  const stale = await app.inject({
+    method: "POST", url: `/admin-api/v1/identity-verifications/${verificationId}/review`,
+    headers: { authorization: `Bearer ${admin.token}` },
+    payload: { decision: "REJECTED", version: submitted.json().version, rejection_code: "STALE", rejection_reason: "不应覆盖服务端结果", reason: "并发冲突测试" },
+  });
+  assert.equal(stale.statusCode, 409);
+  assert.equal(stale.json().code, "RESOURCE_VERSION_CONFLICT");
 
   const audit = await migrationClient.query("SELECT before_json, after_json FROM admin_operation_logs WHERE admin_id = $1", [admin.id]);
   assert.equal(audit.rowCount, 1);
@@ -237,7 +338,7 @@ async function sendCode(phone) {
 async function login(phone, code) {
   return app.inject({
     method: "POST", url: "/api/v1/auth/sms/login",
-    payload: { phone, code, device_id: `web-${randomUUID()}`, device_type: "WEB" },
+    payload: { phone, code, device_id: `web-${randomUUID()}`, device_type: "WEB", policy_version_ids: loginPolicyIds },
   });
 }
 
@@ -259,15 +360,29 @@ function cookieHeader(response) {
 
 async function seedPolicies() {
   const rows = [
-    ["USER_AGREEMENT", "用户协议"], ["PRIVACY_POLICY", "隐私政策"], ["TRANSACTION_RULES", "交易规则"],
+    ["USER_SERVICE_AGREEMENT", "用户服务协议"],
+    ["PRIVACY_POLICY", "隐私政策"],
+    ["PERSONAL_INFORMATION_COLLECTION_LIST", "个人信息收集清单"],
+    ["THIRD_PARTY_SDK_SHARING_LIST", "第三方 SDK 及共享清单"],
+    ["SYSTEM_PERMISSION_NOTICE", "系统权限说明"],
+    ["MINOR_PROTECTION_NOTICE", "未成年人保护说明"],
   ].map(([type, title]) => ({ id: randomUUID(), type, title }));
   for (const row of rows) {
     await migrationClient.query(
-      "INSERT INTO policy_versions (id, policy_type, title, content, version_no, status, published_at) VALUES ($1, $2, $3, $4, 1, 'PUBLISHED', now())",
+      "INSERT INTO policy_versions (id, policy_type, title, content, version_no, status, published_at, effective_at) VALUES ($1, $2, $3, $4, 1, 'PUBLISHED', now(), now())",
       [row.id, row.type, row.title, `${row.title}集成测试版本`],
     );
   }
   return rows.map((row) => row.id);
+}
+
+async function seedPolicy(type, title) {
+  const id = randomUUID();
+  await migrationClient.query(
+    "INSERT INTO policy_versions (id, policy_type, title, content, version_no, status, published_at, effective_at) VALUES ($1, $2, $3, $4, 1, 'PUBLISHED', now(), now())",
+    [id, type, title, `${title}集成测试版本`],
+  );
+  return id;
 }
 
 async function seedIdentityReviewer() {

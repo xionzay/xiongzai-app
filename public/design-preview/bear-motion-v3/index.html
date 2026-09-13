@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>熊崽状态动效 · V2 / V3 对比</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(125deg,#fff6df,#eff7ff);color:#233d57;font-family:system-ui,sans-serif}main{max-width:1060px;margin:auto;padding:32px 20px}h1{font-size:26px}p{line-height:1.7;color:#60758a}a{color:#237bd0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}article{background:white;border:1px solid #e7eef4;border-radius:24px;padding:20px}h2{font-size:18px;margin:0 0 16px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center}.pair img{display:block;width:100%;max-width:200px;aspect-ratio:1;margin:auto;object-fit:contain}.pair b{font-size:14px}.new{color:#1975c9}button{min-height:44px;border:1px solid #bcd9f4;border-radius:14px;background:#edf7ff;color:#226cae;padding:8px 18px;cursor:pointer;font:inherit}button:focus-visible{outline:3px solid #ffb640}article p{font-size:13px;min-height:44px}small{display:block;margin:12px 0;color:#60758a}@media(max-width:600px){.grid{grid-template-columns:1fr}main{padding:20px 12px}}
+</style>
+<main><a href="/">← 返回用户端 UI</a><h1>熊崽状态动效 · 增强版</h1><p>左侧 V2 原版，右侧 V3 增强版。熊崽动作更明显，配套图标独立运动；单轮时长不变，右侧 V3 所有状态持续循环。仅为视觉演示，不代表真实业务结果。</p><p>包括支付确认超时和财务处理状态，插画均循环播放；结果未知仍表示未知，不触发任何业务查询。欢迎和加油熊仅提供素材预览，未新增业务入口。</p><div class="grid" id="gallery"></div></main>
+<script src="./asset-manifest.js"></script>
+<script>
+const notes={"01-loading":"呼吸更明显；加载圆环旋转、上下浮动及轻微缩放。","02-error":"挠头与歪头加大；感叹号起始位置稍低，上下跳动并轻轻摇摆。","03-success":"抬手更明显；对勾随手上抬，两颗星星独立摆动。","04-empty":"低头幅度加大；纸箱和双手一起轻抬。","05-offline":"点头、指示动作加大；断网标识浮动摇摆，手机保持稳定。","06-waiting":"呼吸更明显；双手和沙漏一起左右摆动。","07-welcome":"挥手幅度加大；仅作可选欢迎素材。","08-encourage":"握拳抬手动作加大；不用于本轮系统反馈。","09-neutral":"点头更清楚，保持克制；不添加庆祝图标。","10-confirm-calm":"轻点头；确认对勾从小到大柔和浮现。"};
+const reduced=matchMedia('(prefers-reduced-motion: reduce)');
+const players=[];
+for(const asset of window.BearAssetManifest.assets){
+ const card=document.createElement('article');
+ card.innerHTML=`<h2>${asset.label}</h2><div class="pair"><div><b>V2 原版</b><img alt="${asset.label}原版"></div><div><b class="new">V3 增强版</b><img alt="${asset.label}增强版"></div></div><p>${notes[asset.id]}</p><button type="button">对比重播</button><small>${asset.durationMs/1000} 秒 · ${asset.playback==='loop'?'可见时循环':'播放一次后定格'}</small>`;
+ document.querySelector('#gallery').append(card);
+ const images=[...card.querySelectorAll('img')];
+ const state={card,visible:false,played:false,active:false,timers:[],failed:[false,false]};players.push(state);
+ const path=(i,kind)=>`/assets/bear-states-v${i+2}/${kind}/${asset.id}.${kind==='assets'?'webp':'png'}`;
+ const clear=()=>{state.timers.forEach(clearTimeout);state.timers=[];};
+ state.stop=()=>{clear();state.active=false;images.forEach((img,i)=>{img.onload=null;img.src=path(i,!reduced.matches&&state.played&&asset.playback==='once'&&!state.failed[i]?'end':'posters');});};
+ state.start=(replay=false)=>{
+  if(document.hidden||!state.visible||reduced.matches)return state.stop();
+  if(state.active&&!replay)return;
+  if(state.played&&asset.playback==='once'&&!replay)return;
+  clear();state.played=true;state.active=true;
+  images.forEach((img,i)=>{if(state.failed[i])return;img.onload=()=>{if(asset.playback==='once'){img.onload=null;state.timers.push(setTimeout(()=>{img.src=path(i,'end');},asset.durationMs+80));}};img.src=path(i,'assets')+'?play='+Date.now();});
+ };
+ images.forEach((img,i)=>{img.src=path(i,'posters');img.onerror=()=>{if(state.failed[i]){img.onerror=null;img.style.visibility='hidden';return;}state.failed[i]=true;img.onload=null;img.src=path(i,'posters');};});
+ card.querySelector('button').onclick=()=>state.start(true);
+}
+const observer=new IntersectionObserver(entries=>{for(const entry of entries){const p=players.find(p=>p.card===entry.target);p.visible=entry.isIntersecting;p.visible?p.start():p.stop();}},{threshold:.15});
+players.forEach(p=>observer.observe(p.card));
+document.addEventListener('visibilitychange',()=>players.forEach(p=>document.hidden?p.stop():p.start()));
+reduced.addEventListener('change',()=>players.forEach(p=>reduced.matches?p.stop():p.start()));
+addEventListener('pagehide',()=>{observer.disconnect();players.forEach(p=>p.stop());});
+addEventListener('pageshow',e=>{if(e.persisted)players.forEach(p=>observer.observe(p.card));});
+</script>
+</html>

@@ -20,7 +20,7 @@
     "db:migrate": "pnpm run build && node --enable-source-maps dist/migrate.js",
     "db:check": "drizzle-kit check --config=drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
-    "test": "pnpm run build && node --test tests/*.test.mjs"
+    "test": "pnpm run build && node --test --test-concurrency=1 tests/*.test.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

@@ -12,6 +12,7 @@ export interface AccessTokenClaims {
   aud: string | string[];
   iat: number;
   exp: number;
+  jti?: string;
   permissions?: string[];
   mfa_verified?: boolean;
 }
@@ -119,6 +120,7 @@ function isClaims(value: unknown): value is AccessTokenClaims {
     audienceValid &&
     Number.isInteger(value.iat) &&
     Number.isInteger(value.exp) &&
+    (value.jti === undefined || typeof value.jti === "string") &&
     (value.permissions === undefined || (Array.isArray(value.permissions) && value.permissions.every((item) => typeof item === "string"))) &&
     (value.mfa_verified === undefined || typeof value.mfa_verified === "boolean")
   );

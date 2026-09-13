@@ -1,0 +1,33 @@
+import assert from 'node:assert/strict';
+import { chromium, expect } from '@playwright/test';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+const output = new URL('../../design-output/bear-ui-motion-v3/ui-verification/', import.meta.url);
+await mkdir(output, { recursive: true });
+const browser = await chromium.launch({ executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome', headless: true });
+const page = await browser.newPage({ viewport: { width: 1080, height: 950 } });
+const errors = []; page.on('pageerror', error => errors.push(error.message));
+try {
+  await page.goto('http://127.0.0.1:3001/design-preview/bear-motion-v3/index.html', { waitUntil: 'networkidle' });
+  await expect(page.locator('article')).toHaveCount(10);
+  const first = page.locator('article').first();
+  await expect.poll(() => first.locator('img').evaluateAll(images => images.every(img => img.complete && img.naturalWidth === 480))).toBe(true);
+  await expect(first.locator('img').nth(1)).toHaveAttribute('src', /bear-states-v3\/assets/);
+  await page.screenshot({ path: fileURLToPath(new URL('comparison-desktop.png', output)) });
+  const looping = page.locator('article').nth(1);
+  await looping.getByRole('button').click();
+  const source = await looping.locator('img').nth(1).getAttribute('src');
+  await page.waitForTimeout(5500);
+  await expect(looping.locator('img').nth(1)).toHaveAttribute('src', source);
+  assert.match(source, /\/assets\/02-error.webp/);
+  await looping.getByRole('button').click();
+  assert.notEqual(await looping.locator('img').nth(1).getAttribute('src'), source);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(first.locator('img').nth(1)).toHaveAttribute('src', /\/posters\//);
+  await page.setViewportSize({ width: 320, height: 650 });
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth), 320);
+  await page.screenshot({ path: fileURLToPath(new URL('comparison-small.png', output)) });
+  assert.deepEqual(errors, []);
+  await writeFile(new URL('preview-checks.json', output), JSON.stringify({ passed: true, cards: 10, dimensions: 480, continuousLoop: true, replay: true, reducedMotion: true, smallScreen: 320, pageErrors: errors }, null, 2));
+  console.log('V3 comparison: 10 cards, continuous loop/replay, reduced motion, 320px layout passed');
+} finally { await browser.close(); }

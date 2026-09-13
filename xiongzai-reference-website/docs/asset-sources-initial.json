@@ -1,0 +1,17 @@
+{
+  "logo": "Original user-supplied JPG, unchanged",
+  "font": "Ma Shan Zheng, Google Fonts OFL; subset for this site; approximate reference hand lettering",
+  "gsap": "Local npm package, see dependencies.json",
+  "generated": {
+    "hero-world.webp": "01-hero-world.png",
+    "train.webp": "02-hero-train.png",
+    "cosmic.webp": "04-cosmic-banner.png",
+    "town.webp": "05-town.png",
+    "sleeping.webp": "03-sleeping-sky-final.png",
+    "hero-company.webp": "06-hero-clean-cutout.png",
+    "download-clean.webp": "07-download-clean.png"
+  },
+  "sourceDirectory": "/Applications/c2c游戏服务软件/output/reference-website-art-20260912",
+  "reused": "Eight independent3:4 scene artworks and separate whale/cloud images from previous build, copied without changing original files",
+  "downloadNote": "User image4 cleaned by imagegen to remove text and screenshot edges. Some local details regenerated; not claimed to be original high-resolution artwork."
+}

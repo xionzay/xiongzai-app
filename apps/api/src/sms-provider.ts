@@ -2,7 +2,7 @@ export interface SmsDelivery {
   phone: string;
   code: string;
   expiresInSeconds: number;
-  purpose: "LOGIN";
+  purpose: "LOGIN" | "PHONE_CHANGE_OLD" | "PHONE_CHANGE_NEW";
 }
 
 export interface SmsProvider {

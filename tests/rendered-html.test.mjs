@@ -112,18 +112,19 @@ test("includes the refined buyer and seller interactions", async () => {
   assert.doesNotMatch(page, /<b>服务内容<\/b>/);
   assert.match(page, /卖家自主设计/);
   assert.match(page, /availability-menu/);
-  assert.match(page, /order\.price\.toFixed\(2\)/);
+  assert.match(page, /formatCent\(order\.priceCent\)/);
   assert.match(page, /服务已提交审核，可在审核中查看/);
   assert.match(page, /counts\[name\] \?\? 0/);
   assert.doesNotMatch(page, /className="seller-publish-fixed"/);
   assert.match(page, /ui-person-outline\.jpg/);
-  assert.match(page, /预计 3 分钟内响应/);
-  assert.match(page, /price\.toFixed\(2\)/);
+  assert.match(page, /等待陪玩响应/);
+  assert.match(page, /formatCent\(spec\.priceCent\)/);
   assert.match(page, /选择陪玩可接单的时间/);
   assert.match(page, /payment-account-switch/);
-  assert.match(page, /EarningsPicker label="年份"/);
-  assert.match(page, /EarningsPicker label="月份"/);
-  assert.match(page, /EarningsPicker label="周次"/);
+  assert.match(page, /range === "累计" \? <section className="earnings-date-range"/);
+  assert.match(page, /type="date" value=\{effectiveStart\}/);
+  assert.match(page, /type="date" value=\{customEnd\}/);
+  assert.doesNotMatch(page, /EarningsPicker label=/);
   assert.match(page, /预计 24h 内/);
   assert.match(css, /\.chat-messages \.message \{ align-items: center; \}/);
   assert.match(css, /\.profile-fields \.profile-nickname-field input[^}]+text-align: left/);
@@ -213,7 +214,8 @@ test("covers every newly completed MVP state route and PRD transition", async ()
   assert.match(page, /function PermissionCenterScreen/);
   assert.match(page, /function ChatStatesScreen/);
   assert.match(page, /function ReviewStatesScreen/);
-  assert.match(page, /const \[agreed, setAgreed\] = useState\(false\)/);
+  assert.match(page, /const \[acceptedPolicyIds, setAcceptedPolicyIds\] = useState<string\[\]>\(\[\]\)/);
+  assert.match(page, /"\/auth\/sms\/login"[\s\S]*policy_version_ids: acceptedPolicyIds/);
   assert.match(css, /\.flow-overlay/);
   assert.match(css, /\.security-subpage-screen/);
   assert.match(css, /\.context-state-body/);
@@ -260,7 +262,11 @@ test("connects buyer checkout, payment, order views and seller fulfillment actio
     "/orders/preview", "/orders", "/payments", "/mock-confirm", "/seller/orders", "/availability",
   ]) assert.match(page, new RegExp(endpoint.replaceAll("/", "\\/")), `missing transaction UI connection ${endpoint}`);
   assert.match(page, /"idempotency-key"/);
+  assert.match(page, /payment_channel:\s*paymentChannel/);
+  assert.match(page, /WECHAT_APP/);
+  assert.match(page, /ALIPAY_APP/);
   assert.match(page, /discount_cent/);
+  assert.doesNotMatch(page, /Number\(BigInt\([^)]*(?:cent|amount)/u);
   assert.match(orderController, /Idempotency-Key 必须为 8 到 128 个字符/);
   for (const route of ["accept", "start", "complete"]) assert.match(orderController, new RegExp(`:orderId/${route}`));
   assert.match(sellerController, /:sellerId\/availability/);
@@ -274,6 +280,8 @@ test("does not replace empty core API responses with demo transactions", async (
   assert.match(page, /useState<Service\[\]>\(\[\]\)/);
   assert.match(page, /className="paper-panel live-data-state failed"/);
   assert.match(page, /onRetry=\{\(\) => void loadDiscovery\(\)\}/);
+  assert.doesNotMatch(page, /favoriteCompanions\s*\?\?\s*companions/u);
+  assert.doesNotMatch(page, /favoriteServices\s*\?\?\s*services/u);
 });
 
 test("connects chat, support cases and notifications to the real API", async () => {
@@ -287,8 +295,21 @@ test("connects chat, support cases and notifications to the real API", async () 
   ]) assert.ok(page.includes(endpoint), `missing chat UI connection ${endpoint}`);
   assert.match(page, /client_message_id/);
   assert.match(page, /last_read_sequence_no/);
+  assert.match(page, /CursorResponse<SupportCaseApiView>/);
+  assert.match(page, /page\.items\.find/);
   assert.match(controller, /evidence-view/);
   assert.match(controller, /RequirePermissions\("conversation\.evidence\.read"\)/);
+});
+
+test("connects web account lifecycle pages to real APIs without unavailable placeholders", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  for (const endpoint of ["/me/phone-change-requests", "/me/data-exports", "/download", "/me/account-cancellations/eligibility", "/me/account-cancellations"])
+    assert.ok(page.includes(endpoint), `missing account lifecycle API ${endpoint}`);
+  assert.match(page, /\$\{side\}-code\/send/u);
+  assert.match(page, /\$\{side\}-code\/verify/u);
+  for (const label of ["验证当前手机号", "验证新手机号", "个人数据下载", "服务端实时条件", "撤销注销申请"])
+    assert.match(page, new RegExp(label, "u"));
+  assert.doesNotMatch(page, /手机号换绑暂未开放|数据导出暂未开放|账号注销暂未开放/u);
 });
 
 test("connects refunds, complaints and immutable reviews to the real API", async () => {
@@ -305,6 +326,23 @@ test("connects refunds, complaints and immutable reviews to the real API", async
   assert.match(controller, /:complaintId\/evidences/);
   assert.match(controller, /rating:\s*z\.number\(\)\.int\(\)\.min\(1\)\.max\(5\)/);
   assert.match(controller, /:reviewId\/moderation/);
+  assert.doesNotMatch(page, />修改后重新提交<\/button>/);
+  assert.match(page, /同一订单不能重新提交第二条评价/);
+});
+
+test("web companion voice uses the controlled short-lived API instead of an animation placeholder", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /\/companions\/\$\{seller\.id\}\/voice/u);
+  assert.match(page, /response\.access\.url/u);
+  assert.match(page, /audioRef\.current/u);
+  assert.match(page, /await audio\.play\(\)/u);
+});
+
+test("live service cards use API seller facts instead of a static catalog seller fallback", async () => {
+  const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.match(source, /sellerName: row\.seller\?\.seller_nickname/);
+  assert.match(source, /service\.sellerName \?\?/);
+  assert.match(source, /serviceCounts\.get\(row\.id\)/);
 });
 
 test("connects seller income, payout accounts and withdrawals to bigint finance APIs", async () => {
@@ -316,4 +354,40 @@ test("connects seller income, payout accounts and withdrawals to bigint finance 
   assert.match(page, /"idempotency-key"/);
   assert.match(page, /提现申请已提交，收益已按 FIFO 锁定/);
   assert.doesNotMatch(page, /const fee = Number\(amount/);
+});
+
+test("covers the local-test payment and explicit policy consent remediation", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  for (const route of ["policyCenter", "policyAcceptances", "sellerPolicyConfirm", "paymentTimeout"]) {
+    assert.match(page, new RegExp(`case "${route}"`), `missing remediation route ${route}`);
+    assert.match(page, new RegExp(`page: "${route}"`), `missing remediation catalog item ${route}`);
+  }
+  assert.match(page, /const \[channel, setChannel\] = useState<"微信支付" \| "支付宝" \| null>\(null\)/);
+  assert.match(page, /本地测试支付/);
+  assert.match(page, /不会发起真实扣款/);
+  assert.match(page, /支付确认超时/);
+  assert.match(page, /协议加载失败，已禁止继续支付/);
+  assert.match(page, /不会默认勾选/);
+  assert.match(page, /function PolicyCenterScreen/);
+  assert.match(page, /function PolicyAcceptancesScreen/);
+  assert.match(page, /function SellerPolicyConfirmScreen/);
+  assert.match(page, /acceptSelectedPolicies\("SELLER_ONBOARDING"/);
+  assert.match(page, /acceptSelectedPolicies\("IDENTITY_VERIFICATION"/);
+  assert.match(page, /acceptSelectedPolicies\("VOICE_SAMPLE_UPLOAD"/);
+  assert.match(page, /录制 \/ 试听 \/ 上传/);
+  assert.match(page, /\["未上传", "上传中", "审核中", "可试听", "未通过"\]/);
+  assert.doesNotMatch(page, /银行卡/);
+  assert.match(page, /account_type==="WECHAT"\|\|item\.account_type==="ALIPAY"/);
+  assert.match(css, /\.payment-methods > button\.selected/);
+  assert.match(css, /\.policy-document-state\.failed/);
+  assert.match(css, /\.auth-form \.agreement-check > label/);
+  assert.match(css, /grid-template-columns: 24px minmax\(0, 1fr\)/);
+  assert.match(css, /\.auth-form \.agreement-check > label > button[\s\S]*min-height: 48px/);
+  assert.match(css, /var\(--device-safe-bottom\)/);
+  assert.match(css, /@media \(max-width: 360px\)/);
+  assert.match(css, /@media \(prefers-contrast: more\)/);
+  assert.match(css, /min-height: 44px/);
 });

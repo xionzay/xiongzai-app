@@ -1,0 +1,81 @@
+/* Chat-only additions. Existing wallpaper, identity bar and text transport are unchanged. */
+.sticker-preview-entry { display: block; margin-top: 10px; padding: 9px; color: #34698e; font-size: 12px; text-align: center; }
+.phone-shell .sticker-demo-label { margin: 10px 0; border-radius: 12px; padding: 6px 10px; background: #fff8e9; color: #80622e; font-size: .75rem; line-height: 1.5; text-align: center; }
+.phone-shell .sticker-demo-messages { margin-top: 14px; }
+.phone-shell .sticker-message { display: flex; align-items: flex-end; gap: 8px; margin: 13px 0; }
+.phone-shell .sticker-message.mine { justify-content: flex-end; }
+.phone-shell .sticker-avatar { width: 44px; height: 44px; flex: none; }
+.phone-shell .sticker-avatar > img { display: block; width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.phone-shell .sticker-message-body { flex: none; max-width: calc(100% - 56px); width: 144px; }
+.phone-shell .sticker-art { display: block; width: 144px; max-width: 100%; aspect-ratio: 1; padding: 5px; margin: 0; overflow: hidden; border: 1px solid #e4edf5; border-radius: 18px; background: #fff; box-shadow: 0 2px 6px #36618a0d; cursor: pointer; }
+.phone-shell .sticker-art > img { display: block; width: 100%; height: 100%; aspect-ratio: 1; object-fit: contain; border-radius: 0; }
+.phone-shell .sticker-message footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 5px; padding: 5px 1px 0; color: #5e788e; font-size: .625rem; line-height: 1.5; }
+.phone-shell .sticker-message footer span { overflow-wrap: anywhere; }
+.phone-shell .sticker-retry { min-height: 36px; width: 100%; padding: 5px; margin-top: 4px; border: 1px solid #eedace; border-radius: 10px; background: #fff8f4; color: #a65437; font-size: .75rem; }
+.phone-shell .sticker-fallback-note { display: block; padding-top: 3px; color: #5e788e; font-size: .625rem; line-height: 1.4; }
+.phone-shell .sticker-unavailable { width: 144px; max-width: 100%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 18px; padding: 12px; background: #fff; color: #70889a; font-size: .75rem; text-align: center; }
+.phone-shell .chat-screen .chat-input.has-stickers,
+.phone-shell .customer-service-screen .customer-chat-input.has-stickers { grid-template-columns: minmax(0,1fr) 44px 48px; gap: 6px; }
+.phone-shell .chat-screen .chat-input .sticker-toggle,
+.phone-shell .customer-service-screen .customer-chat-input .sticker-toggle { width: 44px; height: 44px; background: #fff; color: #5b83a4; }
+.phone-shell .sticker-toggle svg { width: 25px; height: 25px; }
+.phone-shell .sticker-toggle[aria-expanded="true"] { outline: 2px solid #84b5db; outline-offset: -2px; }
+.phone-shell .sticker-panel { display: flex; flex-direction: column; height: min(260px, 31dvh); min-height: 130px; margin: 9px 0 0; border: 1px solid #e5edf5; border-radius: 18px; overflow: hidden; background: #f7fbff; }
+.phone-shell .sticker-panel header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 10px 0; flex: none; }
+.phone-shell .sticker-panel header strong { color: #33536c; font-size: .875rem; }
+.phone-shell .sticker-panel header small { color: #7c90a1; font-size: .6875rem; font-weight: 400; }
+.phone-shell .sticker-panel header button { flex: none; min-height: 36px; border: 0; border-radius: 10px; padding: 0 6px; background: transparent; color: #567c9a; font-size: .75rem; }
+.phone-shell .sticker-panel > p { flex: none; margin: 0; padding: 0 10px 5px; color: #7a8790; font-size: .625rem; line-height: 1.4; }
+.phone-shell .sticker-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); align-content: start; gap: 4px; padding: 2px 7px 12px; overflow-y: auto; min-height: 0; overscroll-behavior: contain; }
+.phone-shell .sticker-tile { min-width: 0; border-radius: 10px; background: #fff; padding: 2px; text-align: center; }
+.phone-shell .sticker-pick { display: flex; flex-direction: column; align-items: center; width: 100%; border: 0; padding: 0; color: #3a556c; background: transparent; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.phone-shell .sticker-pick img { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; pointer-events: none; }
+.phone-shell .sticker-pick > span { display: block; width: 100%; min-height: 2.6em; padding: 1px 2px; font-size: .6875rem; line-height: 1.3; overflow-wrap: anywhere; }
+.phone-shell .sticker-preview-button { width: 100%; min-height: 28px; padding: 2px; border: 0; border-radius: 7px; background: #eff6fc; color: #6686a0; font-size: .625rem; }
+.phone-shell .sticker-thumb-missing { aspect-ratio: 1; display: grid !important; place-items: center; }
+.phone-shell .sticker-preview-overlay { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: #27405844; backdrop-filter: blur(5px); }
+.phone-shell .sticker-preview-overlay.is-held { pointer-events: none; }
+.phone-shell .sticker-preview-card { width: min(280px,100%); max-height: 95%; overflow: auto; border-radius: 24px; padding: 18px; background: #fff; box-shadow: 0 15px 55px #203f642e; text-align: center; }
+.phone-shell .preview-art { width: 100%; cursor: default; border: 0; box-shadow: none; padding: 0; }
+.phone-shell .sticker-preview-card > b { display: block; margin-top: 8px; color: #2e506a; font-size: 1.125rem; }
+.phone-shell .sticker-preview-card > p { margin: 8px 0; color: #728799; font-size: .75rem; }
+.phone-shell .sticker-preview-card > button { min-height: 44px; width: 100%; border: 0; border-radius: 13px; padding: 8px; background: #e5f2fc; color: #436f91; }
+.phone-shell:has(.sticker-panel) .chat-scroll-content { scroll-padding-bottom: 12px; }
+.sticker-demo-stage { min-height: 100dvh; display: flex; gap: 42px; justify-content: center; align-items: center; padding: 24px; background: var(--app-page-background,#e5f3ff); color: #294b65; }
+.sticker-demo-guide { width: 330px; max-width: 100%; }
+.sticker-demo-guide > img { width: 200px; display: block; margin-bottom: 16px; }
+.sticker-demo-guide h1 { font-size: 28px; line-height: 1.4; margin: 8px 0; }
+.sticker-demo-guide p { font-size: 14px; line-height: 1.7; margin: 10px 0; }
+.sticker-demo-guide a { color: #326e9f; }
+.sticker-demo-mode { display: flex; gap: 8px; margin: 14px 0; }
+.sticker-demo-guide button { border: 1px solid #cddfeb; border-radius: 12px; padding: 9px 12px; min-height: 42px; background: #fff; color: #456c89; }
+.sticker-demo-guide button[aria-pressed="true"] { background: #d9ecfc; border-color: #6c9dc3; }
+.sticker-demo-controls { padding: 14px; border: 1px solid #e2edf4; border-radius: 18px; background: #ffffffc9; }
+.sticker-demo-controls summary { cursor: pointer; font-size: 14px; font-weight: 650; }
+.sticker-demo-controls > div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.sticker-demo-controls button { flex: 1 0 44%; font-size: 12px; }
+.sticker-demo-summary { padding: 10px 12px; border-radius: 12px; background: #fff; overflow-wrap: anywhere; }
+.sticker-demo-stage .phone-shell { flex: none; }
+.phone-shell .sticker-demo-chat .chat-topbar .screen-header { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; gap: 10px; align-items: center; }
+.phone-shell .sticker-demo-chat .header-title { display: contents; }
+.phone-shell .sticker-demo-chat .header-title > div { min-width: 0; border-radius: 28px; padding: 8px 10px; background: #ffffffdb; text-align: center; }
+.phone-shell .sticker-demo-chat .header-title h1 { margin: 0; font-size: 18px; color: #29475f; }
+.phone-shell .sticker-demo-chat .header-title p { margin: 2px 0 0; font-size: 12px; color: #74899a; }
+.phone-shell .sticker-demo-empty { margin: 22px auto; max-width: 280px; padding: 18px; border-radius: 18px; background: #ffffffcf; text-align: center; color: #718699; font-size: 14px; line-height: 1.7; }
+.phone-shell .sticker-local-text { max-width: 80%; margin: 12px 0 12px auto; padding: 10px 12px; border-radius: 18px; background: #deedfc; overflow-wrap: anywhere; white-space: pre-wrap; }
+.phone-shell .sticker-local-text small { display: block; font-size: 10px; color: #66839a; margin-top: 5px; }
+@media (max-width: 760px) {
+  .sticker-demo-stage { display: block; padding: 0; }
+  .sticker-demo-guide { width: 100%; padding: 12px 16px; }
+  .sticker-demo-guide > img { display: none; }
+  .sticker-demo-guide h1 { font-size: 20px; }
+  .sticker-demo-stage .phone-shell { width: 100%; height: 100dvh; max-height: none; border: 0; border-radius: 0; }
+  .sticker-demo-controls:not([open]) { padding: 10px; }
+}
+@media (max-width: 360px), (max-height: 650px) {
+  .phone-shell .sticker-art, .phone-shell .sticker-unavailable { width: 128px; }
+  .phone-shell .sticker-message-body { width: 128px; }
+  .phone-shell .preview-art { width: 100%; }
+  .phone-shell .sticker-panel { height: min(210px,29dvh); min-height: 125px; }
+  .phone-shell:has(.sticker-panel) .chat-topbar { padding-top: calc(4px + var(--device-safe-top)); padding-bottom: 4px; }
+}

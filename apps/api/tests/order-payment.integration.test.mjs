@@ -42,6 +42,10 @@ before(async () => {
   await migrationClient.query(`SET search_path TO "${schemaName}", public`);
   await runMigration("0000_initial_schema.sql");
   await runMigration("0001_core_invariants.sql");
+  await runMigration("0004_payment_channels_voice_constraints.sql");
+  await runMigration("0005_policy_acceptance_context.sql");
+  await runMigration("0006_policy_version_bindings.sql");
+  await runMigration("0009_clear_rhodey.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-order-payment-test", options: `-c search_path=${schemaName},public`, max: 8 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, logger: new JsonLogger("order-payment-test", () => {}) });
   seller = await seedUser("seller");
@@ -75,6 +79,11 @@ test("preview and order creation preserve bigint snapshots, disable discounts, a
   assert.equal(replay.statusCode, 201, replay.body);
   assert.equal(replay.json().id, first.json().id);
   assert.equal(first.json().discount_cent, "0");
+  const sellerList = await userRequest(seller, "GET", "/api/v1/seller/orders");
+  assert.equal(sellerList.statusCode, 200, sellerList.body);
+  assert.equal(sellerList.json().items.some((item) => item.id === first.json().id), false);
+  const sellerUnpaidDetail = await userRequest(seller, "GET", `/api/v1/seller/orders/${first.json().id}`);
+  assert.equal(sellerUnpaidDetail.statusCode, 404);
   const stored = await migrationClient.query("SELECT count(*) over()::integer AS count, product_title_snapshot, sku_price_cent_snapshot::text, quantity, discount_cent::text FROM orders WHERE id = $1", [first.json().id]);
   assert.deepEqual(stored.rows[0], { count: 1, product_title_snapshot: "和平精英经典模式上分", sku_price_cent_snapshot: "2500", quantity: 2, discount_cent: "0" });
   const atomic = await migrationClient.query("SELECT (SELECT count(*) FROM order_status_logs WHERE order_id = $1)::integer AS logs, (SELECT count(*) FROM outbox_events WHERE aggregate_id = $1)::integer AS outbox, (SELECT count(*) FROM scheduled_jobs WHERE target_id = $1 AND job_type = 'ORDER_PAYMENT_TIMEOUT')::integer AS jobs", [first.json().id]);
@@ -93,6 +102,22 @@ test("GiST exclusion allows only one concurrent buyer to reserve the same seller
   assert.equal(count.rows[0].count, 1);
 });
 
+test("order creation rejects a price changed after preview without writing an order", { skip: !enabled }, async () => {
+  const draft = nextDraft(1);
+  const preview = await userRequest(buyers[0], "POST", "/api/v1/orders/preview", draft);
+  assert.equal(preview.statusCode, 201, preview.body);
+  await migrationClient.query("UPDATE product_skus SET price_cent = 2600 WHERE id = $1", [skuId]);
+  try {
+    const created = await userRequest(buyers[0], "POST", "/api/v1/orders", { ...draft, expected_payable_amount_cent: preview.json().payable_amount_cent }, { "idempotency-key": `price-change-${randomUUID()}` });
+    assert.equal(created.statusCode, 409, created.body);
+    assert.equal(created.json().code, "ORDER_PRICE_CHANGED");
+    const count = await migrationClient.query("SELECT count(*)::integer AS count FROM orders WHERE buyer_id = $1 AND service_starts_at = $2", [buyers[0].id, draft.service_starts_at]);
+    assert.equal(count.rows[0].count, 0);
+  } finally {
+    await migrationClient.query("UPDATE product_skus SET price_cent = 2500 WHERE id = $1", [skuId]);
+  }
+});
+
 test("same-party purchases and illegal state-machine transitions are rejected", { skip: !enabled }, async () => {
   const ownOrder = await userRequest(seller, "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `same-party-${randomUUID()}` });
   assert.equal(ownOrder.statusCode, 409);
@@ -108,41 +133,85 @@ test("same-party purchases and illegal state-machine transitions are rejected", 
   const stale = await userRequest(seller, "POST", `/api/v1/seller/orders/${paid.order.id}/start`, { version: paid.order.version });
   assert.equal(stale.statusCode, 409);
   assert.equal(stale.json().code, "RESOURCE_VERSION_CONFLICT");
+  const early = await userRequest(seller, "POST", `/api/v1/seller/orders/${paid.order.id}/start`, { version: accepted.json().version });
+  assert.equal(early.statusCode, 409);
+  assert.equal(early.json().code, "ORDER_SERVICE_NOT_STARTED");
 });
 
 test("payment creation and callbacks are idempotent and reject mismatched amounts", { skip: !enabled }, async () => {
   const draft = nextDraft(1);
   const orderResponse = await userRequest(buyers[1], "POST", "/api/v1/orders", draft, { "idempotency-key": `payment-order-${randomUUID()}` });
   const paymentKey = `payment-${randomUUID()}`;
-  const payment = await userRequest(buyers[1], "POST", "/api/v1/payments", { order_id: orderResponse.json().id }, { "idempotency-key": paymentKey });
-  const replay = await userRequest(buyers[1], "POST", "/api/v1/payments", { order_id: orderResponse.json().id }, { "idempotency-key": paymentKey });
+  const payment = await userRequest(buyers[1], "POST", "/api/v1/payments", { order_id: orderResponse.json().id, payment_channel: "WECHAT_APP" }, { "idempotency-key": paymentKey });
+  const replay = await userRequest(buyers[1], "POST", "/api/v1/payments", { order_id: orderResponse.json().id, payment_channel: "WECHAT_APP" }, { "idempotency-key": paymentKey });
   assert.equal(payment.statusCode, 201, payment.body);
   assert.equal(replay.json().id, payment.json().id);
+  assert.equal(payment.json().channel, "WECHAT_APP");
+  assert.equal(payment.json().client_payload.payment_channel, "WECHAT_APP");
+  const policyBinding = await migrationClient.query("SELECT transaction_policy_version_id, refund_policy_version_id FROM orders WHERE id = $1", [orderResponse.json().id]);
+  assert.ok(policyBinding.rows[0].transaction_policy_version_id);
+  assert.equal(policyBinding.rows[0].refund_policy_version_id, policyBinding.rows[0].transaction_policy_version_id);
+  const channelConflict = await userRequest(buyers[1], "POST", "/api/v1/payments", { order_id: orderResponse.json().id, payment_channel: "ALIPAY_APP" }, { "idempotency-key": paymentKey });
+  assert.equal(channelConflict.statusCode, 409, channelConflict.body);
+  assert.equal(channelConflict.json().code, "PAYMENT_IDEMPOTENCY_CONFLICT");
+  const pendingQuery = await userRequest(buyers[1], "POST", `/api/v1/payments/${payment.json().id}/query`);
+  assert.equal(pendingQuery.statusCode, 201, pendingQuery.body);
+  assert.equal(pendingQuery.json().provider_result.status, "PENDING");
 
-  const provider = new MockPaymentProvider(webhookSecret);
+  const provider = new MockPaymentProvider(webhookSecret, "WECHAT_APP");
   const callback = { event_id: `event-${randomUUID()}`, event_type: "PAYMENT_SUCCEEDED", payment_no: payment.json().payment_no, provider_transaction_id: `tx-${randomUUID()}`, amount_cent: payment.json().amount_cent };
-  const first = await callbackRequest(callback, provider.sign(callback));
-  const duplicate = await callbackRequest(callback, provider.sign(callback));
+  const first = await callbackRequest(callback, provider.sign(callback), "WECHAT_APP");
+  const duplicate = await callbackRequest(callback, provider.sign(callback), "WECHAT_APP");
   assert.equal(first.statusCode, 201, first.body);
   assert.equal(first.json().order.status, "PENDING_ACCEPT");
   assert.equal(duplicate.statusCode, 201, duplicate.body);
   assert.equal(duplicate.json().duplicate, true);
   const eventCount = await migrationClient.query("SELECT count(*)::integer AS count FROM payment_events WHERE payment_id = $1", [payment.json().id]);
   assert.equal(eventCount.rows[0].count, 1);
+  const succeededQuery = await userRequest(buyers[1], "POST", `/api/v1/payments/${payment.json().id}/query`);
+  assert.equal(succeededQuery.json().provider_result.status, "SUCCEEDED");
 
   const mismatchOrder = await userRequest(buyers[2], "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `mismatch-order-${randomUUID()}` });
-  const mismatchPayment = await userRequest(buyers[2], "POST", "/api/v1/payments", { order_id: mismatchOrder.json().id }, { "idempotency-key": `mismatch-payment-${randomUUID()}` });
+  const mismatchPayment = await userRequest(buyers[2], "POST", "/api/v1/payments", { order_id: mismatchOrder.json().id, payment_channel: "ALIPAY_APP" }, { "idempotency-key": `mismatch-payment-${randomUUID()}` });
+  assert.equal(mismatchPayment.json().channel, "ALIPAY_APP");
+  const alipayProvider = new MockPaymentProvider(webhookSecret, "ALIPAY_APP");
   const bad = { event_id: `event-${randomUUID()}`, event_type: "PAYMENT_SUCCEEDED", payment_no: mismatchPayment.json().payment_no, provider_transaction_id: `tx-${randomUUID()}`, amount_cent: "1" };
-  const rejected = await callbackRequest(bad, provider.sign(bad));
+  const wrongChannel = await callbackRequest(bad, alipayProvider.sign(bad), "WECHAT_APP");
+  assert.equal(wrongChannel.statusCode, 409);
+  assert.equal(wrongChannel.json().code, "PAYMENT_CHANNEL_MISMATCH");
+  const rejected = await callbackRequest(bad, alipayProvider.sign(bad), "ALIPAY_APP");
   assert.equal(rejected.statusCode, 409);
   assert.equal(rejected.json().code, "PAYMENT_AMOUNT_MISMATCH");
   const unchanged = await migrationClient.query("SELECT p.status AS payment_status, o.status AS order_status, e.processing_error FROM payments p JOIN orders o ON o.id = p.order_id JOIN payment_events e ON e.payment_id = p.id WHERE p.id = $1", [mismatchPayment.json().id]);
   assert.deepEqual(unchanged.rows[0], { payment_status: "PAYING", order_status: "PENDING_PAYMENT", processing_error: "PAYMENT_AMOUNT_MISMATCH" });
+
+  const failedOrder = await userRequest(buyers[2], "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `failed-order-${randomUUID()}` });
+  const failedPayment = await userRequest(buyers[2], "POST", "/api/v1/payments", { order_id: failedOrder.json().id, payment_channel: "ALIPAY_APP" }, { "idempotency-key": `failed-payment-${randomUUID()}` });
+  const failedPayload = { event_id: `event-${randomUUID()}`, event_type: "PAYMENT_FAILED", payment_no: failedPayment.json().payment_no, provider_transaction_id: `tx-${randomUUID()}`, amount_cent: failedPayment.json().amount_cent };
+  const failed = await callbackRequest(failedPayload, alipayProvider.sign(failedPayload), "ALIPAY_APP");
+  assert.equal(failed.statusCode, 201, failed.body);
+  assert.equal(failed.json().status, "FAILED", failed.body);
+  const failedQuery = await userRequest(buyers[2], "POST", `/api/v1/payments/${failedPayment.json().id}/query`);
+  assert.equal(failedQuery.json().payment.channel, "ALIPAY_APP");
+  assert.equal(failedQuery.json().provider_result.status, "FAILED");
+
+  const cancelOrder = await userRequest(buyers[0], "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `cancel-order-${randomUUID()}` });
+  const cancelPayment = await userRequest(buyers[0], "POST", "/api/v1/payments", { order_id: cancelOrder.json().id, payment_channel: "WECHAT_APP" }, { "idempotency-key": `cancel-payment-${randomUUID()}` });
+  const cancelled = await userRequest(buyers[0], "POST", `/api/v1/payments/${cancelPayment.json().id}/mock-cancel`);
+  assert.equal(cancelled.statusCode, 201, cancelled.body);
+  assert.equal(cancelled.json().status, "CLOSED");
+  const cancelledOrder = await userRequest(buyers[0], "GET", `/api/v1/orders/${cancelOrder.json().id}`);
+  assert.equal(cancelledOrder.json().payment_status, "FAILED");
+  const retryPayment = await userRequest(buyers[0], "POST", "/api/v1/payments", { order_id: cancelOrder.json().id, payment_channel: "ALIPAY_APP" }, { "idempotency-key": `retry-payment-${randomUUID()}` });
+  assert.equal(retryPayment.statusCode, 201, retryPayment.body);
+  const mockFailed = await userRequest(buyers[0], "POST", `/api/v1/payments/${retryPayment.json().id}/mock-fail`);
+  assert.equal(mockFailed.statusCode, 201, mockFailed.body);
+  assert.equal(mockFailed.json().status, "FAILED");
 });
 
 test("payment-timeout job closes the order, payment and reservation exactly once", { skip: !enabled }, async () => {
   const created = await userRequest(buyers[0], "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `timeout-order-${randomUUID()}` });
-  const payment = await userRequest(buyers[0], "POST", "/api/v1/payments", { order_id: created.json().id }, { "idempotency-key": `timeout-payment-${randomUUID()}` });
+  const payment = await userRequest(buyers[0], "POST", "/api/v1/payments", { order_id: created.json().id, payment_channel: "WECHAT_APP" }, { "idempotency-key": `timeout-payment-${randomUUID()}` });
   assert.equal(payment.statusCode, 201, payment.body);
   await migrationClient.query("UPDATE orders SET expires_at = now() - interval '1 second' WHERE id = $1", [created.json().id]);
   const processor = new OrderJobProcessor(database.db);
@@ -162,6 +231,7 @@ test("accept-timeout and auto-confirm jobs are idempotent and release reservatio
 
   const completing = await createPaidOrder(buyers[2]);
   const accepted = await userRequest(seller, "POST", `/api/v1/seller/orders/${completing.order.id}/accept`, { version: completing.order.version });
+  await migrationClient.query("UPDATE orders SET service_starts_at = now() - interval '1 minute' WHERE id = $1", [completing.order.id]);
   const started = await userRequest(seller, "POST", `/api/v1/seller/orders/${completing.order.id}/start`, { version: accepted.json().version });
   const completedBySeller = await userRequest(seller, "POST", `/api/v1/seller/orders/${completing.order.id}/complete`, { version: started.json().version });
   assert.equal(completedBySeller.statusCode, 201, completedBySeller.body);
@@ -175,7 +245,7 @@ test("accept-timeout and auto-confirm jobs are idempotent and release reservatio
 async function createPaidOrder(account) {
   const created = await userRequest(account, "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `paid-order-${randomUUID()}` });
   assert.equal(created.statusCode, 201, created.body);
-  const payment = await userRequest(account, "POST", "/api/v1/payments", { order_id: created.json().id }, { "idempotency-key": `paid-payment-${randomUUID()}` });
+  const payment = await userRequest(account, "POST", "/api/v1/payments", { order_id: created.json().id, payment_channel: "WECHAT_APP" }, { "idempotency-key": `paid-payment-${randomUUID()}` });
   assert.equal(payment.statusCode, 201, payment.body);
   const confirmed = await userRequest(account, "POST", `/api/v1/payments/${payment.json().id}/mock-confirm`);
   assert.equal(confirmed.statusCode, 201, confirmed.body);
@@ -201,6 +271,11 @@ async function seedPolicies() {
   await migrationClient.query("INSERT INTO admin_accounts (id, username, display_name, password_hash) VALUES ($1, $2, '配置管理员', 'not-used')", [adminId, `config-${adminId}`]);
   const configs = [["order.payment_timeout_seconds", 300], ["order.accept_timeout_seconds", 300], ["order.auto_confirm_seconds", 300], ["finance.commission_rate_bps", 1000], ["finance.settlement_delay_seconds", 0]];
   for (const [key, value] of configs) await migrationClient.query("INSERT INTO platform_configs (id, config_key, value_json, version_no, status, effective_at, created_by_admin_id) VALUES ($1, $2, $3, 1, 'ACTIVE', now(), $4)", [randomUUID(), key, { value }, adminId]);
+  const policyVersionId = randomUUID();
+  await migrationClient.query("INSERT INTO policy_versions (id, policy_type, title, content, version_no, status, published_at, effective_at, created_by_admin_id) VALUES ($1, 'ORDER_PAYMENT_REFUND_RULES', '交易和退款规则', '订单支付集成测试规则', 1, 'PUBLISHED', now(), now(), $2)", [policyVersionId, adminId]);
+  for (const buyer of buyers) {
+    await migrationClient.query("INSERT INTO user_policy_acceptances (user_id, policy_version_id, acceptance_scene, confirmation_method, ip, user_agent) VALUES ($1, $2, 'ORDER_PAYMENT', 'ONLINE_CONFIRM', '127.0.0.1', 'integration-test')", [buyer.id, policyVersionId]);
+  }
 }
 
 async function seedUser(label) {
@@ -212,6 +287,6 @@ async function seedUser(label) {
 }
 
 function userRequest(account, method, url, payload, extraHeaders = {}) { return app.inject({ method, url, headers: { authorization: `Bearer ${account.token}`, ...extraHeaders }, ...(payload === undefined ? {} : { payload }) }); }
-function callbackRequest(payload, signature) { return app.inject({ method: "POST", url: "/callbacks/v1/payments/mock", headers: { "x-payment-signature": signature }, payload }); }
+function callbackRequest(payload, signature, channel = "mock") { return app.inject({ method: "POST", url: `/callbacks/v1/payments/${channel}`, headers: { "x-payment-signature": signature }, payload }); }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(fileName) { let source = await readFile(new URL(`../../../packages/database/migrations/${fileName}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }

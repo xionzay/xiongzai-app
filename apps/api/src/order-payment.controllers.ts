@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, Req } from "@nestjs/common";
-import { AppError, errorCodes } from "@xiongzai/contracts";
+import { afterSaleStatuses, AppError, errorCodes, orderStatuses, paymentChannels, type PaymentChannel } from "@xiongzai/contracts";
 import { requestContext } from "@xiongzai/observability";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -9,12 +9,12 @@ import type { RequestMetadata } from "./identity-user.service.js";
 import { OrderPaymentService } from "./order-payment.service.js";
 
 const uuid = z.uuid();
-const orderDraftSchema = z.object({ product_id: uuid, sku_id: uuid, slot_id: uuid, quantity: z.number().int().min(1).max(20), service_starts_at: z.coerce.date(), buyer_note: z.string().trim().max(500).nullable().optional() });
+const orderDraftSchema = z.object({ product_id: uuid, sku_id: uuid, slot_id: uuid, quantity: z.number().int().min(1).max(20), service_starts_at: z.coerce.date(), buyer_note: z.string().trim().max(500).nullable().optional(), expected_payable_amount_cent: z.string().regex(/^\d+$/u).optional() });
 const versionSchema = z.object({ version: z.number().int().nonnegative() });
 const reasonSchema = versionSchema.extend({ reason: z.string().trim().min(2).max(1000) });
-const orderStatuses = ["PENDING_PAYMENT", "PENDING_ACCEPT", "ACCEPTED", "IN_SERVICE", "PENDING_BUYER_CONFIRM", "COMPLETED", "CANCELLED", "CLOSED", "SELLER_REJECTED"] as const;
-const listSchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), status: z.enum(orderStatuses).optional() });
-const paymentCreateSchema = z.object({ order_id: uuid });
+const listSchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), status: z.enum(orderStatuses).optional(), after_sale_status: z.enum(afterSaleStatuses).optional() });
+const paymentCreateSchema = z.object({ order_id: uuid, payment_channel: z.enum(paymentChannels) });
+const callbackChannelSchema = z.enum([...paymentChannels, "mock"]);
 const callbackSchema = z.object({ event_id: z.string().trim().min(8).max(160), event_type: z.enum(["PAYMENT_SUCCEEDED", "PAYMENT_FAILED"]), payment_no: z.string().trim().min(8).max(64), provider_transaction_id: z.string().trim().min(8).max(128), amount_cent: z.string().regex(/^\d+$/u) });
 
 @Controller("api/v1/orders")
@@ -42,19 +42,22 @@ export class SellerOrderController {
 @Controller("api/v1/payments")
 export class PaymentController {
   constructor(private readonly service: OrderPaymentService) {}
-  @Post() create(@Req() request: UserRequest, @Headers("idempotency-key") key: string | undefined, @Body(new ZodValidationPipe(paymentCreateSchema)) body: z.infer<typeof paymentCreateSchema>) { return this.service.createPayment(principal(request), body.order_id, idempotencyKey(key), metadata(request)); }
+  @Post() create(@Req() request: UserRequest, @Headers("idempotency-key") key: string | undefined, @Body(new ZodValidationPipe(paymentCreateSchema)) body: z.infer<typeof paymentCreateSchema>) { return this.service.createPayment(principal(request), body.order_id, body.payment_channel, idempotencyKey(key), metadata(request)); }
   @Get(":paymentId") detail(@Req() request: UserRequest, @Param("paymentId", new ZodValidationPipe(uuid)) paymentId: string) { return this.service.getPayment(principal(request), paymentId); }
+  @Post(":paymentId/query") query(@Req() request: UserRequest, @Param("paymentId", new ZodValidationPipe(uuid)) paymentId: string) { return this.service.queryPayment(principal(request), paymentId); }
   @Post(":paymentId/mock-confirm") mockConfirm(@Req() request: UserRequest, @Param("paymentId", new ZodValidationPipe(uuid)) paymentId: string) { return this.service.mockConfirm(principal(request), paymentId, metadata(request)); }
+  @Post(":paymentId/mock-fail") mockFail(@Req() request: UserRequest, @Param("paymentId", new ZodValidationPipe(uuid)) paymentId: string) { return this.service.mockFail(principal(request), paymentId, metadata(request)); }
+  @Post(":paymentId/mock-cancel") mockCancel(@Req() request: UserRequest, @Param("paymentId", new ZodValidationPipe(uuid)) paymentId: string) { return this.service.mockCancel(principal(request), paymentId); }
 }
 
 @Controller("callbacks/v1/payments")
 export class PaymentCallbackController {
   constructor(private readonly service: OrderPaymentService) {}
-  @Post("mock") @Public() callback(@Req() request: FastifyRequest, @Headers("x-payment-signature") signature: string | undefined, @Body(new ZodValidationPipe(callbackSchema)) body: z.infer<typeof callbackSchema>) { return this.service.processPaymentCallback(body, signature, metadata(request)); }
+  @Post(":paymentChannel") @Public() callback(@Req() request: FastifyRequest, @Param("paymentChannel", new ZodValidationPipe(callbackChannelSchema)) paymentChannel: PaymentChannel | "mock", @Headers("x-payment-signature") signature: string | undefined, @Body(new ZodValidationPipe(callbackSchema)) body: z.infer<typeof callbackSchema>) { return this.service.processPaymentCallback(paymentChannel, body, signature, metadata(request)); }
 }
 
 type UserRequest = FastifyRequest & AuthenticatedRequest;
 function principal(request: UserRequest) { if (!request.principal) throw new AppError({ code: errorCodes.AUTH_REQUIRED, message: "请先登录", statusCode: 401 }); return request.principal.sub; }
 function idempotencyKey(value: string | undefined) { if (!value || value.length < 8 || value.length > 128) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "Idempotency-Key 必须为 8 到 128 个字符", statusCode: 400 }); return value; }
-function draft(body: z.infer<typeof orderDraftSchema>) { return { productId: body.product_id, skuId: body.sku_id, slotId: body.slot_id, quantity: body.quantity, serviceStartsAt: body.service_starts_at, buyerNote: body.buyer_note }; }
+function draft(body: z.infer<typeof orderDraftSchema>) { return { productId: body.product_id, skuId: body.sku_id, slotId: body.slot_id, quantity: body.quantity, serviceStartsAt: body.service_starts_at, buyerNote: body.buyer_note, expectedPayableAmountCent: body.expected_payable_amount_cent }; }
 function metadata(request: FastifyRequest): RequestMetadata { const context = requestContext.get(); return { ip: request.ip.slice(0, 64), userAgent: String(request.headers["user-agent"] ?? "unknown").slice(0, 2000), requestId: context?.requestId ?? "unknown", traceId: context?.traceId }; }

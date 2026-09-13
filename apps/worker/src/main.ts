@@ -6,7 +6,7 @@ import { DrizzleOutboxRepository, LoggingPublisher, OutboxWorker } from "./outbo
 const config = loadWorkerConfig();
 const logger = new JsonLogger("worker");
 const database = createDatabaseClient({ connectionString: config.databaseUrl, application_name: config.workerId });
-const worker = new OutboxWorker(new DrizzleOutboxRepository(database.db), new LoggingPublisher(logger), logger, config.batchSize);
+const worker = new OutboxWorker(new DrizzleOutboxRepository(database.db, { maxAttempts: config.maxAttempts }), new LoggingPublisher(logger), logger, config.batchSize);
 let stopping = false;
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -18,8 +18,8 @@ while (!stopping) {
   try {
     const count = await worker.runOnce();
     if (count === 0) await delay(config.pollIntervalMs);
-  } catch (error) {
-    logger.error("worker_iteration_failed", { error });
+  } catch {
+    logger.error("worker_iteration_failed", { error_category: "worker_iteration_failure" });
     await delay(config.pollIntervalMs);
   }
 }

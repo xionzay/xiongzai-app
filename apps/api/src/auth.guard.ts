@@ -9,11 +9,13 @@ import { API_CONFIG } from "./tokens.js";
 
 const PUBLIC_ROUTE = "xiongzai:public";
 const AUTH_KIND = "xiongzai:auth-kind";
+const AUTH_TRANSPORT = "xiongzai:auth-transport";
 const PERMISSIONS = "xiongzai:permissions";
 const MFA_REQUIRED = "xiongzai:mfa-required";
 
 export const Public = (): CustomDecorator => SetMetadata(PUBLIC_ROUTE, true);
 export const AuthenticateAs = (kind: PrincipalType): CustomDecorator => SetMetadata(AUTH_KIND, kind);
+export const BearerOnly = (): CustomDecorator => SetMetadata(AUTH_TRANSPORT, "bearer");
 export const RequirePermissions = (...permissions: string[]): CustomDecorator => SetMetadata(PERMISSIONS, permissions);
 export const RequireMfa = (): CustomDecorator => SetMetadata(MFA_REQUIRED, true);
 
@@ -37,15 +39,18 @@ export class AuthenticationGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const principalType = this.reflector.getAllAndOverride<PrincipalType>(AUTH_KIND, [context.getHandler(), context.getClass()]) ?? inferPrincipalType(request.url);
     if (!principalType) return true;
-    if ((principalType === "user" || principalType === "admin") && request.headers.authorization === undefined) {
+    const authTransport = this.reflector.getAllAndOverride<"bearer">(AUTH_TRANSPORT, [context.getHandler(), context.getClass()]);
+    if (!authTransport && (principalType === "user" || principalType === "admin") && request.headers.authorization === undefined) {
       assertTrustedCookieRequest(request, this.config);
     }
 
-    const token = principalType === "user"
-      ? extractCookieOrBearerToken(request.headers.authorization, request.headers.cookie, "xiongzai_access")
-      : principalType === "admin"
-        ? extractCookieOrBearerToken(request.headers.authorization, request.headers.cookie, "xiongzai_admin_access")
-        : extractBearerToken(request.headers.authorization);
+    const token = authTransport === "bearer"
+      ? extractBearerToken(request.headers.authorization)
+      : principalType === "user"
+        ? extractCookieOrBearerToken(request.headers.authorization, request.headers.cookie, "xiongzai_access")
+        : principalType === "admin"
+          ? extractCookieOrBearerToken(request.headers.authorization, request.headers.cookie, "xiongzai_admin_access")
+          : extractBearerToken(request.headers.authorization);
     const claims = verifyAccessToken(token, verificationOptions(principalType, this.config));
     const authorization = await this.sessions.authorize(claims);
     const required = this.reflector.getAllAndOverride<string[]>(PERMISSIONS, [context.getHandler(), context.getClass()]) ?? [];

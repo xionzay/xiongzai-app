@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import CosmicCanvas from "../../CosmicCanvas";
 import styles from "../info.module.css";
 
 const pages = {
@@ -30,6 +31,7 @@ export default async function InformationPage({ params }: { params: Promise<{ sl
   const page = pages[slug as PageKey];
   if (!page) notFound();
   return <main className={styles.page}>
+    <CosmicCanvas className={styles.cosmos} variant="journey" density={0.38} transparent />
     <div className={styles.stars} aria-hidden="true" />
     <header><Link href="/"><Image src="/assets/xiongzai-icon.png" width={54} height={54} alt="" /><span><b>熊崽电竞</b><small>XIONGZAI ESPORTS</small></span></Link><Link href="/">返回官网</Link></header>
     <article>
@@ -40,5 +42,4 @@ export default async function InformationPage({ params }: { params: Promise<{ sl
     <footer>© 2026 重庆熊崽网络科技有限公司</footer>
   </main>;
 }
-
 

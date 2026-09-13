@@ -1,0 +1,55 @@
+[
+  {
+    "file": "01-hero-world.png",
+    "refs": [
+      "/var/folders/2f/57z71m6d75v5q0ylmf7l7s6c0000gp/T/codex-clipboard-c1d6f932-2451-4615-a009-1a25dfccd7af.png"
+    ],
+    "prompt": "Use case: stylized-concept. Asset type: standalone wide hero environment plate, NOT a website screenshot. Reference image 1 is a complete webpage, use ONLY its TOP HERO SCENE as composition/style reference. Generate that top scene environment with every text, UI, whale, bear, penguin and TRAIN completely omitted. Wide approximately 3:1 image, request 3072x1024. Sky is airy saturated medium blue at top, luminous soft white cloudsea throughout. Match the reference: many SMALL distant cream fairy castles with blue roofs on rocky floating green islands spanning center and upper right; OPEN CLOUDY LEFT THIRD for real HTML copy; curved elevated blue-and-cream railway sweeps from middle-distance center to foreground RIGHT. At center-bottom, curved cream-blue station platform suitable to seat a separately composited bear. Delicate magical glints, white puffy clouds, distant soft atmospheric depth, polished richly detailed toy-like 3D fairytale illustration. Relative scale important: distant islands SMALL and airy, unobstructed foreground platform and rails. No characters, no animal, no train, no text, no logo, no panel, no UI, no control marks, no website screenshot. Edge-to-edge original environment art."
+  },
+  {
+    "file": "02-hero-train.png",
+    "refs": [
+      "/var/folders/2f/57z71m6d75v5q0ylmf7l7s6c0000gp/T/codex-clipboard-c1d6f932-2451-4615-a009-1a25dfccd7af.png"
+    ],
+    "prompt": "Use case: stylized-concept. Asset type: separate transparent PNG train cutout to overlay onto matching website hero. Reference image 1 is full webpage: look ONLY at blue-white passenger train in TOP RIGHT hero. Recreate JUST THAT TRAIN, no track, no environment. Camera and perspective CRITICAL: broad large rounded front nose on RIGHT, aimed toward bottom-right viewer, three or four linked passenger cars diminishing toward LEFT upper vanishing point. Train slopes slightly down from back-left to front-right. Blue roof, cream-white lower body, polished smooth 3D surfaces, warm amber lit windows, cute circular cream bear face medallion on front blue panel, matching reference design but absolutely NO letters. Complete train entire nose, wheels and rear fit within frame, some transparent margin. Approximately wide 2:1 composition high resolution. Transparent background genuinely alpha, no gray checkerboard painted in, no ground, no rails, no cloud, no human, no words, no logo, no text, no watermark. Asset only, never webpage."
+  },
+  {
+    "file": "03-sleeping-bear.png",
+    "refs": [
+      "/var/folders/2f/57z71m6d75v5q0ylmf7l7s6c0000gp/T/codex-clipboard-c1d6f932-2451-4615-a009-1a25dfccd7af.png",
+      "/Users/Admin/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_2qakd5figho422_d5a6/temp/RWTemp/2026-09/2f9badace748037494c6bf2a3216526e/ceacbc488e5d073e3c636fea8cedffb2.png"
+    ],
+    "prompt": "Use case: stylized-concept. Asset type: transparent wide cutout for an about-us strip. Reference 1 webpage: recreate ONLY the sleeping/reclining bear on clouds at right side of ABOUT section, halfway down page. Reference 2 mascot identity sheet strictly controls character. Cream-white plush bear wearing pale sky blue shark hoodie with fin, circular ears pink inside, white forehead fringe, white gamepad badge above face, white hoodie cords and round X chest badge. Bear is peacefully sleeping smiling eyes closed, reclining toward right diagonally, two round feet with blue pads toward lower right. Small cute white companion cuddled beside lower left, warm golden glowing star pillows around bear, rest on white-blue fluffy cloud. Rounded premium soft 3D art, match same sky-blue cream palette and reference pose. Whole subject cloud+stars fit with margins. Truly transparent background outside cloud and subjects, no painted checkerboard. Wide 2:1 high resolution. No eye mask, no goggles, no text, no logo, no UI, no website."
+  },
+  {
+    "file": "04-cosmic-banner.png",
+    "refs": [
+      "/var/folders/2f/57z71m6d75v5q0ylmf7l7s6c0000gp/T/codex-clipboard-c1d6f932-2451-4615-a009-1a25dfccd7af.png",
+      "/Users/Admin/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_2qakd5figho422_d5a6/temp/RWTemp/2026-09/2f9badace748037494c6bf2a3216526e/ceacbc488e5d073e3c636fea8cedffb2.png"
+    ],
+    "prompt": "Use case: stylized-concept. Asset type: edge-to-edge cosmic illustration banner WITHOUT text/UI. Reference 1 webpage: recreate just the cosmic horizontal banner near bottom above news. Reference 2 controls mascot identity. Deep navy starry space and gorgeous glowing curved blue Earth-like planetary horizon sweeping left to right. In central lower foreground, small BACK VIEW cream bear wearing pale blue shark hoodie and blue backpack, seated on rocky cliff beside small penguin to its RIGHT. Only back of bear head, recognizable round ears and shark fin. Distant magical floating islands on right, luminous atmospheric earth curvature, little gold star glints. Wide 3:1 or wider landscape, high resolution. IMPORTANT will be cropped down to very shallow 7.3:1 band: concentrate central character and curved horizon inside central 40% of image height, keep character small; leave open dark-blue space to left and right for real HTML writing. Match reference premium cinematic blue 3D fantasy rendering. No words, no logos, no circle/play icon, no UI, no button, no website screenshot."
+  },
+  {
+    "file": "05-town.png",
+    "refs": [
+      "/var/folders/2f/57z71m6d75v5q0ylmf7l7s6c0000gp/T/codex-clipboard-c1d6f932-2451-4615-a009-1a25dfccd7af.png",
+      "/Users/Admin/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_2qakd5figho422_d5a6/temp/RWTemp/2026-09/2f9badace748037494c6bf2a3216526e/ceacbc488e5d073e3c636fea8cedffb2.png"
+    ],
+    "prompt": "Use case: stylized-concept. Asset type: portrait 3:4 fantasy destination card illustration. Reference 1 webpage: recreate the FIRST destination card picture under exploration, the main fairycastle town, matching its blue cream fairytale world. Reference 2 mascot identity. Main subject is rich magical floating SKY CITY: tall blue slate roof cream castle towers and golden details with lively small flowers, puffy white clouds, a cream-blue station platform in front. Tiny matching cream bear wearing light blue shark hoodie is seated near foreground station, but environment DWARFS bear and dominates composition. Bear white gamepad forehead badge, blue shark fin, round ears, white hoodie cords, round X chest badge. Luxurious cheerful 3D toy-like rendering, luminous pastel blue and white and cream with small colorful accents, highly detailed city and deep cloudy sky. Portrait 3:4 high resolution, edge-to-edge art. No text, no title, no card frame, no UI, no logo, no website screenshot."
+  },
+  {
+    "file": "06-hero-bear-platform.png",
+    "refs": [
+      "/var/folders/2f/57z71m6d75v5q0ylmf7l7s6c0000gp/T/codex-clipboard-c1d6f932-2451-4615-a009-1a25dfccd7af.png",
+      "/Users/Admin/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_2qakd5figho422_d5a6/temp/RWTemp/2026-09/2f9badace748037494c6bf2a3216526e/ceacbc488e5d073e3c636fea8cedffb2.png"
+    ],
+    "prompt": "Use case: stylized-concept. Asset type: separate genuine transparent PNG hero character with small supporting station ledge, not a website. Reference 1 full webpage: match TOP HERO centered seated winking bear pose, penguin to LEFT and backpack. Reference 2 mascot identity exactly: cream-white bear, white forelock, light blue shark hoodie, dorsal shark fin, two rounded ears pink inside, white forehead gamepad badge with blue cross and four dots, white hoodie cords and round white-rimmed blue chest X badge. Bear seated facing viewer with right-side eye wink, other eye glossy brown-black, happy open smile pink cheeks. Raised paw to image right waving, four small blue toe dots and one large blue pad. BOTH FULL FEET shown extending toward camera, EACH sole with FOUR small blue toe dots PLUS ONE LARGE blue pad, correct clear anatomy. Small darkblue-white penguin at bear's left, blue travel backpack behind it. Include low curved cream-and-blue station ledge directly under body only; no text on ledge. All paws, ears, fins, feet complete intact and inside frame. Landscape-ish square composition at high resolution. Soft plush polished premium 3D render, exact blue-white reference material. Genuine alpha transparent outside the cutout, no sky/background/cloudscape, no train, no whale, no mask/goggles, no letters, no watermark, no UI."
+  },
+  {
+    "file": "07-download-clean.png",
+    "refs": [
+      "/Users/Admin/Library/Containers/com.tencent.xinWeChat/Data/Documents/xwechat_files/wxid_2qakd5figho422_d5a6/temp/RWTemp/2026-09/d2348b63081f8744647e577190df29e1/6168403d5fd8d9c3804ba9ec8ca62c63.jpg"
+    ],
+    "prompt": "Use case: precise-object-edit. Input image 1 is the EDIT TARGET, a user-supplied panoramic cloud train artwork. Edit ONLY remove all text and screenshot strip artifacts. Keep original bluewhite train with smiling cream bear in blue shark hoodie driving in front cab on RIGHT, train receding LEFT into fairytale sky castles and fluffy clouds. Preserve same artwork recognizable, exact composition, train orientation, colors, bear expression, lighting, clouds, castle locations, framing. Remove Chinese text on LEFT and English NEXT STOP A BRIGHTER WORLD underneath, reconstruct clouds behind cleanly. Remove black XIONGZAI lettering on the train front, reconstruct matching cream-white front body surface. Remove tiny unwanted screenshot image strip along TOP edge and flat white screenshot strip along BOTTOM edge by extending adjacent original artwork seamlessly to borders. All canvas is the same original scene, full-bleed art. No added elements, no redesigned scene. No text anywhere, no watermark, no UI. Preserve original panoramic aspect approximately 3:1 and enlarge cleanly if possible. Opaque output; not transparent."
+  }
+]

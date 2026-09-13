@@ -1,10 +1,13 @@
 import { Body, Controller, Delete, Get, HttpCode, Inject, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
-import { AppError, errorCodes } from "@xiongzai/contracts";
+import {
+  AppError, errorCodes, mobilePlatforms, policyAcceptanceScenes, policyConfirmationMethods,
+  type MobileTokenResponse, type PolicyAcceptanceScene, type PolicyConfirmationMethod,
+} from "@xiongzai/contracts";
 import { requestContext } from "@xiongzai/observability";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { Public, RequireMfa, RequirePermissions, type AuthenticatedRequest } from "./auth.guard.js";
-import type { ApiConfig } from "./config.js";
+import { BearerOnly, Public, RequireMfa, RequirePermissions, type AuthenticatedRequest } from "./auth.guard.js";
+import { isProtectedEnvironment, type ApiConfig } from "./config.js";
 import { ZodValidationPipe } from "./http.js";
 import { IdentityUserService, type RequestMetadata } from "./identity-user.service.js";
 import { API_CONFIG } from "./tokens.js";
@@ -16,6 +19,20 @@ const smsLoginSchema = z.object({
   code: z.string().regex(/^\d{6}$/u, "请输入 6 位验证码"),
   device_id: z.string().min(8).max(128),
   device_type: z.enum(["WEB", "IOS", "ANDROID"]).default("WEB"),
+  policy_version_ids: z.array(z.uuid()).min(1).max(20),
+});
+const mobileSmsLoginSchema = z.object({
+  phone: phoneSchema,
+  code: z.string().regex(/^\d{6}$/u, "请输入 6 位验证码"),
+  device_id: z.string().trim().min(8).max(128),
+  device_name: z.string().trim().min(1).max(128),
+  platform: z.enum(mobilePlatforms),
+  app_version: z.string().trim().min(1).max(64).optional(),
+  policy_version_ids: z.array(z.uuid()).min(1).max(20),
+});
+const mobileRefreshSchema = z.object({
+  refresh_token: z.string().min(32).max(512),
+  device_id: z.string().trim().min(8).max(128),
 });
 const profileSchema = z.object({
   nickname: z.string().trim().min(2).max(16),
@@ -30,14 +47,22 @@ const privacySchema = z.object({
   personalized_recommendations: z.boolean().optional(),
   version: z.number().int().nonnegative(),
 }).refine((value) => Object.keys(value).some((key) => key !== "version"), { message: "至少修改一项隐私设置" });
-const policyAcceptanceSchema = z.object({ policy_version_ids: z.array(z.uuid()).min(1).max(10) });
+const policyCurrentSchema = z.object({ scene: z.enum(policyAcceptanceScenes).optional() });
+const policyAcceptanceSchema = z.object({
+  acceptance_scene: z.enum(policyAcceptanceScenes),
+  confirmation_method: z.enum(policyConfirmationMethods),
+  policy_version_ids: z.array(z.uuid()).min(1).max(20),
+});
 const identitySubmissionSchema = z.object({
   legal_name: z.string().trim().min(2).max(64),
   document_number: z.string().trim().min(6).max(32),
 });
 const identityListSchema = z.object({
   status: z.enum(["PENDING", "VERIFIED", "REJECTED", "EXPIRED", "REVOKED"]).default("PENDING"),
+  cursor: z.string().trim().min(1).max(4096).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
+  keyword: z.string().trim().min(1).max(100).optional(),
+  sort: z.enum(["created_desc", "created_asc"]).default("created_desc"),
 });
 const identityReviewSchema = z.object({
   decision: z.enum(["VERIFIED", "REJECTED"]),
@@ -69,17 +94,42 @@ export class UserAuthController {
     @Req() request: FastifyRequest,
     @Res({ passthrough: true }) reply: FastifyReply,
   ) {
+    setTokenResponseHeaders(reply);
     const result = await this.identity.login({
       phone: body.phone, code: body.code, deviceId: body.device_id, deviceType: body.device_type,
+      policyVersionIds: body.policy_version_ids,
     }, metadata(request));
     setSessionCookies(reply, result, this.config);
     return sessionResponse(result);
+  }
+
+  @Post("mobile/sms/login")
+  @Public()
+  @HttpCode(200)
+  async mobileLogin(
+    @Body(new ZodValidationPipe(mobileSmsLoginSchema)) body: z.infer<typeof mobileSmsLoginSchema>,
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    setTokenResponseHeaders(reply);
+    assertSecureMobileTransport(request, this.config);
+    const result = await this.identity.login({
+      phone: body.phone,
+      code: body.code,
+      deviceId: body.device_id,
+      deviceType: body.platform,
+      deviceName: body.device_name,
+      appVersion: body.app_version,
+      policyVersionIds: body.policy_version_ids,
+    }, metadata(request));
+    return mobileSessionResponse(result);
   }
 
   @Post("token/refresh")
   @Public()
   @HttpCode(200)
   async refresh(@Req() request: FastifyRequest, @Res({ passthrough: true }) reply: FastifyReply) {
+    setTokenResponseHeaders(reply);
     const token = readCookie(request.headers.cookie, "xiongzai_refresh");
     if (!token) throw new AppError({ code: errorCodes.AUTH_REFRESH_INVALID, message: "缺少刷新凭证", statusCode: 401 });
     const result = await this.identity.refresh(token);
@@ -87,12 +137,37 @@ export class UserAuthController {
     return sessionResponse(result);
   }
 
+  @Post("mobile/token/refresh")
+  @Public()
+  @HttpCode(200)
+  async mobileRefresh(
+    @Body(new ZodValidationPipe(mobileRefreshSchema)) body: z.infer<typeof mobileRefreshSchema>,
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    setTokenResponseHeaders(reply);
+    assertSecureMobileTransport(request, this.config);
+    const result = await this.identity.refresh(body.refresh_token, body.device_id);
+    return mobileSessionResponse(result);
+  }
+
   @Post("logout")
   @HttpCode(204)
   async logout(@Req() request: UserRequest, @Res({ passthrough: true }) reply: FastifyReply): Promise<void> {
+    setTokenResponseHeaders(reply);
     const principal = requirePrincipal(request);
     await this.identity.logout(principal.sub, principal.session_id, metadata(request));
     clearSessionCookies(reply, this.config);
+  }
+
+  @Post("mobile/logout")
+  @BearerOnly()
+  @HttpCode(204)
+  async mobileLogout(@Req() request: UserRequest, @Res({ passthrough: true }) reply: FastifyReply): Promise<void> {
+    setTokenResponseHeaders(reply);
+    assertSecureMobileTransport(request, this.config);
+    const principal = requirePrincipal(request);
+    await this.identity.logout(principal.sub, principal.session_id, metadata(request));
   }
 }
 
@@ -130,7 +205,8 @@ export class UserMeController {
 
   @Get("sessions")
   sessions(@Req() request: UserRequest) {
-    return this.identity.listSessions(requirePrincipal(request).sub);
+    const principal = requirePrincipal(request);
+    return this.identity.listSessions(principal.sub, principal.session_id);
   }
 
   @Delete("sessions/:sessionId")
@@ -152,19 +228,44 @@ export class UserMeController {
   }
 }
 
+@Controller("api/v1/users")
+export class PublicUserController {
+  constructor(private readonly identity: IdentityUserService) {}
+  @Get(":userId/public-profile")
+  @Public()
+  profile(@Param("userId", new ZodValidationPipe(z.uuid())) userId: string) { return this.identity.getPublicProfile(userId); }
+}
+
 @Controller("api/v1/policies")
 export class UserPolicyController {
   constructor(private readonly identity: IdentityUserService) {}
 
   @Get("current")
   @Public()
-  current() {
-    return this.identity.currentPolicies();
+  current(@Query(new ZodValidationPipe(policyCurrentSchema)) query: z.infer<typeof policyCurrentSchema>) {
+    return this.identity.currentPolicies(query.scene);
   }
 
   @Post("acceptances")
   accept(@Req() request: UserRequest, @Body(new ZodValidationPipe(policyAcceptanceSchema)) body: z.infer<typeof policyAcceptanceSchema>) {
-    return this.identity.acceptPolicies(requirePrincipal(request).sub, body.policy_version_ids, metadata(request));
+    return this.identity.acceptPolicies(
+      requirePrincipal(request).sub,
+      body.acceptance_scene as PolicyAcceptanceScene,
+      body.confirmation_method as PolicyConfirmationMethod,
+      body.policy_version_ids,
+      metadata(request),
+    );
+  }
+
+  @Get("acceptances")
+  acceptances(@Req() request: UserRequest) {
+    return this.identity.listPolicyAcceptances(requirePrincipal(request).sub);
+  }
+
+  @Get(":policyVersionId")
+  @Public()
+  detail(@Param("policyVersionId", new ZodValidationPipe(z.uuid())) policyVersionId: string) {
+    return this.identity.getPublishedPolicy(policyVersionId);
   }
 }
 
@@ -176,7 +277,13 @@ export class AdminIdentityVerificationController {
   @Get()
   @RequirePermissions("identity.read")
   list(@Query(new ZodValidationPipe(identityListSchema)) query: z.infer<typeof identityListSchema>) {
-    return this.identity.listIdentities(query.status, query.limit);
+    return this.identity.listIdentities(query);
+  }
+
+  @Get(":verificationId")
+  @RequirePermissions("identity.read")
+  detail(@Param("verificationId", new ZodValidationPipe(z.uuid())) verificationId: string) {
+    return this.identity.getAdminIdentity(verificationId);
   }
 
   @Post(":verificationId/review")
@@ -225,11 +332,50 @@ function sessionResponse(result: {
   };
 }
 
+function mobileSessionResponse<TUser>(result: {
+  sessionId: string;
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresAt: Date;
+  refreshExpiresAt: Date;
+  user: TUser;
+}): MobileTokenResponse<TUser> {
+  const now = Date.now();
+  return {
+    token_type: "Bearer",
+    access_token: result.accessToken,
+    access_token_expires_in_seconds: remainingSeconds(result.accessExpiresAt, now),
+    refresh_token: result.refreshToken,
+    refresh_token_expires_in_seconds: remainingSeconds(result.refreshExpiresAt, now),
+    session_id: result.sessionId,
+    user: result.user,
+  };
+}
+
+function remainingSeconds(expiresAt: Date, now: number): number {
+  return Math.max(0, Math.ceil((expiresAt.getTime() - now) / 1000));
+}
+
+function setTokenResponseHeaders(reply: FastifyReply): void {
+  reply.header("cache-control", "no-store");
+  reply.header("pragma", "no-cache");
+}
+
+function assertSecureMobileTransport(request: FastifyRequest, config: ApiConfig): void {
+  if (config.environment === "production" && request.protocol !== "https") {
+    throw new AppError({
+      code: errorCodes.AUTH_INSECURE_TRANSPORT,
+      message: "移动端认证仅允许通过 HTTPS 访问",
+      statusCode: 403,
+    });
+  }
+}
+
 function setSessionCookies(reply: FastifyReply, result: {
   accessToken: string;
   refreshToken: string;
 }, config: ApiConfig): void {
-  const secure = config.environment === "production";
+  const secure = isProtectedEnvironment(config.environment);
   reply.header("set-cookie", [
     serializeCookie("xiongzai_access", result.accessToken, config.accessTokenTtlSeconds, "/", secure, "Lax"),
     serializeCookie("xiongzai_refresh", result.refreshToken, config.refreshTokenTtlSeconds, "/api/v1/auth", secure, "Strict"),
@@ -237,7 +383,7 @@ function setSessionCookies(reply: FastifyReply, result: {
 }
 
 function clearSessionCookies(reply: FastifyReply, config: ApiConfig): void {
-  const secure = config.environment === "production";
+  const secure = isProtectedEnvironment(config.environment);
   reply.header("set-cookie", [
     serializeCookie("xiongzai_access", "", 0, "/", secure, "Lax"),
     serializeCookie("xiongzai_refresh", "", 0, "/api/v1/auth", secure, "Strict"),

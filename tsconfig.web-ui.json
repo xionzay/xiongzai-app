@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": ["next-env.d.ts", "app/page.tsx", "app/layout.tsx", "app/BearStateImage.tsx", "app/BearStatusSupport.tsx", "app/bear-playback.ts", "app/bear-state-config.ts", "app/chat-stickers/**/*.ts", "app/chat-stickers/**/*.tsx", "app/sticker-preview/page.tsx"],
+  "exclude": ["node_modules", "website", "app/admin", "apps", "packages", "design-output", "dist"]
+}

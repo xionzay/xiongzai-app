@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>熊崽电竞公告设计参考</title>
+    <style>
+      :root {
+        --ink: #142136;
+        --muted: #6d7787;
+        --blue: #2589f4;
+        --blue-dark: #145aa6;
+        --orange: #ff5a25;
+        --cream: #fffaf1;
+        --card: #fffefd;
+        --line: #e8e2d8;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(circle at 14% 8%, rgba(255,190,94,.32), transparent 24%),
+          radial-gradient(circle at 86% 12%, rgba(85,169,255,.34), transparent 28%),
+          linear-gradient(135deg, #eef8ff 0%, #fffaf0 48%, #e8f5ff 100%);
+      }
+      .board { width: 1400px; min-height: 1280px; margin: 0 auto; padding: 52px 60px 64px; }
+      .board-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 30px; }
+      .eyebrow { color: var(--blue-dark); font-size: 15px; font-weight: 800; letter-spacing: .18em; }
+      h1 { margin: 8px 0 5px; font-size: 38px; letter-spacing: -.04em; }
+      .board-note { margin: 0; color: var(--muted); font-size: 16px; }
+      .draft { border: 1px solid rgba(37,137,244,.24); padding: 10px 15px; border-radius: 999px; background: rgba(255,255,255,.72); color: var(--blue-dark); font-size: 14px; font-weight: 700; }
+      .ticker-demo {
+        display: grid;
+        grid-template-columns: 154px 1fr 1fr;
+        gap: 14px;
+        align-items: center;
+        padding: 14px 20px;
+        border: 1px solid rgba(20,33,54,.08);
+        border-radius: 22px;
+        background: rgba(255,255,255,.82);
+        box-shadow: 0 16px 45px rgba(38,82,122,.12);
+        margin-bottom: 34px;
+      }
+      .ticker-label { display:flex; align-items:center; gap:9px; font-size:16px; font-weight:850; }
+      .speaker { width:34px; height:34px; display:grid; place-items:center; border-radius:12px; color:#fff; background:linear-gradient(135deg,var(--orange),#ff8a3d); }
+      .ticker-cover {
+        min-width: 0;
+        height: 72px;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        padding: 0 138px 0 17px;
+        border-radius: 17px;
+        border: 1px solid rgba(37,137,244,.15);
+        background: linear-gradient(105deg,#fff3df 0%,#f8fbff 55%,#dceeff 100%);
+      }
+      .ticker-cover.anti-cover { background: linear-gradient(105deg,#eef8ff 0%,#f8fbff 55%,#e1f2ff 100%); }
+      .ticker-cover img { position:absolute; z-index:0; right:0; top:0; width:185px; height:100%; object-fit:cover; object-position:72% center; mix-blend-mode:multiply; }
+      .ticker-cover::after { content:""; position:absolute; inset:0; background:linear-gradient(90deg,rgba(255,250,242,.98) 0%,rgba(255,250,242,.93) 44%,rgba(255,250,242,0) 76%); }
+      .ticker-cover.anti-cover::after { background:linear-gradient(90deg,rgba(241,249,255,.98) 0%,rgba(241,249,255,.92) 44%,rgba(241,249,255,0) 76%); }
+      .cover-copy { position:relative; z-index:2; min-width:0; }
+      .cover-top { display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+      .cover-tag { flex:none; color:var(--orange); font-size:10px; background:#fff; border:1px solid #ffd5c5; padding:3px 6px; border-radius:7px; font-weight:800; }
+      .cover-title { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; font-weight:850; }
+      .cover-desc { color:#6d7787; font-size:10px; white-space:nowrap; }
+      .phones { display:grid; grid-template-columns: 1fr 1fr; gap:42px; align-items:start; }
+      .case { display:flex; gap:22px; align-items:flex-start; }
+      .spec { width:185px; padding-top:26px; }
+      .spec-index { width:36px; height:36px; display:grid; place-items:center; border-radius:12px; background:var(--ink); color:#fff; font-weight:850; }
+      .spec h2 { margin:16px 0 8px; font-size:21px; line-height:1.25; }
+      .spec p { margin:0 0 15px; color:var(--muted); font-size:13px; line-height:1.65; }
+      .token { display:inline-block; margin:0 6px 7px 0; padding:6px 9px; background:rgba(255,255,255,.8); border:1px solid rgba(20,33,54,.08); border-radius:9px; color:#3c4b61; font-size:11px; font-weight:700; }
+      .phone {
+        width: 430px;
+        height: 930px;
+        position: relative;
+        overflow: hidden;
+        border: 10px solid rgba(255,255,255,.98);
+        border-radius: 52px;
+        background: var(--cream);
+        box-shadow: 0 28px 64px rgba(37,73,109,.22), 0 0 0 1px rgba(20,33,54,.06);
+      }
+      .notch { position:absolute; z-index:9; left:50%; top:0; transform:translateX(-50%); width:112px; height:27px; border-radius:0 0 18px 18px; background:#fff; }
+      .page { height:100%; overflow:hidden; background:linear-gradient(180deg,#eef8ff 0,#fffaf1 24%,#fffaf1 100%); }
+      .nav { height:86px; padding:30px 18px 10px; display:flex; align-items:center; gap:13px; }
+      .back { width:42px; height:42px; border-radius:14px; display:grid; place-items:center; background:#fff; box-shadow:0 5px 14px rgba(30,67,105,.08); font-size:27px; font-weight:500; }
+      .nav-title { font-size:22px; font-weight:850; }
+      .scroll { height:calc(100% - 86px); overflow:hidden; padding:8px 16px 28px; }
+      .hero { position:relative; height:192px; overflow:hidden; border-radius:24px; box-shadow:0 12px 25px rgba(36,94,149,.14); }
+      .hero img { width:100%; height:100%; object-fit:cover; display:block; }
+      .hero-copy { position:absolute; z-index:2; left:20px; top:24px; width:205px; }
+      .hero-copy .mini { display:inline-block; padding:5px 9px; border-radius:8px; color:#fff; background:rgba(20,90,166,.88); font-size:11px; font-weight:800; }
+      .hero-copy strong { display:block; margin-top:11px; font-size:23px; line-height:1.2; letter-spacing:-.03em; }
+      .hero-copy p { width:175px; margin:8px 0 0; color:#526176; font-size:12px; line-height:1.5; }
+      .meta { display:flex; align-items:center; justify-content:space-between; padding:13px 3px 11px; color:#89909a; font-size:11px; }
+      .content-card { padding:17px; border:1px solid var(--line); border-radius:20px; background:rgba(255,255,255,.9); box-shadow:0 7px 18px rgba(70,74,77,.06); }
+      .lead { margin:0; color:#455166; font-size:13px; line-height:1.7; }
+      .section-title { margin:17px 0 10px; display:flex; align-items:center; gap:8px; font-size:15px; font-weight:850; }
+      .section-title::before { content:""; width:4px; height:16px; border-radius:4px; background:linear-gradient(180deg,var(--orange),#ffad46); }
+      .reward { border:1px solid #ffd2bd; background:linear-gradient(135deg,#fff1e8,#fff9ee); border-radius:16px; padding:13px 14px; }
+      .reward b { display:block; color:var(--orange); font-size:18px; margin-bottom:4px; }
+      .reward p { margin:0; color:#6f625a; font-size:11px; line-height:1.6; }
+      .steps { display:grid; gap:8px; }
+      .step { display:grid; grid-template-columns:24px 1fr; gap:8px; align-items:start; color:#4b5668; font-size:12px; line-height:1.55; }
+      .step i { width:22px; height:22px; display:grid; place-items:center; border-radius:8px; background:#e8f4ff; color:var(--blue-dark); font-size:10px; font-style:normal; font-weight:850; }
+      .warning { margin-top:13px; padding:11px 12px; border-radius:13px; background:#f5f3ef; color:#7a6d5f; font-size:10.5px; line-height:1.55; }
+      .security-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+      .security-item { min-height:76px; padding:11px; border-radius:14px; border:1px solid #dfeaf4; background:#f6fbff; }
+      .security-item b { display:block; margin-bottom:4px; font-size:12px; }
+      .security-item span { color:#6a7585; font-size:10.5px; line-height:1.45; }
+      .emergency { margin-top:13px; border:1px solid #ffd7c9; background:#fff3ef; padding:11px 12px; border-radius:14px; color:#744f42; font-size:11px; line-height:1.55; }
+      .anti .page { background:linear-gradient(180deg,#e8f6ff 0,#fffaf1 25%,#fffaf1 100%); }
+      .anti .hero-copy .mini { background:rgba(255,90,37,.88); }
+      .anti .hero-copy strong { color:#12355e; }
+      .anti .section-title::before { background:linear-gradient(180deg,#2589f4,#5cc5ff); }
+      .footnote { margin-top:30px; padding-top:16px; border-top:1px solid rgba(20,33,54,.1); color:#697687; font-size:12px; line-height:1.65; }
+    </style>
+  </head>
+  <body>
+    <main class="board">
+      <header class="board-head">
+        <div>
+          <div class="eyebrow">XIONGZAI ESPORTS · ANNOUNCEMENT CONCEPT</div>
+          <h1>熊崽电竞 · 首批公告设计参考</h1>
+          <p class="board-note">首页仅展示一行标题；点击后进入统一详情模板。当前仅为视觉与文案参考，不接入业务。</p>
+        </div>
+        <div class="draft">本地测试草案 · V1.0</div>
+      </header>
+
+      <section class="ticker-demo" id="announcement-covers" aria-label="首页扁平公告封面示意">
+        <div class="ticker-label"><span class="speaker">⌁</span>首页扁平封面</div>
+        <div class="ticker-cover">
+          <img src="./report-trade.png" alt="" />
+          <div class="cover-copy">
+            <div class="cover-top"><span class="cover-tag">举报奖励</span><span class="cover-title">举报私下交易，核实奖励20%月流水</span></div>
+            <div class="cover-desc">拒绝平台外付款，保护每一笔订单</div>
+          </div>
+        </div>
+        <div class="ticker-cover anti-cover">
+          <img src="./anti-fraud.png" alt="" />
+          <div class="cover-copy">
+            <div class="cover-top"><span class="cover-tag">安全提醒</span><span class="cover-title">只认平台订单，拒绝私下转账</span></div>
+            <div class="cover-desc">不泄露验证码，不点击陌生链接</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="phones">
+        <article class="case">
+          <aside class="spec">
+            <div class="spec-index">01</div>
+            <h2>举报脱离平台交易</h2>
+            <p>强调平台保障和证据提交，不用“悬赏感”过强的视觉，避免鼓励恶意举报。</p>
+            <span class="token">橙色行动</span><span class="token">蓝色信任</span><span class="token">规则清晰</span>
+          </aside>
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="page">
+              <div class="nav"><div class="back">‹</div><div class="nav-title">公告详情</div></div>
+              <div class="scroll">
+                <div class="hero">
+                  <img src="./report-trade.png" alt="举报脱离平台交易主题插画" />
+                  <div class="hero-copy">
+                    <span class="mini">交易安全</span>
+                    <strong>拒绝私下交易<br />举报核实有奖励</strong>
+                    <p>保护每一笔订单，让服务和权益都有记录</p>
+                  </div>
+                </div>
+                <div class="meta"><span>熊崽电竞平台公告</span><span>2026-09-04</span></div>
+                <div class="content-card">
+                  <p class="lead">在平台认识、下单或沟通后，若陪玩以“价格更低”“转账更方便”等理由，引导您通过平台外方式付款，请不要转账，并立即保存证据、提交举报。</p>
+                  <div class="section-title">举报奖励规则</div>
+                  <div class="reward">
+                    <b>核实后奖励 20%</b>
+                    <p>按被举报陪玩当月平台已结算服务流水的 20% 计算，由平台审核后统一发放。</p>
+                  </div>
+                  <div class="section-title">请提交这些信息</div>
+                  <div class="steps">
+                    <div class="step"><i>1</i><span>完整聊天记录和对方引导私下交易的内容</span></div>
+                    <div class="step"><i>2</i><span>相关订单编号、对方昵称或平台账号</span></div>
+                    <div class="step"><i>3</i><span>收款码、转账要求等有效凭证（请遮挡隐私）</span></div>
+                  </div>
+                  <div class="warning">同一违规行为仅奖励首位有效举报人；重复、恶意或伪造举报不予奖励。最终认定与发放结果以平台审核为准。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="case anti">
+          <aside class="spec">
+            <div class="spec-index">02</div>
+            <h2>熊崽电竞防诈骗</h2>
+            <p>强调“官方不会做什么”和发生异常后的处理步骤，用户能快速扫读并马上行动。</p>
+            <span class="token">安全蓝</span><span class="token">风险提示</span><span class="token">客服入口</span>
+          </aside>
+          <div class="phone">
+            <div class="notch"></div>
+            <div class="page">
+              <div class="nav"><div class="back">‹</div><div class="nav-title">公告详情</div></div>
+              <div class="scroll">
+                <div class="hero">
+                  <img src="./anti-fraud.png" alt="熊崽电竞防诈骗主题插画" />
+                  <div class="hero-copy">
+                    <span class="mini">防诈骗提醒</span>
+                    <strong>只认平台订单<br />拒绝私下转账</strong>
+                    <p>不泄露验证码，不点击陌生链接</p>
+                  </div>
+                </div>
+                <div class="meta"><span>熊崽电竞安全中心</span><span>2026-09-04</span></div>
+                <div class="content-card">
+                  <p class="lead">所有陪玩服务必须通过熊崽电竞平台下单和支付。脱离平台付款后，平台无法核验交易，也无法提供订单、退款和售后保障。</p>
+                  <div class="section-title">请牢记四个“不要”</div>
+                  <div class="security-grid">
+                    <div class="security-item"><b>不要私下转账</b><span>拒绝红包、收款码或其他平台外付款。</span></div>
+                    <div class="security-item"><b>不要透露验证码</b><span>平台客服不会索要密码或短信验证码。</span></div>
+                    <div class="security-item"><b>不要点陌生链接</b><span>不要下载陌生 App，也不要共享屏幕。</span></div>
+                    <div class="security-item"><b>不要代充或解封</b><span>任何“低价充值、账号解封”都需警惕。</span></div>
+                  </div>
+                  <div class="section-title">遇到异常这样处理</div>
+                  <div class="steps">
+                    <div class="step"><i>1</i><span>立即停止付款和继续沟通</span></div>
+                    <div class="step"><i>2</i><span>保存聊天、账号、订单和支付凭证</span></div>
+                    <div class="step"><i>3</i><span>通过平台客服提交举报和处理申请</span></div>
+                  </div>
+                  <div class="emergency">如已发生资金损失，请立即联系支付平台止付，并视情况拨打 110 报警。</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <div class="footnote">设计建议：首页使用约 4.8:1 的扁平公告封面，每 4–5 秒纵向切换；详情页为纯阅读内容，不放任何按钮。插画可复用，不必为每次文字修订重新生成。以上奖励规则文案在正式上线前应由运营与法务确认。</div>
+    </main>
+  </body>
+</html>

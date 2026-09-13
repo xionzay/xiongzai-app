@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>熊崽电竞 · 我的订单设计预览</title>
+  <style>
+    :root {
+      --cream: #fff9ee;
+      --paper: #fffdf8;
+      --ink: #171a21;
+      --muted: #7b7d83;
+      --line: rgba(62, 57, 47, .11);
+      --orange: #ff5a1f;
+      --shadow: 0 10px 24px rgba(75, 57, 32, .11), 0 2px 6px rgba(75, 57, 32, .07);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--cream); color: var(--ink); }
+    body { font-family: Inter, ui-rounded, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    button { font: inherit; color: inherit; }
+    .orders-screen { min-height: 100vh; padding: 32px 0 92px; background: linear-gradient(180deg, #fffaf0 0%, #fffdf7 56%, #f8f1e7 100%); }
+    .screen-header { min-height: 66px; display: flex; align-items: flex-start; justify-content: space-between; padding: 0 16px 12px; }
+    .screen-header h1 { margin: 0; font-size: 25px; line-height: 1.08; letter-spacing: -.04em; }
+    .screen-header p { margin: 5px 0 0; color: var(--muted); font-size: 10px; }
+    .grid-action { width: 42px; height: 42px; display: grid; grid-template-columns: repeat(2, 10px); grid-template-rows: repeat(2, 10px); gap: 4px; place-content: center; border: 0; background: transparent; }
+    .grid-action i { border: 2px solid var(--ink); border-radius: 3px; }
+    .order-filter { display: flex; gap: 18px; overflow: hidden; padding: 0 17px 12px; white-space: nowrap; }
+    .order-filter button { position: relative; min-width: max-content; height: 36px; border: 0; padding: 0 2px; background: transparent; color: #56585d; font-size: 11px; }
+    .order-filter button.active { color: var(--orange); font-weight: 900; }
+    .order-filter button.active::after { content: ""; position: absolute; left: 2px; right: 2px; bottom: 0; height: 3px; border-radius: 3px; background: var(--orange); }
+    .buyer-order-list { display: grid; gap: 11px; padding: 5px 12px 12px; }
+    .buyer-order-card { position: relative; border: 1px solid var(--line); border-radius: 18px; padding: 12px 12px 10px; background: var(--paper); box-shadow: var(--shadow); }
+    .buyer-order-head { min-height: 38px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+    .buyer-order-head button { border: 0; padding: 0; background: transparent; font-size: 14px; font-weight: 850; }
+    .buyer-order-head b { color: var(--orange); font-size: 12px; }
+    .buyer-order-product { width: 100%; display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: start; gap: 10px; border: 0; padding: 9px 0 4px; background: transparent; text-align: left; }
+    .buyer-order-product img { width: 112px; height: 112px; border-radius: 14px; object-fit: cover; }
+    .buyer-order-product span { min-width: 0; }
+    .buyer-order-product span b { display: block; font-size: 14px; line-height: 1.4; }
+    .buyer-order-product span small { display: block; margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .buyer-order-product strong { position: absolute; right: 15px; bottom: 56px; color: var(--orange); font-size: 18px; }
+    .buyer-order-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: -2px; }
+    .buyer-order-actions button { height: 38px; border: 1px solid #d7d0c5; border-radius: 11px; padding: 0 13px; background: white; font-size: 11px; }
+    .buyer-order-actions button:last-child { border-color: var(--orange); background: var(--orange); color: white; font-weight: 900; }
+    .support-entry { width: calc(100% - 24px); min-height: 78px; display: grid; grid-template-columns: 44px 1fr auto; align-items: center; gap: 12px; margin: 4px 12px 14px; border: 1px solid var(--line); border-radius: 18px; padding: 12px 16px; background: var(--paper); box-shadow: var(--shadow); text-align: left; }
+    .support-entry .shield { width: 36px; height: 42px; display: grid; place-items: center; border: 2px solid var(--ink); border-radius: 10px 10px 15px 15px; font-size: 18px; }
+    .support-entry b, .support-entry small { display: block; }
+    .support-entry b { font-size: 15px; }
+    .support-entry small { margin-top: 5px; color: var(--muted); font-size: 11px; }
+    .support-entry em { font-size: 22px; font-style: normal; }
+    .bottom-nav { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; height: 82px; display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; padding: 4px 12px 8px; border-top: 1px solid rgba(82,70,48,.08); background: rgba(255,252,245,.98); box-shadow: 0 -8px 24px rgba(75,58,35,.06); }
+    .bottom-nav button { height: 62px; border: 0; background: transparent; font-size: 12px; }
+    .bottom-nav i { display: block; margin: 0 auto 5px; font-size: 27px; font-style: normal; }
+    .bottom-nav .active { color: var(--orange); font-weight: 900; }
+    @media (min-width: 431px) {
+      body { width: 430px; margin: 0 auto; }
+      .bottom-nav { width: 430px; left: 50%; transform: translateX(-50%); }
+    }
+  </style>
+</head>
+<body>
+  <main class="orders-screen">
+    <header class="screen-header">
+      <div><h1>我的订单</h1><p>只显示我购买的服务</p></div>
+      <button class="grid-action" aria-label="刷新"><i></i><i></i><i></i><i></i></button>
+    </header>
+    <nav class="order-filter" aria-label="订单状态">
+      <button class="active">全部</button><button>待付款</button><button>待接单</button><button>待开始</button><button>服务中</button><button>待确认</button><button>已完成</button><button>售后</button>
+    </nav>
+    <section class="buyer-order-list">
+      <article class="buyer-order-card">
+        <div class="buyer-order-head"><button>熊崽电竞 · 小鲸妹妹 ›</button><b>待付款</b></div>
+        <button class="buyer-order-product"><img src="/design-preview/orders/01.jpg" alt="小鲸妹妹" /><span><b>经典模式｜欢乐四排陪伴</b><small>60分钟 · 08月29日 19:00</small></span><strong>¥25.00</strong></button>
+        <div class="buyer-order-actions"><button>订单详情</button><button>去支付</button></div>
+      </article>
+      <article class="buyer-order-card">
+        <div class="buyer-order-head"><button>熊崽电竞 · 阿屿 ›</button><b>待接单</b></div>
+        <button class="buyer-order-product"><img src="/design-preview/orders/02.jpg" alt="阿屿" /><span><b>地铁模式｜摸金路线熟悉</b><small>45分钟 · 08月29日 20:30</small></span><strong>¥30.00</strong></button>
+        <div class="buyer-order-actions"><button>订单详情</button><button>查看详情</button></div>
+      </article>
+      <article class="buyer-order-card">
+        <div class="buyer-order-head"><button>熊崽电竞 · 棉芯 ›</button><b>待开始</b></div>
+        <button class="buyer-order-product"><img src="/design-preview/orders/03.jpg" alt="棉芯" /><span><b>经典模式｜默契双排沟通</b><small>90分钟 · 08月30日 14:00</small></span><strong>¥45.00</strong></button>
+        <div class="buyer-order-actions"><button>订单详情</button><button>联系陪玩</button></div>
+      </article>
+      <article class="buyer-order-card">
+        <div class="buyer-order-head"><button>熊崽电竞 · 软糖 ›</button><b>服务中</b></div>
+        <button class="buyer-order-product"><img src="/design-preview/orders/04.jpg" alt="软糖" /><span><b>地铁模式｜战备物资指导</b><small>120分钟 · 08月30日 18:00</small></span><strong>¥60.00</strong></button>
+        <div class="buyer-order-actions"><button>订单详情</button><button>查看进度</button></div>
+      </article>
+      <article class="buyer-order-card">
+        <div class="buyer-order-head"><button>熊崽电竞 · 星白 ›</button><b>待确认</b></div>
+        <button class="buyer-order-product"><img src="/design-preview/orders/05.jpg" alt="星白" /><span><b>经典模式｜新手基础陪伴</b><small>30分钟 · 08月31日 13:00</small></span><strong>¥28.00</strong></button>
+        <div class="buyer-order-actions"><button>订单详情</button><button>确认完成</button></div>
+      </article>
+      <article class="buyer-order-card">
+        <div class="buyer-order-head"><button>熊崽电竞 · 江川 ›</button><b>已完成</b></div>
+        <button class="buyer-order-product"><img src="/design-preview/orders/06.jpg" alt="江川" /><span><b>地铁模式｜撤离路线规划</b><small>75分钟 · 08月31日 16:30</small></span><strong>¥50.00</strong></button>
+        <div class="buyer-order-actions"><button>订单详情</button><button>再次购买</button></div>
+      </article>
+      <article class="buyer-order-card">
+        <div class="buyer-order-head"><button>熊崽电竞 · 千岛 ›</button><b>售后</b></div>
+        <button class="buyer-order-product"><img src="/design-preview/orders/07.jpg" alt="千岛" /><span><b>经典模式｜轻松娱乐组队</b><small>150分钟 · 09月01日 20:00</small></span><strong>¥88.00</strong></button>
+        <div class="buyer-order-actions"><button>订单详情</button><button>售后详情</button></div>
+      </article>
+    </section>
+    <button class="support-entry"><span class="shield">✓</span><span><b>售后与平台介入</b><small>退款申请 · 投诉 · 交易纠纷</small></span><em>›</em></button>
+  </main>
+  <nav class="bottom-nav" aria-label="买家端主导航">
+    <button><i>⌂</i>首页</button><button class="active"><i>▣</i>订单</button><button><i>◌</i>消息</button><button><i>♙</i>我的</button>
+  </nav>
+</body>
+</html>

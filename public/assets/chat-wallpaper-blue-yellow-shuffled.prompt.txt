@@ -1,0 +1,7 @@
+Mode: built-in image generation, reference image edit
+Source: public/assets/chat-wallpaper-blue-yellow.png
+Output: public/assets/chat-wallpaper-blue-yellow-shuffled.png
+
+Use case: precise-object-edit.
+Input image: edit target, the already recolored blue-and-yellow doodle wallpaper.
+Change ONLY the spatial arrangement of the existing doodles. Keep the same individual drawing designs, thin rounded monoline style, full range of doodle subjects, similar overall density, same color strength, same blue/yellow gradient and line contrast. Rearrange the doodles into a completely different scattered composition: move every major motif to another area, vary rotations subtly, change a few sizes moderately to interlock the arrangement, mix big and small motifs naturally, with no rows or grid, no overlaps, minimal repetition. Ensure the panda face, whale, dinosaurs, penguin, castle, surfboard, balloon, guitar creature, food, umbrella, rocket and other key objects are no longer in the positions they held in the source. Keep these same drawings, NOT new mascot replacements. Scatter small stars and swirls between them. Cover the canvas edge to edge with an even visual density, maintaining clear small gaps. Keep original aspect ratio about 6:13 portrait. Preserve the current medium-depth sky blue and mellow warm yellow, with blue as the dominant area; no fading to white, no green, no increase in saturation, no increase in line contrast. Output only the full-bleed wallpaper, no interface, text, labels, or border.

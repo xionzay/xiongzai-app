@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import "./chat-redesign.css";
+import "./chat-stickers/stickers.css";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -36,4 +38,3 @@ export default function RootLayout({
     </html>
   );
 }
-

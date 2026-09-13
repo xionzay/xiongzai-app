@@ -4,6 +4,7 @@ import { AppError, errorCodes } from "./errors.js";
 export interface CursorPayload {
   sort_value: string;
   id: string;
+  scope?: string;
 }
 export interface CursorPageRequest {
   cursor?: string;
@@ -55,7 +56,8 @@ export function decodeCursor(cursor: string, secret: string): CursorPayload {
   try {
     const payload = JSON.parse(Buffer.from(data, "base64url").toString("utf8")) as Partial<CursorPayload>;
     if (typeof payload.sort_value !== "string" || typeof payload.id !== "string" || !payload.id) throw invalidCursor();
-    return { sort_value: payload.sort_value, id: payload.id };
+    if (payload.scope !== undefined && typeof payload.scope !== "string") throw invalidCursor();
+    return { sort_value: payload.sort_value, id: payload.id, ...(payload.scope ? { scope: payload.scope } : {}) };
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw invalidCursor();

@@ -12,6 +12,7 @@
     "test": "pnpm run build && node --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@xiongzai/api": "workspace:*",
     "@xiongzai/application": "workspace:*",
     "@xiongzai/database": "workspace:*",
     "@xiongzai/observability": "workspace:*",

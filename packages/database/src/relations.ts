@@ -1,6 +1,8 @@
 import { relations } from "drizzle-orm";
 import {
+  accountCancellationRequests,
   adminAccounts,
+  adminOperationLogs,
   complaintEvidences,
   complaintLogs,
   complaints,
@@ -21,6 +23,9 @@ import {
   paymentEvents,
   payments,
   payoutAccounts,
+  personalDataExportJobs,
+  phoneChangeRequests,
+  policyVersions,
   productImages,
   productReviewLogs,
   productSkus,
@@ -39,9 +44,11 @@ import {
   sellerLiabilityAllocations,
   sellerProfiles,
   sellerReviewLogs,
+  smsCodes,
   supportCaseLogs,
   supportCases,
   userProfiles,
+  userPolicyAcceptances,
   users,
   withdrawalIncomeAllocations,
   withdrawalLogs,
@@ -57,6 +64,41 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   favorites: many(favorites),
   conversationMemberships: many(conversationMembers),
   notifications: many(notifications),
+  phoneChangeRequests: many(phoneChangeRequests),
+  personalDataExportJobs: many(personalDataExportJobs),
+  accountCancellationRequests: many(accountCancellationRequests),
+}));
+
+export const phoneChangeRequestsRelations = relations(phoneChangeRequests, ({ one }) => ({
+  user: one(users, { fields: [phoneChangeRequests.userId], references: [users.id] }),
+  oldSmsCode: one(smsCodes, {
+    fields: [phoneChangeRequests.oldSmsCodeId],
+    references: [smsCodes.id],
+    relationName: "phoneChangeOldSmsCode",
+  }),
+  newSmsCode: one(smsCodes, {
+    fields: [phoneChangeRequests.newSmsCodeId],
+    references: [smsCodes.id],
+    relationName: "phoneChangeNewSmsCode",
+  }),
+}));
+
+export const smsCodesRelations = relations(smsCodes, ({ many }) => ({
+  oldPhoneChangeRequests: many(phoneChangeRequests, { relationName: "phoneChangeOldSmsCode" }),
+  newPhoneChangeRequests: many(phoneChangeRequests, { relationName: "phoneChangeNewSmsCode" }),
+}));
+
+export const personalDataExportJobsRelations = relations(personalDataExportJobs, ({ one }) => ({
+  user: one(users, { fields: [personalDataExportJobs.userId], references: [users.id] }),
+  outputFile: one(files, { fields: [personalDataExportJobs.outputFileId], references: [files.id] }),
+}));
+
+export const accountCancellationRequestsRelations = relations(accountCancellationRequests, ({ one }) => ({
+  user: one(users, { fields: [accountCancellationRequests.userId], references: [users.id] }),
+  decisionOperationLog: one(adminOperationLogs, {
+    fields: [accountCancellationRequests.decisionAdminOperationLogId],
+    references: [adminOperationLogs.id],
+  }),
 }));
 
 export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
@@ -64,8 +106,26 @@ export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
   avatar: one(files, { fields: [userProfiles.avatarFileId], references: [files.id] }),
 }));
 
+export const policyVersionsRelations = relations(policyVersions, ({ many }) => ({
+  acceptances: many(userPolicyAcceptances),
+  onboardingApplications: many(sellerApplications, { relationName: "sellerOnboardingPolicy" }),
+  authorizedVoiceProfiles: many(sellerProfiles, { relationName: "sellerVoiceAuthorizationPolicy" }),
+  transactionOrders: many(orders, { relationName: "orderTransactionPolicy" }),
+  refundOrders: many(orders, { relationName: "orderRefundPolicy" }),
+}));
+
+export const userPolicyAcceptancesRelations = relations(userPolicyAcceptances, ({ one }) => ({
+  user: one(users, { fields: [userPolicyAcceptances.userId], references: [users.id] }),
+  policyVersion: one(policyVersions, { fields: [userPolicyAcceptances.policyVersionId], references: [policyVersions.id] }),
+}));
+
 export const sellerProfilesRelations = relations(sellerProfiles, ({ one, many }) => ({
   user: one(users, { fields: [sellerProfiles.userId], references: [users.id] }),
+  voiceAuthorizationPolicy: one(policyVersions, {
+    fields: [sellerProfiles.voiceAuthorizationPolicyVersionId],
+    references: [policyVersions.id],
+    relationName: "sellerVoiceAuthorizationPolicy",
+  }),
   applications: many(sellerApplications),
   products: many(products),
   orders: many(orders),
@@ -78,6 +138,11 @@ export const sellerProfilesRelations = relations(sellerProfiles, ({ one, many })
 
 export const sellerApplicationsRelations = relations(sellerApplications, ({ one, many }) => ({
   seller: one(sellerProfiles, { fields: [sellerApplications.sellerId], references: [sellerProfiles.id] }),
+  onboardingPolicy: one(policyVersions, {
+    fields: [sellerApplications.onboardingPolicyVersionId],
+    references: [policyVersions.id],
+    relationName: "sellerOnboardingPolicy",
+  }),
   reviewLogs: many(sellerReviewLogs),
 }));
 
@@ -117,6 +182,16 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   seller: one(sellerProfiles, { fields: [orders.sellerId], references: [sellerProfiles.id] }),
   product: one(products, { fields: [orders.productId], references: [products.id] }),
   sku: one(productSkus, { fields: [orders.skuId], references: [productSkus.id] }),
+  transactionPolicy: one(policyVersions, {
+    fields: [orders.transactionPolicyVersionId],
+    references: [policyVersions.id],
+    relationName: "orderTransactionPolicy",
+  }),
+  refundPolicy: one(policyVersions, {
+    fields: [orders.refundPolicyVersionId],
+    references: [policyVersions.id],
+    relationName: "orderRefundPolicy",
+  }),
   reservation: one(orderSlotReservations, { fields: [orders.id], references: [orderSlotReservations.orderId] }),
   statusLogs: many(orderStatusLogs),
   payments: many(payments),
@@ -158,6 +233,13 @@ export const complaintsRelations = relations(complaints, ({ one, many }) => ({
   order: one(orders, { fields: [complaints.orderId], references: [orders.id] }),
   evidences: many(complaintEvidences),
   logs: many(complaintLogs),
+}));
+
+export const complaintEvidencesRelations = relations(complaintEvidences, ({ one }) => ({
+  complaint: one(complaints, { fields: [complaintEvidences.complaintId], references: [complaints.id] }),
+  file: one(files, { fields: [complaintEvidences.fileId], references: [files.id] }),
+  submittedByUser: one(users, { fields: [complaintEvidences.submittedByUserId], references: [users.id] }),
+  submittedByAdmin: one(adminAccounts, { fields: [complaintEvidences.submittedByAdminId], references: [adminAccounts.id] }),
 }));
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({

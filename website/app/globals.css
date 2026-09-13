@@ -1,4 +1,12 @@
 :root {
+  --brand-night: #111b8f;
+  --brand-blue: #265df4;
+  --brand-cyan: #38d9ff;
+  --brand-violet: #7b3ff2;
+  --brand-pink: #ff5ebc;
+  --brand-orange: #ff8a4c;
+  --brand-mint: #57e3c2;
+  --brand-white: #f8fbff;
   --cream: #fff9ee;
   --cream-2: #f7efe1;
   --paper: #fffdf8;
@@ -20,7 +28,7 @@
 }
 
 * { box-sizing: border-box; }
-html, body { margin: 0; min-height: 100%; background: #9fd0fa; color: var(--ink); }
+html, body { margin: 0; min-height: 100%; background: var(--brand-night); color: var(--ink); }
 body { font-family: Inter, ui-rounded, "SF Pro Display", "PingFang SC", "Microsoft YaHei", sans-serif; }
 button, input, textarea { font: inherit; }
 button { color: inherit; }
@@ -2926,5 +2934,4 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   outline: 3px solid rgba(47, 143, 229, .35);
   outline-offset: 2px;
 }
-
 

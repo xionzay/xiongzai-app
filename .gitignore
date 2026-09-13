@@ -15,6 +15,10 @@
 
 # testing
 /coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.auth/
 
 # next.js
 /.next/
@@ -24,6 +28,19 @@
 # misc
 .DS_Store
 *.pem
+*.key
+*.crt
+*.cer
+*.p8
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+service-account*.json
+credentials.json
 
 # debug
 npm-debug.log*
@@ -43,6 +60,7 @@ yarn-error.log*
 *.tsbuildinfo
 /.wrangler/
 /outputs/
+/output/
 /work/
 /.local/
 

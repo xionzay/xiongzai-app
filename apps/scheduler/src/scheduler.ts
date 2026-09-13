@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { scheduledJobs, type Database } from "@xiongzai/database";
 import { JsonLogger } from "@xiongzai/observability";
@@ -22,15 +23,16 @@ export interface ScheduledJobRepository {
 export type JobHandler = (job: ClaimedJob) => Promise<void>;
 
 export class DrizzleScheduledJobRepository implements ScheduledJobRepository {
-  constructor(private readonly database: Database) {}
+  constructor(private readonly database: Database, private readonly options: { now?: () => Date; lockTimeoutMs?: number } = {}) {}
 
   async claim(batchSize: number, schedulerId: string): Promise<ClaimedJob[]> {
     return this.database.transaction(async (tx) => {
+      const lockTimeoutMs = this.options.lockTimeoutMs ?? 300_000;
       const result = await tx.execute(sql`
         WITH candidates AS (
           SELECT id FROM scheduled_jobs
           WHERE (status = 'PENDING' AND run_at <= now())
-             OR (status = 'RUNNING' AND locked_at <= now() - interval '5 minutes')
+             OR (status = 'RUNNING' AND locked_at <= now() - (${lockTimeoutMs} * interval '1 millisecond'))
           ORDER BY run_at, id
           FOR UPDATE SKIP LOCKED
           LIMIT ${batchSize}
@@ -52,18 +54,21 @@ export class DrizzleScheduledJobRepository implements ScheduledJobRepository {
   }
 
   async complete(id: string): Promise<void> {
-    await this.database.update(scheduledJobs).set({ status: "COMPLETED", completedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null }).where(sql`${scheduledJobs.id} = ${id}`);
+    const now = this.options.now?.() ?? new Date();
+    await this.database.update(scheduledJobs).set({ status: "COMPLETED", completedAt: now, lockedAt: null, lockedBy: null, lastError: null, updatedAt: now }).where(sql`${scheduledJobs.id} = ${id}`);
   }
 
   async fail(id: string, attempts: number, maxAttempts: number, error: unknown): Promise<void> {
-    const exhausted = attempts >= maxAttempts;
-    const delaySeconds = Math.min(300, 2 ** Math.min(attempts, 8));
+    const failure = safeFailure(error);
+    const exhausted = !failure.retryable || attempts >= maxAttempts;
+    const now = this.options.now?.() ?? new Date();
     await this.database.update(scheduledJobs).set({
       status: exhausted ? "FAILED" : "PENDING",
-      lastError: errorMessage(error),
-      runAt: exhausted ? undefined : new Date(Date.now() + delaySeconds * 1_000),
+      lastError: failure.message,
+      runAt: exhausted ? undefined : new Date(now.getTime() + retryDelayMs(attempts, id)),
       lockedAt: null,
       lockedBy: null,
+      updatedAt: now,
     }).where(sql`${scheduledJobs.id} = ${id}`);
   }
 }
@@ -84,23 +89,48 @@ export class Scheduler {
   }
 
   async runOnce(): Promise<number> {
+    const batchStartedAt = Date.now();
     const jobs = await this.repository.claim(this.batchSize, this.schedulerId);
+    let completedCount = 0;
+    let failedCount = 0;
     for (const job of jobs) {
+      const jobStartedAt = Date.now();
       try {
         const handler = this.handlers.get(job.jobType);
         if (!handler) throw new Error(`No handler registered for scheduled job type: ${job.jobType}`);
         await handler(job);
         await this.repository.complete(job.id);
-        this.logger.info("scheduled_job_completed", { job_id: job.id, job_key: job.jobKey, job_type: job.jobType });
+        completedCount += 1;
+        this.logger.info("scheduled_job_completed", { job_id: job.id, job_key: job.jobKey, job_type: job.jobType, elapsed_ms: Date.now() - jobStartedAt });
       } catch (error) {
+        failedCount += 1;
         await this.repository.fail(job.id, job.attempts, job.maxAttempts, error);
-        this.logger.error("scheduled_job_failed", { job_id: job.id, job_key: job.jobKey, job_type: job.jobType, error });
+        const failure = safeFailure(error);
+        this.logger.error("scheduled_job_failed", { job_id: job.id, job_key: job.jobKey, job_type: job.jobType, error_category: failure.message, retryable: failure.retryable, attempt: job.attempts, elapsed_ms: Date.now() - jobStartedAt });
       }
+    }
+    if (jobs.length > 0) {
+      this.logger.info("scheduled_job_batch_completed", {
+        claimed_count: jobs.length,
+        success_count: completedCount,
+        failure_count: failedCount,
+        elapsed_ms: Date.now() - batchStartedAt,
+      });
     }
     return jobs.length;
   }
 }
 
-function errorMessage(error: unknown): string {
-  return (error instanceof Error ? error.message : String(error)).slice(0, 4_000);
+function safeFailure(error: unknown): { message: string; retryable: boolean } {
+  if (error && typeof error === "object" && "category" in error && typeof error.category === "string") {
+    return { message: error.category.slice(0, 128), retryable: !("retryable" in error) || error.retryable !== false };
+  }
+  return { message: "unclassified_failure", retryable: true };
+}
+
+export function retryDelayMs(attempts: number, stableSeed: string): number {
+  const base = Math.min(300_000, 2_000 * 2 ** Math.min(Math.max(attempts - 1, 0), 8));
+  const hash = createHash("sha256").update(`${stableSeed}:${attempts}`).digest();
+  const jitter = 0.75 + (hash.readUInt16BE(0) / 65_535) * 0.5;
+  return Math.max(1_000, Math.round(base * jitter));
 }

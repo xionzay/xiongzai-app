@@ -43,6 +43,9 @@ before(async () => {
   await migrationClient.query(`SET search_path TO "${schemaName}", public`);
   await runMigration("0000_initial_schema.sql");
   await runMigration("0001_core_invariants.sql");
+  await runMigration("0004_payment_channels_voice_constraints.sql");
+  await runMigration("0005_policy_acceptance_context.sql");
+  await runMigration("0006_policy_version_bindings.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-chat-support-test", options: `-c search_path=${schemaName},public`, max: 10 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, logger: new JsonLogger("chat-support-test", () => {}) });
   buyer = await seedUser("buyer"); seller = await seedUser("seller"); stranger = await seedUser("stranger");
@@ -80,8 +83,18 @@ test("consultation messages are idempotent, paginated, readable, and private to 
   assert.equal(sellerMessages.statusCode, 200, sellerMessages.body);
   assert.equal(sellerMessages.json().items.length, 1);
   assert.ok(sellerMessages.json().next_cursor);
+  const detail = await userRequest(buyer, "GET", `/api/v1/conversations/${conversation.json().id}`);
+  assert.equal(detail.statusCode, 200, detail.body);
+  assert.equal(detail.json().counterpart.kind, "SELLER");
+  assert.equal(detail.json().can_send, true);
+  const unreadBefore = await userRequest(seller, "GET", "/api/v1/conversations/unread-count");
+  assert.ok(unreadBefore.json().unread_count >= 1);
   const marked = await userRequest(seller, "POST", `/api/v1/conversations/${conversation.json().id}/read`, { last_read_sequence_no: "2" });
   assert.equal(marked.json().unread_count, 0);
+  const buyerMessages = await userRequest(buyer, "GET", `/api/v1/conversations/${conversation.json().id}/messages?limit=20`);
+  assert.equal(buyerMessages.json().items.find((item) => item.id === first.json().id).read_by_recipient, true);
+  const wrongScope = await userRequest(buyer, "GET", `/api/v1/conversations?cursor=${encodeURIComponent(sellerMessages.json().next_cursor)}`);
+  assert.equal(wrongScope.statusCode, 400);
 });
 
 test("order conversations are unique and administrator evidence access requires a reason and audit permission", { skip: !enabled }, async () => {
@@ -108,6 +121,17 @@ test("support receive and transfer races use CAS while reply records first respo
   const created = await userRequest(buyer, "POST", "/api/v1/support-cases", { topic: "订单履约问题", priority: "HIGH", queue_key: "trade", related_type: "ORDER", related_id: orderId, source_page: "order-detail", initial_message: "陪玩还没有回复，请平台客服协助确认。" });
   assert.equal(created.statusCode, 201, created.body);
   const caseId = created.json().id;
+  const adminQueue = await adminRequest(adminA, "GET", "/admin-api/v1/support-cases?keyword=测试buyer&limit=20");
+  assert.equal(adminQueue.statusCode, 200, adminQueue.body);
+  const queuedCase = adminQueue.json().items.find((item) => item.id === caseId);
+  assert.deepEqual(queuedCase.requester, { nickname: "测试buyer", public_user_no: queuedCase.requester.public_user_no, phone_mask: "138****0000" });
+  assert.equal(queuedCase.last_message_preview, "陪玩还没有回复，请平台客服协助确认。");
+  assert.ok(queuedCase.last_message_at);
+  const adminDetail = await adminRequest(adminA, "GET", `/admin-api/v1/support-cases/${caseId}`);
+  assert.equal(adminDetail.statusCode, 200, adminDetail.body);
+  assert.equal(adminDetail.json().requester.nickname, "测试buyer");
+  assert.equal(adminDetail.json().requester.phone_mask, "138****0000");
+  assert.doesNotMatch(adminDetail.body, /phone_ciphertext|phone_hash|encrypted/iu);
   const [receiveA, receiveB] = await Promise.all([
     adminRequest(adminA, "POST", `/admin-api/v1/support-cases/${caseId}/receive`, { version: 0 }),
     adminRequest(adminB, "POST", `/admin-api/v1/support-cases/${caseId}/receive`, { version: 0 }),
@@ -140,6 +164,9 @@ test("support receive and transfer races use CAS while reply records first respo
   assert.equal(closed.statusCode, 201, closed.body);
   assert.ok(closed.json().closed_at);
   assert.ok(closed.json().first_response_at);
+  const sendWhileClosed = await userRequest(buyer, "POST", `/api/v1/conversations/${created.json().conversation_id}/messages`, { client_message_id: `closed-${randomUUID()}`, content: "关闭后不应允许直接发送" });
+  assert.equal(sendWhileClosed.statusCode, 409);
+  assert.equal(sendWhileClosed.json().code, "SUPPORT_CASE_CLOSED");
 
   const detail = await userRequest(buyer, "GET", `/api/v1/support-cases/${caseId}`);
   assert.deepEqual(detail.json().logs.map((log) => log.action), ["CREATED", "RECEIVED", "REPLIED", "TRANSFERRED", "RECEIVED", "CLOSED"]);
@@ -149,6 +176,14 @@ test("support receive and transfer races use CAS while reply records first respo
   assert.equal(reopened.json().closed_at, null);
   const logCount = await migrationClient.query("SELECT count(*)::integer AS count FROM support_case_logs WHERE support_case_id = $1", [caseId]);
   assert.equal(logCount.rows[0].count, 7);
+  const secondCase = await userRequest(buyer, "POST", "/api/v1/support-cases", { topic: "另一个客服问题", priority: "NORMAL", queue_key: "general", initial_message: "用于验证客服工单游标分页。" });
+  assert.equal(secondCase.statusCode, 201, secondCase.body);
+  const supportPage = await userRequest(buyer, "GET", "/api/v1/support-cases?limit=1");
+  assert.equal(supportPage.json().items.length, 1);
+  assert.ok(supportPage.json().next_cursor);
+  const supportNext = await userRequest(buyer, "GET", `/api/v1/support-cases?limit=1&cursor=${encodeURIComponent(supportPage.json().next_cursor)}`);
+  assert.equal(supportNext.statusCode, 200, supportNext.body);
+  assert.notEqual(supportNext.json().items[0].id, supportPage.json().items[0].id);
 });
 
 test("Inbox duplicate consumption creates one notification and one in-app delivery log", { skip: !enabled }, async () => {
@@ -164,8 +199,21 @@ test("Inbox duplicate consumption creates one notification and one in-app delive
   const list = await userRequest(buyer, "GET", "/api/v1/notifications?category=ORDER&limit=50");
   assert.equal(list.statusCode, 200, list.body);
   assert.ok(list.json().items.some((item) => item.id === first.notificationId));
+  const unreadBefore = await userRequest(buyer, "GET", "/api/v1/notifications/unread-count");
   const read = await userRequest(buyer, "POST", `/api/v1/notifications/${first.notificationId}/read`);
   assert.equal(read.json().read_status, "READ");
+  const unreadAfter = await userRequest(buyer, "GET", "/api/v1/notifications/unread-count");
+  assert.equal(unreadAfter.json().unread_count, unreadBefore.json().unread_count - 1);
+  const monitor = await seedAdmin("notification-monitor", ["user.read"]);
+  const denied = await adminRequest(readOnlyAdmin, "GET", "/admin-api/v1/notification-deliveries?limit=20");
+  assert.equal(denied.statusCode, 403);
+  const adminList = await adminRequest(monitor, "GET", "/admin-api/v1/notification-deliveries?keyword=陪玩已接单&limit=20");
+  assert.equal(adminList.statusCode, 200, adminList.body);
+  assert.ok(adminList.json().items.some((item) => item.id === first.notificationId));
+  const adminDetail = await adminRequest(monitor, "GET", `/admin-api/v1/notification-deliveries/${first.notificationId}`);
+  assert.equal(adminDetail.statusCode, 200, adminDetail.body);
+  const serialized = JSON.stringify(adminDetail.json());
+  assert.doesNotMatch(serialized, /content_variables|phone_ciphertext|object_key|token|secret|presigned/iu);
 });
 
 async function seedOrderCatalog() {
@@ -179,10 +227,20 @@ async function seedOrderCatalog() {
 async function seedUser(label) {
   const id = randomUUID(); const sessionId = randomUUID();
   await migrationClient.query("INSERT INTO users (id, phone_ciphertext, phone_hash, phone_mask) VALUES ($1, 'encrypted', $2, '138****0000')", [id, randomUUID().replaceAll("-", "").repeat(2)]);
+  await migrationClient.query("INSERT INTO user_profiles (user_id, nickname, public_user_no, bio) VALUES ($1, $2, $3, $4)", [id, `测试${label}`, `XZ${id.replaceAll("-", "").slice(0, 20)}`, `${label}公开资料`]);
   await migrationClient.query("INSERT INTO auth_sessions (id, user_id, refresh_token_hash, device_id, device_type, ip, user_agent, expires_at) VALUES ($1, $2, $3, $4, 'WEB', '127.0.0.1', 'integration-test', now() + interval '1 hour')", [sessionId, id, randomUUID().replaceAll("-", "").repeat(2), `device-${label}`]);
   const token = issueAccessToken({ sub: id, principal_type: "user", token_use: "access", session_id: sessionId }, { secret: config.userTokenSecret, issuer: config.tokenIssuer, audience: config.userTokenAudience, expiresInSeconds: 300 });
   return { id, token };
 }
+
+test("public buyer profile exposes only public fields and hides disabled users", { skip: !enabled }, async () => {
+  const visible = await app.inject({ method: "GET", url: `/api/v1/users/${buyer.id}/public-profile` });
+  assert.equal(visible.statusCode, 200, visible.body); assert.equal(visible.json().nickname, "测试buyer"); assert.equal("phone_mask" in visible.json(), false);
+  assert.equal(visible.json().following_count, 0); assert.equal(visible.json().public_review_count, 0); assert.deepEqual(visible.json().public_reviews, []); assert.equal(visible.json().online_status, "OFFLINE");
+  await migrationClient.query("UPDATE users SET status='DISABLED' WHERE id=$1", [stranger.id]);
+  const hidden = await app.inject({ method: "GET", url: `/api/v1/users/${stranger.id}/public-profile` });
+  assert.equal(hidden.statusCode, 404);
+});
 
 async function seedAdmin(label, permissionKeys) {
   const id = randomUUID(); const sessionId = randomUUID(); const roleId = randomUUID();

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { test } from "node:test";
 
 const initialMigration = await readFile(
@@ -10,6 +10,46 @@ const invariantMigration = await readFile(
   new URL("../migrations/0001_core_invariants.sql", import.meta.url),
   "utf8",
 );
+const adminStageTwoMigration = await readFile(
+  new URL("../migrations/0002_admin_stage2_permissions.sql", import.meta.url),
+  "utf8",
+);
+const adminPerformanceMigration = await readFile(
+  new URL("../migrations/0003_admin_query_performance.sql", import.meta.url),
+  "utf8",
+);
+const localFinalizationMigration = await readFile(
+  new URL("../migrations/0004_payment_channels_voice_constraints.sql", import.meta.url),
+  "utf8",
+);
+const policyAcceptanceMigration = await readFile(
+  new URL("../migrations/0005_policy_acceptance_context.sql", import.meta.url),
+  "utf8",
+);
+const policyBindingMigration = await readFile(
+  new URL("../migrations/0006_policy_version_bindings.sql", import.meta.url),
+  "utf8",
+);
+const userLifecycleMigration = await readFile(
+  new URL("../migrations/0007_user_lifecycle_requests.sql", import.meta.url),
+  "utf8",
+);
+const userLifecycleInvariantMigration = await readFile(
+  new URL("../migrations/0008_user_lifecycle_invariants.sql", import.meta.url),
+  "utf8",
+);
+const adminLocalCompletionMigration = await readFile(
+  new URL("../migrations/0009_clear_rhodey.sql", import.meta.url),
+  "utf8",
+);
+const migrationJournal = JSON.parse(await readFile(
+  new URL("../migrations/meta/_journal.json", import.meta.url),
+  "utf8",
+));
+const latestSnapshot = JSON.parse(await readFile(
+  new URL("../migrations/meta/0009_snapshot.json", import.meta.url),
+  "utf8",
+));
 const schemaSource = await readFile(
   new URL("../src/schema.ts", import.meta.url),
   "utf8",
@@ -175,4 +215,171 @@ test("financial and audit history is append-only", () => {
 
   assert.match(invariantMigration, /ledger_transactions_protect_posted/);
   assert.match(invariantMigration, /create a reversal transaction instead/);
+});
+
+test("admin stage two adds only the safe health-read permission", () => {
+  assert.match(adminStageTwoMigration, /system_health\.read/);
+  assert.match(adminStageTwoMigration, /ON CONFLICT \("permission_key"\) DO NOTHING/);
+  assert.doesNotMatch(adminStageTwoMigration, /INSERT INTO "role_permissions"|GRANT|password|secret/iu);
+});
+
+test("admin performance indexes match stable keyset and moderation queue queries", () => {
+  for (const indexName of [
+    "users_status_created_id_idx",
+    "files_admin_queue_created_id_idx",
+    "admin_operation_logs_created_id_idx",
+    "risk_events_status_created_id_idx",
+    "security_logs_status_created_id_idx",
+  ]) assert.match(adminPerformanceMigration, new RegExp(`CREATE INDEX "${indexName}"`));
+  assert.match(adminPerformanceMigration, /"upload_status","moderation_status","created_at","id"/);
+  assert.match(adminPerformanceMigration, /WHERE "files"\."deleted_at" IS NULL/);
+  assert.doesNotMatch(adminPerformanceMigration, /\b(?:DROP|UPDATE|DELETE|INSERT)\b|password|secret/iu);
+});
+
+test("migration files, journal and latest snapshot are synchronized", async () => {
+  const sqlFiles = (await readdir(new URL("../migrations", import.meta.url)))
+    .filter((name) => /^\d{4}_.+\.sql$/u.test(name))
+    .sort();
+  const journalFiles = migrationJournal.entries.map((entry) => `${entry.tag}.sql`).sort();
+  assert.deepEqual(sqlFiles, journalFiles);
+  assert.deepEqual(migrationJournal.entries.map((entry) => entry.idx), Array.from({ length: sqlFiles.length }, (_, index) => index));
+  assert.equal(Object.keys(latestSnapshot.tables).length, 70);
+  assert.equal(Object.keys(latestSnapshot.enums).length, 68);
+});
+
+test("admin local completion migration adds dual control, review evidence and scoped permissions", () => {
+  for (const column of ["initial_review_admin_id", "initial_reviewed_at", "final_review_admin_id", "final_reviewed_at", "deleted_at", "version"])
+    assert.match(adminLocalCompletionMigration, new RegExp(`ADD COLUMN "${column}"`));
+  for (const permission of ["finance.export", "withdrawal.review.initial", "withdrawal.review.final"])
+    assert.match(adminLocalCompletionMigration, new RegExp(permission.replaceAll(".", "\\.")));
+  assert.match(adminLocalCompletionMigration, /withdrawals_dual_review_admins/);
+  assert.doesNotMatch(adminLocalCompletionMigration, /DROP TABLE|TRUNCATE|DELETE FROM/iu);
+});
+
+test("local user lifecycle requests are minimal, versioned and reuse existing infrastructure", () => {
+  for (const table of [
+    "phone_change_requests",
+    "personal_data_export_jobs",
+    "account_cancellation_requests",
+  ]) assert.match(userLifecycleMigration, new RegExp(`CREATE TABLE "${table}"`));
+
+  for (const enumName of [
+    "phone_change_request_status",
+    "personal_data_export_status",
+    "account_cancellation_status",
+  ]) assert.match(userLifecycleMigration, new RegExp(`CREATE TYPE "public"\\."${enumName}" AS ENUM`));
+
+  for (const reusedReference of [
+    "old_sms_code_id_sms_codes_id_fk",
+    "new_sms_code_id_sms_codes_id_fk",
+    "output_file_id_files_id_fk",
+    "decision_admin_operation_log_id_admin_operation_logs_id_fk",
+  ]) assert.match(userLifecycleMigration, new RegExp(reusedReference));
+
+  assert.match(userLifecycleMigration, /ALTER TYPE "public"\."file_type" ADD VALUE 'DATA_EXPORT'/);
+  assert.match(userLifecycleMigration, /ALTER TYPE "public"\."file_usage_type" ADD VALUE 'EXPORT'/);
+  assert.doesNotMatch(userLifecycleMigration, /presigned|https?:\/\//iu);
+  assert.doesNotMatch(userLifecycleMigration, /phone_plain|plain_phone|mobile_number/iu);
+});
+
+test("lifecycle status transitions, concurrency and immutable evidence are database enforced", () => {
+  for (const invariant of [
+    "phone_change_requests_state_transition",
+    "personal_data_export_jobs_state_transition",
+    "account_cancellation_requests_state_transition",
+    "phone_change_requests_integrity_trigger",
+    "personal_data_export_jobs_file_trigger",
+    "account_cancellation_requests_integrity_trigger",
+    "complaint_evidences_limit_trigger",
+    "complaint_evidences_file_trigger",
+    "complaint_evidences_append_only",
+  ]) assert.match(userLifecycleInvariantMigration, new RegExp(`"${invariant}"`));
+
+  assert.match(userLifecycleInvariantMigration, /version must increase by exactly one/);
+  assert.match(userLifecycleInvariantMigration, /complaint evidence limit of 20 reached/);
+  assert.match(userLifecycleInvariantMigration, /PHONE_CHANGE_OLD/);
+  assert.match(userLifecycleInvariantMigration, /PHONE_CHANGE_NEW/);
+  assert.match(userLifecycleMigration, /complaint_evidences_submitter_xor/);
+});
+
+test("policy acceptance records capture scene and online confirmation without replacing history", () => {
+  assert.match(policyAcceptanceMigration, /policy_acceptance_scene/);
+  assert.match(policyAcceptanceMigration, /'LOGIN'.*'ORDER_PAYMENT'.*'SELLER_ONBOARDING'.*'VOICE_SAMPLE_UPLOAD'/s);
+  assert.match(policyAcceptanceMigration, /policy_confirmation_method.*'ONLINE_CONFIRM'/s);
+  assert.match(policyAcceptanceMigration, /ADD COLUMN "acceptance_scene"/);
+  assert.match(policyAcceptanceMigration, /ADD COLUMN "confirmation_method"/);
+  assert.match(policyAcceptanceMigration, /user_policy_acceptances_scene_idx/);
+  assert.doesNotMatch(policyAcceptanceMigration, /\b(?:DELETE|TRUNCATE|DROP TABLE)\b/iu);
+});
+
+test("policy versions and business facts retain immutable legal-version context", () => {
+  for (const column of [
+    "effective_at",
+    "requires_reacceptance",
+    "onboarding_policy_version_id",
+    "voice_authorization_policy_version_id",
+    "transaction_policy_version_id",
+    "refund_policy_version_id",
+  ]) assert.match(policyBindingMigration, new RegExp(`"${column}"`));
+
+  for (const invariant of [
+    "policy_versions_protect_history",
+    "user_policy_acceptances_validate_policy",
+    "user_policy_acceptances_append_only",
+    "seller_applications_policy_binding_trigger",
+    "seller_profiles_voice_policy_binding_trigger",
+    "orders_policy_binding_trigger",
+  ]) assert.match(policyBindingMigration, new RegExp(`"${invariant}"`));
+
+  assert.match(policyBindingMigration, /published or accepted policy version is immutable/);
+  assert.match(policyBindingMigration, /only an effective published policy version can be accepted/);
+  assert.match(policyBindingMigration, /SELLER_ONBOARDING_AGREEMENT/);
+  assert.match(policyBindingMigration, /VOICE_SAMPLE_PUBLIC_PLAYBACK_AUTHORIZATION/);
+  assert.match(policyBindingMigration, /ORDER_PAYMENT_REFUND_RULES/);
+  assert.match(policyBindingMigration, /orders_policy_versions_complete/);
+  assert.doesNotMatch(policyBindingMigration, /\bBANK\b/u);
+});
+
+test("payment and payout channels are closed database enums", () => {
+  assert.match(localFinalizationMigration, /CREATE TYPE "public"\."payment_channel" AS ENUM\('WECHAT_APP', 'ALIPAY_APP', 'MOCK'\)/);
+  assert.match(localFinalizationMigration, /ALTER TABLE "payments" ALTER COLUMN "channel" SET DATA TYPE/);
+  assert.match(localFinalizationMigration, /ALTER TABLE "payment_events" ALTER COLUMN "channel" SET DATA TYPE/);
+  assert.match(schemaSource, /paymentChannelEnum\("channel"\)\.notNull\(\)/g);
+  assert.match(initialMigration, /CREATE TYPE "public"\."payout_account_type" AS ENUM\('WECHAT', 'ALIPAY'\)/);
+  assert.doesNotMatch(`${initialMigration}\n${localFinalizationMigration}`, /\bBANK\b/u);
+});
+
+test("voice samples keep typed metadata, moderation, binding and soft-delete support", () => {
+  assert.match(initialMigration, /'VOICE_SAMPLE'/);
+  for (const column of ["mime_type", "duration_ms", "moderation_status", "upload_status", "deleted_at"]) {
+    assert.match(initialMigration, new RegExp(`"${column}"`));
+  }
+  assert.match(initialMigration, /CREATE TABLE "file_usages"/);
+  assert.match(initialMigration, /'VOICE'/);
+  assert.match(initialMigration, /"voice_file_id" uuid/);
+  assert.match(localFinalizationMigration, /files_voice_metadata_valid/);
+  assert.match(localFinalizationMigration, /audio\/aac.*audio\/mp4.*audio\/mpeg/);
+  assert.match(localFinalizationMigration, /duration_ms" BETWEEN 10000 AND 30000/);
+});
+
+test("all cent-denominated columns remain bigint and core commands remain versioned/idempotent", () => {
+  assert.doesNotMatch(schemaSource, /(?:real|doublePrecision|float)\([^\n]*(?:Cent|cent)/u);
+  for (const table of ["orders", "payments", "refunds", "withdrawals"]) {
+    assert.match(initialMigration, new RegExp(`CREATE TABLE "${table}"[\\s\\S]*?"version" integer DEFAULT 0 NOT NULL`));
+  }
+  for (const indexName of ["payments_idempotency_uq", "withdrawals_idempotency_uq", "idempotency_keys_scope_key_uq"]) {
+    assert.match(initialMigration, new RegExp(`CREATE UNIQUE INDEX "${indexName}"`));
+  }
+});
+
+test("chat, notification and event delivery identities are unique", () => {
+  for (const indexName of [
+    "messages_conversation_sequence_uq",
+    "messages_user_client_uq",
+    "messages_admin_client_uq",
+    "notifications_idempotency_uq",
+    "outbox_events_event_id_uq",
+    "inbox_events_consumer_event_uq",
+  ]) assert.match(initialMigration, new RegExp(`CREATE UNIQUE INDEX "${indexName}"`));
+  assert.match(initialMigration, /conversation_members_unread_nonnegative/);
 });

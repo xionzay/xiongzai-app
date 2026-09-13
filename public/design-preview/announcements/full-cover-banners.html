@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>熊崽电竞首页公告整图封面</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 54px;
+        font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+        color: #fff;
+        background: linear-gradient(135deg,#f7fbff,#eef7ff 48%,#fff7eb);
+      }
+      .sheet { width:1125px; margin:0 auto; }
+      .sheet h1 { margin:0 0 8px; color:#142136; font-size:30px; letter-spacing:-.03em; }
+      .sheet > p { margin:0 0 28px; color:#6a7688; font-size:15px; }
+      .banner {
+        position:relative;
+        width:1125px;
+        height:250px;
+        overflow:hidden;
+        border-radius:30px;
+        box-shadow:0 18px 44px rgba(30,91,161,.22);
+        margin-bottom:30px;
+        isolation:isolate;
+        background:#1763cf;
+      }
+      .banner img { position:absolute; z-index:-2; top:0; right:0; width:92%; height:100%; object-fit:cover; object-position:right center; }
+      .banner::before {
+        content:"";
+        position:absolute;
+        z-index:-1;
+        inset:0;
+        background:linear-gradient(100deg,rgba(7,47,128,.97) 0%,rgba(13,72,162,.78) 42%,rgba(13,72,162,.03) 70%);
+      }
+      .content { height:100%; padding:22px 46px; display:flex; flex-direction:column; justify-content:center; }
+      .brand { display:flex; align-items:center; gap:9px; margin-bottom:5px; font-size:12px; font-weight:850; letter-spacing:.12em; color:#bfe7ff; }
+      .brand-dot { width:10px; height:10px; border-radius:50%; background:#ff8a38; box-shadow:0 0 0 6px rgba(255,138,56,.16); }
+      .title { margin:0; color:#fff; font-size:64px; line-height:.93; letter-spacing:-.07em; font-weight:950; text-shadow:0 4px 0 rgba(15,74,168,.68),0 9px 22px rgba(0,23,73,.38); }
+      .reward-line { display:flex; align-items:center; gap:10px; margin-top:7px; color:#eff8ff; font-size:23px; font-weight:900; }
+      .reward-line strong { color:#ffe45f; font-size:68px; line-height:.74; letter-spacing:-.06em; -webkit-text-stroke:1px rgba(255,255,255,.45); text-shadow:0 4px 0 #f49b22,0 8px 17px rgba(0,22,71,.25); }
+      .note { margin-top:7px; color:#cceaff; font-size:13px; font-weight:700; letter-spacing:.03em; }
+      .anti { background:#3124b8; }
+      .anti::before { background:linear-gradient(100deg,rgba(31,19,125,.96) 0%,rgba(57,38,171,.76) 43%,rgba(51,68,196,.03) 72%); }
+      .anti .brand-dot { background:#54d5ff; box-shadow:0 0 0 6px rgba(84,213,255,.18); }
+      .anti .brand { color:#c6eaff; }
+      .anti .title { color:#fff; font-size:62px; letter-spacing:-.075em; text-shadow:0 4px 0 rgba(68,51,185,.72),0 9px 22px rgba(24,10,93,.42); }
+      .anti-line { margin-top:9px; color:#8ff0ff; font-size:27px; font-weight:950; letter-spacing:-.035em; text-shadow:0 3px 10px rgba(0,27,84,.28); }
+      .anti .note { color:#dceeff; font-size:14px; }
+      .caption { margin:-15px 0 34px; color:#697687; font-size:13px; }
+    </style>
+  </head>
+  <body>
+    <main class="sheet">
+      <h1>首页公告 · 整图封面方案</h1>
+      <p>每次轮播展示一张完整图片。标题、背景和熊崽 IP 已融合为同一张 Banner，不包含功能按钮。</p>
+
+      <section class="banner" id="banner-report" aria-label="举报脱离平台交易公告封面">
+        <img src="./report-banner-art-v3.png" alt="Q版熊崽使用盾牌阻止平台外交易" />
+        <div class="content">
+          <div class="brand"><i class="brand-dot"></i>熊崽电竞 · 交易安全公告</div>
+          <h2 class="title">举报脱离平台交易</h2>
+          <div class="reward-line"><span>核实奖励当月平台流水</span><strong>20%</strong></div>
+          <div class="note">所有服务请在平台内下单与支付</div>
+        </div>
+      </section>
+      <div class="caption">封面 01：蓝色交易安全主题，熊崽用盾牌阻止平台外交易，突出 20% 奖励。</div>
+
+      <section class="banner anti" id="banner-anti-fraud" aria-label="熊崽电竞防诈骗公告封面">
+        <img src="./anti-fraud-banner-art-v6.png" alt="Q版熊崽使用手机和放大镜识别诈骗消息" />
+        <div class="content">
+          <div class="brand"><i class="brand-dot"></i>熊崽电竞 · 安全中心</div>
+          <h2 class="title">熊崽电竞防诈骗</h2>
+          <div class="anti-line">只认平台订单 · 拒绝私下转账</div>
+          <div class="note">不泄露验证码 · 不点击陌生链接</div>
+        </div>
+      </section>
+      <div class="caption">封面 02：紫蓝防诈骗主题，熊崽用手机和放大镜识别可疑消息。</div>
+    </main>
+  </body>
+</html>

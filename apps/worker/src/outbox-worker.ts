@@ -25,15 +25,22 @@ export interface EventPublisher {
 }
 
 export class DrizzleOutboxRepository implements OutboxRepository {
-  constructor(private readonly database: Database) {}
+  private readonly maxAttempts: number;
+  private readonly lockTimeoutMs: number;
+
+  constructor(private readonly database: Database, options: { maxAttempts?: number; lockTimeoutMs?: number } = {}) {
+    this.maxAttempts = options.maxAttempts ?? 8;
+    this.lockTimeoutMs = options.lockTimeoutMs ?? 300_000;
+  }
 
   async claim(batchSize: number): Promise<ClaimedOutboxEvent[]> {
     return this.database.transaction(async (tx) => {
       const result = await tx.execute(sql`
         WITH candidates AS (
           SELECT id FROM outbox_events
-          WHERE (status IN ('PENDING', 'FAILED') AND available_at <= now())
-             OR (status = 'PROCESSING' AND updated_at <= now() - interval '5 minutes')
+          WHERE attempts < ${this.maxAttempts}
+            AND ((status IN ('PENDING', 'FAILED') AND available_at <= now())
+             OR (status = 'PROCESSING' AND updated_at <= now() - (${this.lockTimeoutMs} * interval '1 millisecond')))
           ORDER BY available_at, id
           FOR UPDATE SKIP LOCKED
           LIMIT ${batchSize}
@@ -58,11 +65,11 @@ export class DrizzleOutboxRepository implements OutboxRepository {
   }
 
   async failed(id: string, attempts: number, error: unknown): Promise<void> {
-    const delaySeconds = Math.min(300, 2 ** Math.min(attempts, 8));
+    const delayMs = outboxRetryDelayMs(attempts);
     await this.database.update(outboxEvents).set({
       status: "FAILED",
-      lastError: errorMessage(error),
-      availableAt: new Date(Date.now() + delaySeconds * 1_000),
+      lastError: errorCategory(error),
+      availableAt: new Date(Date.now() + delayMs),
     }).where(sql`${outboxEvents.id} = ${id}`);
   }
 }
@@ -84,7 +91,7 @@ export class OutboxWorker {
         this.logger.info("outbox_event_published", { event_id: event.eventId, event_type: event.eventType, aggregate_type: event.aggregateType, aggregate_id: event.aggregateId });
       } catch (error) {
         await this.repository.failed(event.id, event.attempts, error);
-        this.logger.error("outbox_event_publish_failed", { event_id: event.eventId, event_type: event.eventType, error });
+        this.logger.error("outbox_event_publish_failed", { event_id: event.eventId, event_type: event.eventType, error_category: errorCategory(error) });
       }
     }
     return events.length;
@@ -98,6 +105,11 @@ export class LoggingPublisher implements EventPublisher {
   }
 }
 
-function errorMessage(error: unknown): string {
-  return (error instanceof Error ? error.message : String(error)).slice(0, 4_000);
+export function outboxRetryDelayMs(attempts: number): number {
+  return Math.min(300_000, 1_000 * 2 ** Math.min(Math.max(attempts, 0), 8));
+}
+
+function errorCategory(error: unknown): string {
+  if (error && typeof error === "object" && "category" in error && typeof error.category === "string") return error.category.slice(0, 128);
+  return "unclassified_publish_failure";
 }

@@ -1,0 +1,151 @@
+{
+  "method": "built-in image_gen; separate calls per image; transparency inspected before use",
+  "assets": [
+    {
+      "file": "assets/hero-stage-v2.webp",
+      "job": "stage-ready",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-2df7a816-0d2d-4723-97bc-b5cc93ef6266.png",
+      "savedOriginal": "output/fidelity-repair/stage-ready.png",
+      "bytes": 212796,
+      "sha256": "5882acd7c63d4fb63a6c41dbd7afba8ff4392f7c316a5c4e03df157f6a8cab2c"
+    },
+    {
+      "file": "assets/train-v2.webp",
+      "job": "train-final",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-e94de7eb-a0d6-40e9-95cc-59e4e13fa323.png",
+      "savedOriginal": "output/fidelity-repair/train-final.png",
+      "bytes": 251960,
+      "sha256": "011676cc5ee7160c755c503fc475fb8e5fa69a5c24909226f92b8ca64425d39d"
+    },
+    {
+      "file": "assets/island-v2.webp",
+      "job": "island-final",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-1c258e47-71a4-4dae-b8a7-034d84d58136.png",
+      "savedOriginal": "output/fidelity-repair/island-final.png",
+      "bytes": 410208,
+      "sha256": "e1230d6f765c36c4397a1f5a9963e82931878b59244c1848f125571d8a45f2e7"
+    },
+    {
+      "file": "assets/whale-v2.webp",
+      "job": "hero-whale",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-4a472e88-d846-4ffc-8383-907e381bb492.png",
+      "savedOriginal": "output/fidelity-repair/hero-whale.png",
+      "bytes": 276574,
+      "sha256": "9185976ebcf5a819317384cb6a8fce9fb96051876279e5fb8183fd616aa25572"
+    },
+    {
+      "file": "assets/hero-sky-v2.webp",
+      "job": "hero-sky",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-c752d745-3d82-481b-8604-750b8015128b.png",
+      "savedOriginal": "output/fidelity-repair/hero-sky.png",
+      "bytes": 297154,
+      "sha256": "890c6a4409fdea566b3671465a502b4255f4783a0631a14f6f60f25f7ba48528"
+    },
+    {
+      "file": "assets/depth-v2.webp",
+      "job": "depth-v2",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-f0316649-36af-4fca-aba7-169293ce238d.png",
+      "savedOriginal": "output/fidelity-repair/depth-v2.png",
+      "bytes": 177640,
+      "sha256": "926c72b606750883b2ef0b75e3ba7768b4fc21efcd277eeb5ba9d15f529f08a2"
+    },
+    {
+      "file": "assets/sleeping.webp",
+      "job": "sleeping-v2",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-bb878476-d9ef-46e9-845f-da702a95457b.png",
+      "savedOriginal": "output/fidelity-repair/sleeping-v2.png",
+      "bytes": 102028,
+      "sha256": "ca40bf6ec469d4eabb2a72aa5e5aa6c77e3202c34e3e2e53ebb40368c5d8a78b"
+    },
+    {
+      "file": "assets/cosmic-v2.webp",
+      "job": "cosmic-letterbox",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-f2f49788-f1ba-434a-85bb-9a8560897727.png",
+      "savedOriginal": "output/fidelity-repair/cosmic-letterbox.png",
+      "bytes": 205244,
+      "sha256": "753274fe8e66ac47b3f0ffbfdc07f00182e7e57b6bf3aefcd1657cc7c6e02520",
+      "note": "Narrow artwork placed in a padded image; CSS crops padding away, without stretching characters."
+    },
+    {
+      "file": "assets/town.webp",
+      "job": "town-v2",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-3e5cfbf1-5f61-4dc7-ab80-965f4736da44.png",
+      "savedOriginal": "output/fidelity-repair/town-v2.png",
+      "bytes": 350862,
+      "sha256": "0517b19af55f26d17b7cb6818a81363f75a534dfb9565896686c61302d04f4d0"
+    },
+    {
+      "file": "assets/scene-01.webp",
+      "job": "scene-01",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-7a01810f-9e26-4a16-ab7b-1b17edaa88f1.png",
+      "savedOriginal": "output/fidelity-repair/scene-01.png",
+      "bytes": 286734,
+      "sha256": "fe2a633e250b22e25bedb9e226579ab221c2a06c239d5d330aa7af6c7e226d8e"
+    },
+    {
+      "file": "assets/scene-02.webp",
+      "job": "scene-02-refined",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-e29c5ba3-d92b-408b-b9dd-2d24860c9f83.png",
+      "savedOriginal": "output/fidelity-repair/scene-02-refined.png",
+      "bytes": 394804,
+      "sha256": "b1df97d4561df608162410d7b059be3c8ff650723e07dd3ac78c4999c496bdf5"
+    },
+    {
+      "file": "assets/scene-03.webp",
+      "job": "scene-03",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-d86341f7-05ab-4d2b-a42e-687170c1791e.png",
+      "savedOriginal": "output/fidelity-repair/scene-03.png",
+      "bytes": 502358,
+      "sha256": "9bae6e0bb6fd996db1f9d29b6a3399e4edb7eb855a94da9cba8f2cdce076a113"
+    },
+    {
+      "file": "assets/scene-04.webp",
+      "job": "scene-04-refined",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-e27849fd-529b-4cde-9bc3-c6234825cae1.png",
+      "savedOriginal": "output/fidelity-repair/scene-04-refined.png",
+      "bytes": 389110,
+      "sha256": "6403d5536a2628eddf181aca86a250de826ec708d7f9d9c8e42dbfa8c6f6f8c0"
+    },
+    {
+      "file": "assets/scene-05.webp",
+      "job": "scene-05",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-26530c29-6070-49a7-8f99-06b3d524ceb6.png",
+      "savedOriginal": "output/fidelity-repair/scene-05.png",
+      "bytes": 362022,
+      "sha256": "5cdc85112c324e39f457698232674b1866bb71acf89befef26dc080516a01e27"
+    },
+    {
+      "file": "assets/scene-06.webp",
+      "job": "scene-06",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-53277640-3306-461a-8dc7-e96d36570601.png",
+      "savedOriginal": "output/fidelity-repair/scene-06.png",
+      "bytes": 494614,
+      "sha256": "f838474c84838610ac64bc48c541563056b726f0a2f7e343f2dd9bf3c20e5f71"
+    },
+    {
+      "file": "assets/scene-07.webp",
+      "job": "scene-07",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-39ce2d4e-73eb-4e45-8592-0298531cdcd8.png",
+      "savedOriginal": "output/fidelity-repair/scene-07.png",
+      "bytes": 423010,
+      "sha256": "98b59177415d5c97c164751e298d511b130b56561c4f4ce703fe9978dcb65e4a"
+    },
+    {
+      "file": "assets/scene-08.webp",
+      "job": "scene-08",
+      "source": "/Users/Admin/.codex/generated_images/01a09145-1c17-7fd2-8b72-68c70e600b56/exec-744dfabc-ae3f-400a-8827-8510d4929741.png",
+      "savedOriginal": "output/fidelity-repair/scene-08.png",
+      "bytes": 419304,
+      "sha256": "939573f25eb436a2872ff21bf5442f164f3f17671bd318e959ff72c86a82f63b"
+    }
+  ],
+  "originalDownload": {
+    "asset": "assets/download-original.jpg",
+    "originalPixels": [
+      613,
+      211
+    ],
+    "note": "User JPG copied unchanged. CSS hides pre-existing left caption and screenshot edges. Rendering never exceeds 613 CSS pixels wide."
+  },
+  "font": "Existing local Ma Shan Zheng subset. Approximation; reference font not supplied."
+}

@@ -4,6 +4,7 @@ export type PayoutCallbackPayload = { event_id:string; event_type:"PAYOUT_SUCCEE
 
 export interface PayoutProvider {
   readonly channel:string;
+  readonly mode:"mock"|"live";
   verifyAccount(input:{accountType:"WECHAT"|"ALIPAY";holderName:string;accountToken:string}):Promise<{verified:boolean}>;
   /** Must be idempotent for the same withdrawalNo, including retries after an unknown outcome. */
   createPayout(input:{withdrawalNo:string;accountType:"WECHAT"|"ALIPAY";accountToken:string;amountCent:bigint}):Promise<{providerPayoutNo:string}>;
@@ -12,6 +13,7 @@ export interface PayoutProvider {
 
 export class MockPayoutProvider implements PayoutProvider {
   readonly channel="MOCK";
+  readonly mode="mock";
   constructor(private readonly secret:string){}
   async verifyAccount(){return {verified:true};}
   async createPayout(input:{withdrawalNo:string}){return {providerPayoutNo:`mock-payout-${input.withdrawalNo}`};}

@@ -1,0 +1,24 @@
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/auth/runtime";
+import type { SellerApplicationApiView, SellerOverviewApiView, SellerProfileApiView, SellerProfileRevisionApiView, SellerServiceApiView, SellerServiceDetailApiView, ServiceImageApiView, ServiceSkuApiView } from "@/types/api";
+
+export function useSellerProfile(enabled = true) { return useQuery({ queryKey: ["seller-profile"], enabled, retry: false, queryFn: ({ signal }) => apiClient.request<SellerProfileApiView>("/seller/profile", { signal }) }); }
+export function createSellerProfile(input: Record<string, unknown>) { return apiClient.request<SellerProfileApiView>("/seller/profile", { method: "POST", body: JSON.stringify(input) }); }
+export function updateSellerProfile(input: Record<string, unknown> & { version: number }) { return apiClient.request<SellerProfileApiView>("/seller/profile", { method: "PATCH", body: JSON.stringify(input) }); }
+export function saveSellerProfileRevision(input: Record<string, unknown> & { seller_version: number; application_version?: number }) { return apiClient.request<SellerProfileRevisionApiView>("/seller/profile-revisions/draft", { method: "PUT", body: JSON.stringify(input) }); }
+export function submitSellerProfileRevision(applicationId: string, version: number) { return apiClient.request<SellerProfileRevisionApiView>(`/seller/profile-revisions/${applicationId}/submit`, { method: "POST", body: JSON.stringify({ version }) }); }
+export function submitSellerApplication(version: number) { return apiClient.request<SellerApplicationApiView>("/seller/applications", { method: "POST", body: JSON.stringify({ version }) }); }
+export function useSellerApplications(enabled = true) { return useQuery({ queryKey: ["seller-applications"], enabled, retry: false, queryFn: ({ signal }) => apiClient.request<SellerApplicationApiView[]>("/seller/applications", { signal }) }); }
+export function useSellerOverview(enabled = true) { return useQuery({ queryKey: ["seller-overview"], enabled, retry: false, queryFn: ({ signal }) => apiClient.request<SellerOverviewApiView>("/seller/overview", { signal }) }); }
+export function useSellerServices(enabled = true) { return useQuery({ queryKey: ["seller-services"], enabled, queryFn: ({ signal }) => apiClient.request<SellerServiceApiView[]>("/seller/services", { signal }) }); }
+export function useSellerService(id: string, enabled = true) { return useQuery({ queryKey: ["seller-service", id], enabled: enabled && Boolean(id), retry: false, queryFn: ({ signal }) => apiClient.request<SellerServiceDetailApiView>(`/seller/services/${id}`, { signal }) }); }
+export function getSellerService(id: string) { return apiClient.request<SellerServiceDetailApiView>(`/seller/services/${id}`); }
+export function createSellerService(input: { title: string; description: string; service_time_description: string | null; cover_file_id: string | null }) { return apiClient.request<SellerServiceApiView>("/seller/services", { method: "POST", body: JSON.stringify(input) }); }
+export function updateSellerService(id: string, input: { title: string; description: string; service_time_description: string | null; cover_file_id: string | null; version: number }) { return apiClient.request<SellerServiceApiView>(`/seller/services/${id}`, { method: "PATCH", body: JSON.stringify(input) }); }
+export function replaceSellerServiceImages(id: string, input: { version: number; images: { file_id: string; sort_order: number; is_cover: boolean }[] }) { return apiClient.request<ServiceImageApiView[]>(`/seller/services/${id}/images`, { method: "PUT", body: JSON.stringify(input) }); }
+export function addSellerSku(productId: string, input: { sku_name: string; description: string | null; price_cent: string; duration_minutes: number; sort_order: number }) { return apiClient.request<ServiceSkuApiView>(`/seller/services/${productId}/skus`, { method: "POST", body: JSON.stringify(input) }); }
+export function updateSellerSku(productId: string, skuId: string, input: Record<string, unknown> & { version: number }) { return apiClient.request<ServiceSkuApiView>(`/seller/services/${productId}/skus/${skuId}`, { method: "PATCH", body: JSON.stringify(input) }); }
+export function deleteSellerSku(productId: string, skuId: string, version: number) { return updateSellerSku(productId, skuId, { status: "DELETED", version }); }
+export function submitSellerService(id: string, version: number) { return apiClient.request<SellerServiceApiView>(`/seller/services/${id}/submit-review`, { method: "POST", body: JSON.stringify({ version }) }); }
+export function offSaleSellerService(id: string, version: number) { return apiClient.request<SellerServiceApiView>(`/seller/services/${id}/off-sale`, { method: "POST", body: JSON.stringify({ version }) }); }
+export function deleteSellerService(id: string, version: number) { return apiClient.request<void>(`/seller/services/${id}?version=${version}`, { method: "DELETE" }); }

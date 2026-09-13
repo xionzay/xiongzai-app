@@ -1,0 +1,245 @@
+/* Chat surfaces only. Wallpaper colors and artwork are owned by globals.css. */
+.phone-shell .chat-screen,
+.phone-shell .customer-service-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0 !important;
+  overflow: hidden;
+  padding: 0 !important;
+  color: var(--xiongzai-chat-ink);
+}
+
+.phone-shell .chat-screen .chat-topbar,
+.phone-shell .customer-service-screen .chat-topbar {
+  flex: none;
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  padding: calc(9px + var(--device-safe-top)) calc(13px + var(--device-safe-right)) 9px calc(13px + var(--device-safe-left));
+  background: transparent;
+  box-shadow: none;
+}
+.phone-shell .chat-screen .chat-topbar .screen-header,
+.phone-shell .customer-service-screen .chat-topbar .screen-header { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; min-height: 54px; padding: 0; gap: 10px; }
+.phone-shell .chat-screen .header-title,
+.phone-shell .customer-service-screen .header-title { display: contents; }
+.phone-shell .chat-screen .header-title > div,
+.phone-shell .customer-service-screen .header-title > div { min-width: 0; border: 1px solid rgba(255,255,255,.9); border-radius: 28px; padding: 8px 12px; background: rgba(255,255,255,.86); text-align: center; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+.phone-shell .chat-screen .header-title h1,
+.phone-shell .customer-service-screen .header-title h1 { overflow: hidden; color: #233d55; font-size: 1.125rem; line-height: 1.35; letter-spacing: -.01em; text-overflow: ellipsis; white-space: nowrap; }
+.phone-shell .chat-screen .header-title p,
+.phone-shell .customer-service-screen .header-title p { overflow: hidden; margin-top: 2px; color: #6b8196; font-size: .75rem; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }
+.phone-shell .chat-screen .icon-button,
+.phone-shell .customer-service-screen .icon-button { width: 44px; height: 44px; padding: 0; border: 1px solid rgba(255,255,255,.9); border-radius: 50%; background: rgba(255,255,255,.88); color: #355469; box-shadow: 0 2px 6px rgba(62,108,147,.05); }
+.phone-shell .chat-screen .header-title .icon-button,
+.phone-shell .customer-service-screen .header-title .icon-button { width: 44px; min-width: 44px; margin: 0; font-size: 32px; font-weight: 400; }
+.phone-shell .chat-screen .header-actions .icon-button,
+.phone-shell .customer-service-screen .header-actions .icon-button { overflow: hidden; background: rgba(255,255,255,.88); font-size: 20px; }
+.phone-shell .customer-service-screen .header-actions .nav-symbol,
+.phone-shell .customer-service-screen .header-actions .nav-symbol img { width: 25px; height: 25px; }
+.phone-shell .chat-screen .chat-notice,
+.phone-shell .customer-service-screen .chat-notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 9px auto 0;
+  border: 0;
+  border-radius: 20px;
+  padding: 5px 10px;
+  background: rgba(255,255,255,.8);
+  color: #60798d;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+.phone-shell .chat-screen .chat-notice .nav-symbol,
+.phone-shell .customer-service-screen .chat-notice .nav-symbol,
+.phone-shell .chat-screen .chat-notice .nav-symbol img,
+.phone-shell .customer-service-screen .chat-notice .nav-symbol img { flex: none; width: 16px; height: 16px; }
+
+.phone-shell .chat-screen .chat-scroll-content,
+.phone-shell .customer-service-screen .chat-scroll-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  padding: 12px calc(12px + var(--device-safe-right)) 16px calc(12px + var(--device-safe-left));
+  /* 消息始终绘制在背景渐隐层之上，末条消息不会被虚化。 */
+  position: relative;
+  z-index: 1;
+}
+.phone-shell .chat-screen .chat-scroll-content::-webkit-scrollbar,
+.phone-shell .customer-service-screen .chat-scroll-content::-webkit-scrollbar { display: none; }
+.phone-shell .chat-screen .chat-person-avatar,
+.phone-shell .customer-service-screen .chat-person-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 50%;
+  background: #f7f3e9;
+  color: #6b7e90;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1;
+}
+.phone-shell .chat-screen .chat-person-avatar-self,
+.phone-shell .customer-service-screen .chat-person-avatar-self { background: #deedfb; color: #4b769c; }
+.phone-shell .chat-screen .chat-messages .chat-avatar-button { width: 44px; height: 44px; flex: none; align-self: flex-end; border: 0; border-radius: 50%; padding: 0; transform: none; background: transparent; }
+.phone-shell .chat-screen .chat-messages .message { align-items: flex-end; gap: 7px; margin-bottom: 11px; }
+.phone-shell .chat-screen .chat-messages .message > span { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: 44px; max-width: calc(100% - 78px); margin: 0; padding: 0; transform: none; }
+.phone-shell .chat-screen .chat-messages .message p,
+.phone-shell .customer-service-screen .customer-message > p {
+  max-width: 100%;
+  margin: 0;
+  border: 0;
+  border-radius: 18px 18px 18px 5px;
+  padding: 10px 13px;
+  background: rgba(255, 255, 255, .97);
+  color: var(--xiongzai-chat-ink);
+  box-shadow: 0 1px 3px rgba(47,85,106,.08);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.phone-shell .chat-screen .chat-messages .message.mine p,
+.phone-shell .customer-service-screen .customer-message.mine > p { border-radius: 18px 18px 5px 18px; background: #deedfc; color: #24445e; }
+.phone-shell .chat-screen .chat-messages .message.theirs p { border-radius: 18px 18px 18px 5px; }
+.phone-shell .chat-screen .chat-messages .message.last-sent > span { min-height: 44px; padding-bottom: 0; transform: none; }
+.phone-shell .chat-screen .chat-messages .message.last-sent .read-receipt { position: static; align-self: flex-end; margin: 4px 2px 0; color: #698394; font-size: 12px; line-height: 1.3; }
+.phone-shell .chat-screen .chat-system-message,
+.phone-shell .customer-service-screen .chat-system-message { margin: 8px 0 16px; text-align: center; }
+.phone-shell .chat-screen .chat-system-message > span,
+.phone-shell .customer-service-screen .chat-system-message > span { display: inline-block; max-width: 90%; border-radius: 18px; padding: 5px 11px; background: rgba(255,255,255,.86); color: #667f93; font-size: 12px; line-height: 1.5; }
+
+.phone-shell .chat-screen .chat-empty-state,
+.phone-shell .customer-service-screen .chat-empty-state { max-width: 280px; margin: 36px auto 24px; border-radius: 22px; padding: 21px 20px; background: rgba(255,255,255,.78); text-align: center; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+
+/* Delivered state art is opaque white: match its card, not the chat wallpaper. */
+.phone-shell :is(.chat-screen, .customer-service-screen) .chat-empty-state:has(.bear-state-image) {
+  background: #fff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.phone-shell .chat-screen .chat-empty-symbol,
+.phone-shell .customer-service-screen .chat-empty-symbol { display: grid; place-items: center; width: 42px; height: 42px; margin: 0 auto 10px; color: #6b9cba; }
+.phone-shell .chat-screen .chat-empty-symbol .companion-action-icon,
+.phone-shell .customer-service-screen .chat-empty-symbol .companion-action-icon { display: block; width: 36px; height: 36px; padding: 0; background: transparent; box-shadow: none; }
+.phone-shell .chat-screen .chat-empty-symbol svg,
+.phone-shell .customer-service-screen .chat-empty-symbol svg { display: block; width: 36px; height: 36px; color: #6b9cba; }
+.phone-shell .chat-screen .chat-empty-state h2,
+.phone-shell .customer-service-screen .chat-empty-state h2 { margin: 0; color: #375468; font-size: 17px; font-weight: 650; line-height: 1.4; }
+.phone-shell .chat-screen .chat-empty-state p,
+.phone-shell .customer-service-screen .chat-empty-state p { margin: 8px 0 0; color: #6b7d89; font-size: 14px; line-height: 1.65; }
+.phone-shell .chat-screen .chat-empty-state button,
+.phone-shell .customer-service-screen .chat-empty-state button { min-height: 40px; margin-top: 15px; border: 0; border-radius: 13px; padding: 0 21px; background: #d9ecfa; color: #386e92; font-size: 14px; font-weight: 600; }
+
+.phone-shell .chat-screen .chat-compose-dock,
+.phone-shell .customer-service-screen .chat-compose-dock { flex: none; position: relative; z-index: 0; isolation: isolate; padding: 9px calc(12px + var(--device-safe-right)) calc(10px + var(--device-safe-bottom)) calc(12px + var(--device-safe-left)); background: transparent; box-shadow: none; }
+
+/* 只处理背景：随上下操作区的实际高度延伸，不覆盖文字、不拦截触摸。 */
+.phone-shell .chat-screen .chat-topbar::before,
+.phone-shell .customer-service-screen .chat-topbar::before,
+.phone-shell .chat-screen .chat-compose-dock::before,
+.phone-shell .customer-service-screen .chat-compose-dock::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+.phone-shell .chat-screen .chat-topbar::before,
+.phone-shell .customer-service-screen .chat-topbar::before {
+  inset: 0 0 -44px;
+  background: linear-gradient(to bottom, #fffbf3 0%, rgba(250,252,255,.98) calc(100% - 44px), rgba(250,252,255,0) 100%);
+  --chat-edge-mask: linear-gradient(to bottom, #000 calc(100% - 44px), transparent 100%);
+}
+.phone-shell .chat-screen .chat-compose-dock::before,
+.phone-shell .customer-service-screen .chat-compose-dock::before {
+  inset: -44px 0 0;
+  background: linear-gradient(to bottom, rgba(245,249,255,0) 0%, rgba(245,249,255,.98) 44px, #f5f9ff 100%);
+  --chat-edge-mask: linear-gradient(to bottom, transparent 0%, #000 44px);
+}
+/* 不支持遮罩/背景模糊的环境仍保留平滑淡出，不产生矩形硬边。 */
+@supports (mask-image: linear-gradient(#000, transparent)) or (-webkit-mask-image: linear-gradient(#000, transparent)) {
+  .phone-shell .chat-screen .chat-topbar::before,
+  .phone-shell .customer-service-screen .chat-topbar::before,
+  .phone-shell .chat-screen .chat-compose-dock::before,
+  .phone-shell .customer-service-screen .chat-compose-dock::before {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    -webkit-mask-image: var(--chat-edge-mask);
+    mask-image: var(--chat-edge-mask);
+  }
+}
+.phone-shell .chat-screen .chat-product { min-height: 59px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; gap: 9px; margin: 0 0 8px; border: 0; border-radius: 15px; padding: 8px; background: rgba(255,255,255,.77); box-shadow: none; }
+.phone-shell .chat-screen .chat-product > img { width: 42px; height: 42px; border-radius: 10px; object-fit: cover; }
+.phone-shell .chat-screen .chat-product > span { min-width: 0; }
+.phone-shell .chat-screen .chat-product b { overflow: hidden; color: #344e60; font-size: 14px; line-height: 1.4; white-space: nowrap; text-overflow: ellipsis; }
+.phone-shell .chat-screen .chat-product small { margin-top: 3px; color: #788a96; font-size: 12px; line-height: 1.3; }
+.phone-shell .chat-screen .chat-product button { height: 38px; border: 0; border-radius: 11px; padding: 0 12px; background: #e8f3fb; color: #477b9e; font-size: 14px; font-weight: 600; }
+.phone-shell .chat-screen .chat-input,
+.phone-shell .customer-service-screen .customer-chat-input { display: grid; grid-template-columns: minmax(0,1fr) 48px; align-items: center; height: auto; gap: 8px; border: 0; padding: 0 !important; background: transparent; box-shadow: none; }
+.phone-shell .chat-screen .chat-input input,
+.phone-shell .customer-service-screen .customer-chat-input input { width: 100%; min-width: 0; height: 48px; border: 1px solid rgba(255,255,255,.95); border-radius: 26px; padding: 0 17px; background: rgba(255,255,255,.96); color: #29495f; font-size: 16px; line-height: normal; box-shadow: 0 2px 8px rgba(58,99,140,.06); }
+.phone-shell .chat-screen .chat-input input::placeholder,
+.phone-shell .customer-service-screen .customer-chat-input input::placeholder { color: #8396a3; opacity: 1; }
+.phone-shell .chat-screen .chat-input button,
+.phone-shell .customer-service-screen .customer-chat-input button { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(255,255,255,.85); border-radius: 50%; padding: 0; background: #6faee3; color: #fff; font-size: 14px; font-weight: 650; box-shadow: 0 2px 8px rgba(58,99,140,.12); }
+.phone-shell .chat-screen .chat-send-symbol,
+.phone-shell .customer-service-screen .chat-send-symbol { width: 23px; height: 23px; }
+.phone-shell .chat-screen .chat-input button:disabled,
+.phone-shell .customer-service-screen .customer-chat-input button:disabled { background: rgba(255,255,255,.9); color: #8da6bb; opacity: 1; box-shadow: none; }
+.phone-shell .chat-screen button:disabled,
+.phone-shell .customer-service-screen button:disabled { opacity: .48; cursor: default; }
+.phone-shell .chat-screen input:disabled,
+.phone-shell .customer-service-screen input:disabled { opacity: .75; -webkit-text-fill-color: #78909f; }
+.phone-shell .chat-screen button:focus-visible,
+.phone-shell .customer-service-screen button:focus-visible,
+.phone-shell .chat-screen input:focus-visible,
+.phone-shell .customer-service-screen input:focus-visible { outline: 2px solid #5b98c1; outline-offset: 3px; }
+
+.phone-shell .customer-service-screen .customer-service-status { gap: 10px; margin: 0 0 12px; border: 0; border-radius: 17px; padding: 12px; background: rgba(255,255,255,.8); box-shadow: none; }
+.phone-shell .customer-service-screen .customer-service-status > img { width: 44px; height: 44px; border-radius: 50%; }
+.phone-shell .customer-service-screen .customer-service-status b { color: #335268; font-size: 16px; line-height: 1.4; }
+.phone-shell .customer-service-screen .customer-service-status small { color: #768a97; font-size: 12px; line-height: 1.45; }
+.phone-shell .customer-service-screen .customer-order-card { margin: 0 0 10px; border: 0; border-radius: 15px; padding: 11px 12px; background: rgba(255,255,255,.78); box-shadow: none; }
+.phone-shell .customer-service-screen .customer-order-card > span { align-items: center; gap: 10px; margin-bottom: 8px; }
+.phone-shell .customer-service-screen .customer-order-card > span b { flex: none; color: #567082; font-size: 12px; }
+.phone-shell .customer-service-screen .customer-order-card > span small { min-width: 0; overflow: hidden; color: #8796a0; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.phone-shell .customer-service-screen .customer-order-card > div { grid-template-columns: 42px minmax(0,1fr) auto; gap: 9px; }
+.phone-shell .customer-service-screen .customer-order-card img { width: 42px; height: 42px; border-radius: 10px; }
+.phone-shell .customer-service-screen .customer-order-card p b { color: #385467; font-size: 14px; }
+.phone-shell .customer-service-screen .customer-order-card p small { color: #7690a2; font-size: 12px; }
+.phone-shell .customer-service-screen .customer-order-card button { min-height: 38px; border-radius: 10px; padding: 0 8px; color: #4f82a2; font-size: 14px; font-weight: 600; }
+.phone-shell .customer-service-screen .customer-order-card .customer-order-empty { color: #7b8b96; font-size: 12px; line-height: 1.5; }
+.phone-shell .customer-service-screen .customer-quick-issues { gap: 7px; margin: 0 0 16px; }
+.phone-shell .customer-service-screen .customer-quick-issues button { min-height: 39px; border: 0; border-radius: 12px; padding: 5px 8px; background: rgba(255,255,255,.84); color: #557a93; font-size: 14px; font-weight: 500; line-height: 1.4; }
+.phone-shell .customer-service-screen .customer-chat-list { flex: none; min-height: 0; gap: 13px; overflow: visible; padding: 0; }
+.phone-shell .customer-service-screen .customer-chat-list .chat-empty-state { margin: 8px auto 12px; padding: 17px 20px; }
+.phone-shell .customer-service-screen .customer-message { align-items: flex-end; gap: 7px; }
+.phone-shell .customer-service-screen .customer-message > img { width: 44px; height: 44px; flex: none; border-radius: 50%; object-fit: cover; }
+.phone-shell .customer-service-screen .customer-message > p { max-width: calc(100% - 78px); min-height: 44px; }
+.phone-shell .customer-service-screen .customer-transfer { justify-content: space-between; gap: 10px; margin-bottom: 9px; padding: 1px 1px 9px; background: transparent; }
+.phone-shell .customer-service-screen .customer-transfer > span { min-width: 0; }
+.phone-shell .customer-service-screen .customer-transfer b { display: block; color: #577084; font-size: 12px; line-height: 1.4; font-weight: 500; }
+.phone-shell .customer-service-screen .customer-transfer small { display: block; margin-top: 2px; color: #8796a0; font-size: 12px; line-height: 1.4; }
+.phone-shell .customer-service-screen .customer-transfer button { flex: none; min-width: 72px; min-height: 37px; border: 0; border-radius: 12px; padding: 0 11px; background: #e6f2fb; color: #427899; font-size: 14px; font-weight: 600; }
+.phone-shell .customer-service-screen .customer-transfer button.connected { background: #dfedfb; color: #456f97; }
+
+@media (max-width: 360px) {
+  .phone-shell .chat-screen .chat-notice,
+  .phone-shell .customer-service-screen .chat-notice { font-size: 12px; }
+  .phone-shell .chat-screen .chat-messages .message > span,
+  .phone-shell .customer-service-screen .customer-message > p { max-width: calc(100% - 76px); }
+  .phone-shell .customer-service-screen .customer-quick-issues button { font-size: 12px; }
+}

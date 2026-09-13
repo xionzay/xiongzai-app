@@ -1,0 +1,1 @@
+Remove the sky and clouds behind the bear, penguin, backpack and station ledge. Keep these foreground objects exactly as they are. Deliver a transparent-background cutout PNG with empty alpha outside foreground.
