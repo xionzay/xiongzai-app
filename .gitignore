@@ -64,5 +64,26 @@ yarn-error.log*
 /work/
 /.local/
 
+# generated design, delivery, and QA artifacts
+/design-output/
+/tmp/
+**/output/
+**/outputs/
+**/qa/
+**/backups/
+**/build/
+**/dist/
+**/Pods/
+
+# packaged application and media deliverables
+*.apk
+*.aab
+*.ipa
+*.zip
+*.dmg
+*.mp4
+*.mov
+*.caf
+
 # generated document render/visual-QA artifacts
 /docs/prd-qa*/
