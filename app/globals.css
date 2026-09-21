@@ -2965,6 +2965,51 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .home-inline-search span { font-size: 11px; font-weight: 900; white-space: nowrap; }
 .home-inline-logo:active,.home-inline-search:active { transform: scale(.97); }
 
+/* Milk-blue/apricot shortcuts: shared background, five equal touch targets. */
+.home-shortcuts {
+  --shortcut-icon-size: 44px;
+  --shortcut-label-size: 12px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  min-height: 96px;
+  margin: 0 16px 10px;
+  padding: 6px 0;
+}
+.home-shortcut {
+  min-width: 0;
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 4px 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: #304967;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition: transform 140ms ease-out;
+}
+.home-shortcut > img {
+  display: block;
+  width: var(--shortcut-icon-size);
+  height: var(--shortcut-icon-size);
+  flex: 0 0 var(--shortcut-icon-size);
+  object-fit: contain;
+  pointer-events: none;
+}
+.home-shortcut > span {
+  font-size: var(--shortcut-label-size);
+  line-height: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.home-shortcut:active { transform: scale(.96); }
+.home-shortcut:focus-visible { outline: 2px solid #538dcc; outline-offset: 1px; }
+
 .home-announcement-carousel {
   position: relative;
   width: calc(100% - 26px);

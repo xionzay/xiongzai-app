@@ -349,6 +349,23 @@ const homeAnnouncements = [
   { id: "antiFraud" as const, src: "/assets/announcements/anti-fraud.png", alt: "熊崽电竞防诈骗，只认平台订单，拒绝私下转账" },
 ] as const;
 
+const homeShortcuts: Array<{ label: string; icon: string } & ({ page: PageId; message?: never } | { message: string; page?: never })> = [
+  { label: "快速匹配", icon: "quick-match", message: "功能筹备中" },
+  { label: "领券中心", icon: "coupon-center", page: "coupons" },
+  { label: "软件规则", icon: "app-rules", page: "rules" },
+  { label: "幸运转盘", icon: "lucky-wheel", message: "活动暂未开放" },
+  { label: "官方通知", icon: "official-notices", page: "notifications" },
+];
+
+function HomeShortcuts({ go, notify }: { go: (page: PageId) => void; notify: (message: string) => void }) {
+  return <nav className="home-shortcuts" aria-label="首页快捷功能">
+    {homeShortcuts.map((item) => <button type="button" className="home-shortcut" key={item.icon} onClick={() => item.page ? go(item.page) : notify(item.message)}>
+      <img src={`/assets/home-shortcuts/${item.icon}.png`} width={256} height={256} alt="" draggable={false} />
+      <span>{item.label}</span>
+    </button>)}
+  </nav>;
+}
+
 function HomeScreen({ go, notify, unreadCount = 0, companionItems = [], serviceItems = [], onCompanionOpen, onServiceOpen, onAnnouncementOpen, loading = false, error = "", onRetry }: { go: (page: PageId) => void; notify: (message: string) => void; unreadCount?: number; companionItems?: Companion[]; serviceItems?: Service[]; onCompanionOpen?: (item: Companion) => void; onServiceOpen?: (item: Service) => void; onAnnouncementOpen?: (item: AnnouncementKind) => void; loading?: boolean; error?: string; onRetry?: () => void }) {
   const [mode, setMode] = useState<"推荐" | "陪玩" | "服务">("推荐"); const [companionSort, setCompanionSort] = useState("综合"); const [serviceSort, setServiceSort] = useState("综合"); const [direction, setDirection] = useState<"asc" | "desc">("desc"); const [announcementIndex, setAnnouncementIndex] = useState(0); const announcementViewport = useRef<HTMLDivElement | null>(null); const announcementDrag = useRef<{ x: number; scrollLeft: number; moved: boolean } | null>(null); const announcementClickBlocked = useRef(false);
   useEffect(() => { if (mode !== "推荐") return; const timer = window.setInterval(() => { const viewport = announcementViewport.current; if (!viewport || announcementDrag.current) return; const current = Math.round(viewport.scrollLeft / viewport.clientWidth); const next = (current + 1) % homeAnnouncements.length; viewport.scrollTo({ left: next * viewport.clientWidth, behavior: "smooth" }); }, 5200); return () => window.clearInterval(timer); }, [mode]);
@@ -362,6 +379,7 @@ function HomeScreen({ go, notify, unreadCount = 0, companionItems = [], serviceI
     <button type="button" className="home-inline-search" aria-label="搜索陪玩、服务或玩法" onClick={() => go("search")}><i>⌕</i><span>搜索</span></button>
   </div>
     {mode === "推荐" ? <section className="home-announcement-carousel" aria-label="平台安全公告轮播，可左右滑动"><div className="home-announcement-viewport" ref={announcementViewport} onScroll={(event) => { const index = Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth); if (index !== announcementIndex) setAnnouncementIndex(index); }} onPointerDown={(event) => { announcementDrag.current = { x: event.clientX, scrollLeft: event.currentTarget.scrollLeft, moved: false }; event.currentTarget.setPointerCapture(event.pointerId); }} onPointerMove={(event) => { const drag = announcementDrag.current; if (drag) { drag.moved = drag.moved || Math.abs(event.clientX - drag.x) > 8; event.currentTarget.scrollLeft = drag.scrollLeft - (event.clientX - drag.x); } }} onPointerUp={(event) => { const drag = announcementDrag.current; announcementDrag.current = null; announcementClickBlocked.current = Boolean(drag?.moved); if (drag?.moved) window.setTimeout(() => { announcementClickBlocked.current = false; }, 0); const index = Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth); event.currentTarget.scrollTo({ left: index * event.currentTarget.clientWidth, behavior: "smooth" }); setAnnouncementIndex(index); if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); }} onPointerCancel={(event) => { announcementDrag.current = null; announcementClickBlocked.current = false; const index = Math.round(event.currentTarget.scrollLeft / event.currentTarget.clientWidth); event.currentTarget.scrollTo({ left: index * event.currentTarget.clientWidth, behavior: "smooth" }); }}><div className="home-announcement-track">{homeAnnouncements.map((announcement) => <button type="button" className="home-announcement-slide" aria-label={`打开公告详情：${announcement.alt}`} onClick={(event) => { if (announcementClickBlocked.current) { event.preventDefault(); return; } onAnnouncementOpen?.(announcement.id); }} key={announcement.src}><img src={announcement.src} alt="" draggable={false} /></button>)}</div></div><div className="home-announcement-dots" aria-label={`第 ${announcementIndex + 1} 张，共 ${homeAnnouncements.length} 张`}>{homeAnnouncements.map((announcement, index) => <button type="button" className={announcementIndex === index ? "active" : ""} aria-label={`查看第 ${index + 1} 条公告：${announcement.alt}`} aria-current={announcementIndex === index ? "true" : undefined} onPointerDown={(event) => event.stopPropagation()} onClick={() => showAnnouncement(index)} key={announcement.src} />)}</div></section> : null}
+    {mode === "推荐" ? <HomeShortcuts go={go} notify={notify} /> : null}
     {loading && companionItems.length + serviceItems.length === 0 ? <section className="paper-panel live-data-state" aria-live="polite"><StateBear scene="loading" size={128} /><b>正在加载服务与陪玩…</b><p>请稍候，正在获取最新数据。</p></section> : null}{error ? <section className="paper-panel live-data-state failed"><RequestErrorBear message={error} hasContent={companionItems.length + serviceItems.length > 0} /><b>加载失败</b><p>{error}</p><button type="button" onClick={onRetry}>重试</button></section> : null}
     {!loading && !error && companionItems.length === 0 && serviceItems.length === 0 ? <ContextStateScreen go={go} kind="search" embedded /> : null}
     {mode === "推荐" && ((!loading && !error) || companionItems.length + serviceItems.length > 0) ? <><section className="home-section"><SectionTitle title="热门陪玩" note="已通过审核的在线陪玩" action="全部 ›" onAction={() => setMode("陪玩")} /><div className="shop-grid">{companionItems.slice(0, 2).map((item) => <CompanionCard key={item.id} companion={item} go={go} onOpen={onCompanionOpen} />)}</div></section><section className="home-section"><SectionTitle title="热门服务" note="已通过审核并上架" action="全部 ›" onAction={() => setMode("服务")} /><div className="product-grid">{serviceItems.slice(0, 2).map((item) => <ServiceCard key={item.id} service={item} go={go} onOpen={onServiceOpen} />)}</div></section></> : null}
@@ -819,9 +837,9 @@ function EditProfileScreen({ go, notify, viewer, onUpdated }: { go: (page: PageI
   return <div className="app-screen edit-profile-screen"><Header title="编辑个人资料" subtitle="公开资料将在陪玩和聊天中展示" back={() => go("mine")} /><section className="edit-avatar"><button type="button" onClick={() => notify("选择新头像")}><img src={companions[0].image} alt="当前头像" /><i>更换</i></button><p>支持 JPG、PNG，建议使用清晰头像</p></section><section className="settings-group profile-fields"><div className="profile-nickname-field"><label htmlFor="profile-nickname"><b>昵称</b><small>2–16 个字符</small></label><input id="profile-nickname" value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={16} /></div><button type="button" onClick={() => go("phoneSecurity")}><span><b>手机号码</b><small>用于登录与交易安全</small></span><em>{viewer?.phone_mask ?? "未登录"} ›</em></button></section><section className="paper-panel profile-privacy"><AppIcon kind="shield" /><span><b>资料安全</b><small>手机号码不会公开展示；昵称与头像需通过内容安全检查。</small></span></section><button type="button" className="full-primary" disabled={saving} onClick={() => void save()}>{saving ? "正在保存…" : "保存资料"}</button></div>;
 }
 
-function RulesScreen({ go }: { go: (page: PageId) => void }) {
+function RulesScreen({ go, backPage = "mine" }: { go: (page: PageId) => void; backPage?: PageId }) {
   const [open, setOpen] = useState("交易规则"); const rules = [{ title: "交易规则", note: "下单、接单、履约与确认", body: "所有交易必须在熊崽电竞平台完成。陪玩接单前确认规格和时间，服务完成后买家确认，平台再进行收益结算。" }, { title: "退款规则", note: "不同订单状态的退款条件", body: "待接单可申请全额退款；服务中退款需双方协商；争议订单可申请平台介入，按订单、聊天和履约证据处理。" }, { title: "陪玩服务规范", note: "文明沟通与禁止行为", body: "严禁外挂、代充、线下交易、引流和不文明服务。违规服务会被下架，严重情况暂停或终止陪玩身份。" }, { title: "评价与投诉", note: "真实评价和平台治理", body: "评价需来自真实完成订单。平台可隐藏违规评价；恶意投诉、伪造材料等行为将按平台规则处理。" }, { title: "隐私与账号安全", note: "数据使用和账号保护", body: "手机号、支付和身份信息仅用于登录、交易安全和依法合规处理，不向普通用户公开。" }];
-  return <div className="app-screen rules-screen"><Header title="平台规则与售后" subtitle="下单前请了解交易与退款规则" back={() => go("mine")} /><section className="rules-hero"><AppIcon kind="shield" /><span><h2>熊崽电竞平台保障</h2><p>平台内支付 · 订单留痕 · 退款与投诉介入</p></span></section><section className="rules-list">{rules.map((rule) => <article className={open === rule.title ? "open" : ""} key={rule.title}><button type="button" onClick={() => setOpen(open === rule.title ? "" : rule.title)}><span><b>{rule.title}</b><small>{rule.note}</small></span><em>{open === rule.title ? "−" : "+"}</em></button>{open === rule.title ? <p>{rule.body}</p> : null}</article>)}</section><button type="button" className="support-entry rules-support" onClick={() => go("customerService")}><AppIcon kind="message" /><div><b>仍然需要帮助？</b><small>联系平台客服处理订单与账号问题</small></div><em>›</em></button></div>;
+  return <div className="app-screen rules-screen"><Header title="平台规则与售后" subtitle="下单前请了解交易与退款规则" back={() => go(backPage)} /><section className="rules-hero"><AppIcon kind="shield" /><span><h2>熊崽电竞平台保障</h2><p>平台内支付 · 订单留痕 · 退款与投诉介入</p></span></section><section className="rules-list">{rules.map((rule) => <article className={open === rule.title ? "open" : ""} key={rule.title}><button type="button" onClick={() => setOpen(open === rule.title ? "" : rule.title)}><span><b>{rule.title}</b><small>{rule.note}</small></span><em>{open === rule.title ? "−" : "+"}</em></button>{open === rule.title ? <p>{rule.body}</p> : null}</article>)}</section><button type="button" className="support-entry rules-support" onClick={() => go("customerService")}><AppIcon kind="message" /><div><b>仍然需要帮助？</b><small>联系平台客服处理订单与账号问题</small></div><em>›</em></button></div>;
 }
 
 function SettingsScreen({ go, notify, onLoggedOut }: { go: (page: PageId) => void; notify: (message: string) => void; onLoggedOut: () => void }) {
@@ -1052,12 +1070,12 @@ function SellerProfileScreen({ go, notify }: { go: (page: PageId) => void; notif
   </div>;
 }
 
-function NotificationsScreen({ go, onSelect }: { go: (page: PageId) => void; onSelect: (notification: NotificationApiView) => void }) {
+function NotificationsScreen({ go, onSelect, backPage = "messages" }: { go: (page: PageId) => void; onSelect: (notification: NotificationApiView) => void; backPage?: PageId }) {
   const [tab, setTab] = useState("全部"); const [notices, setNotices] = useState<NotificationApiView[]>([]); const [loaded, setLoaded] = useState(false); const [loadError, setLoadError] = useState("");
   useEffect(() => { void apiRequest<CursorResponse<NotificationApiView>>("/notifications?limit=50").then((page) => { setNotices(page.items); setLoaded(true); }).catch((cause) => { if (navigator.onLine !== false) setNotices([]); setLoadError(apiMessage(cause)); }); }, []);
   const category = { ORDER: "订单", ACCOUNT: "账户", PLATFORM: "平台" } as const; const visible = tab === "全部" ? notices : notices.filter((item) => category[item.category] === tab);
   const open = async (item: NotificationApiView) => { const selected = item.read_status === "READ" ? item : await apiRequest<NotificationApiView>(`/notifications/${item.id}/read`, { method: "POST" }).catch(() => item); setNotices((current) => current.map((row) => row.id === selected.id ? selected : row)); onSelect(selected); go("notificationDetail"); };
-  return <div className="app-screen notification-screen"><Header title="系统通知" subtitle="订单、账户与平台消息" back={() => go("messages")} /><div className="notice-tabs">{["全部", "订单", "账户", "平台"].map((item) => <button type="button" className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div><section className="notice-list">{visible.map((item) => <button type="button" className={item.read_status === "UNREAD" ? "unread" : ""} onClick={() => void open(item)} key={item.id}><i>{category[item.category].slice(0, 1)}</i><span><b>{item.title}<time>{new Date(item.created_at).toLocaleString("zh-CN")}</time></b><small>{String(item.content_variables.content ?? item.content_variables.message ?? "查看通知详情")}</small></span><em>›</em></button>)}</section>{loadError ? <section className="paper-panel live-data-state"><RequestErrorBear message={loadError} hasContent={notices.length > 0} /><b>通知暂未加载</b><p>{loadError}</p></section> : !loaded ? <section className="paper-panel live-data-state"><b>正在加载通知…</b></section> : null}{loaded && !loadError && visible.length === 0 ? <section className="paper-panel message-safety bear-inline-empty"><StateBear scene="messages" eventKey={tab} /><b>暂无通知</b><p>订单、账户与平台消息会显示在这里。</p></section> : null}</div>;
+  return <div className="app-screen notification-screen"><Header title="系统通知" subtitle="订单、账户与平台消息" back={() => go(backPage)} /><div className="notice-tabs">{["全部", "订单", "账户", "平台"].map((item) => <button type="button" className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div><section className="notice-list">{visible.map((item) => <button type="button" className={item.read_status === "UNREAD" ? "unread" : ""} onClick={() => void open(item)} key={item.id}><i>{category[item.category].slice(0, 1)}</i><span><b>{item.title}<time>{new Date(item.created_at).toLocaleString("zh-CN")}</time></b><small>{String(item.content_variables.content ?? item.content_variables.message ?? "查看通知详情")}</small></span><em>›</em></button>)}</section>{loadError ? <section className="paper-panel live-data-state"><RequestErrorBear message={loadError} hasContent={notices.length > 0} /><b>通知暂未加载</b><p>{loadError}</p></section> : !loaded ? <section className="paper-panel live-data-state"><b>正在加载通知…</b></section> : null}{loaded && !loadError && visible.length === 0 ? <section className="paper-panel message-safety bear-inline-empty"><StateBear scene="messages" eventKey={tab} /><b>暂无通知</b><p>订单、账户与平台消息会显示在这里。</p></section> : null}</div>;
 }
 
 function NotificationDetailScreen({ go, notification }: { go: (page: PageId) => void; notification: NotificationApiView | null }) {
@@ -1144,8 +1162,8 @@ function BuyerProfileScreen({ go }: { go: (page: PageId) => void }) {
   return <div className="app-screen buyer-profile-screen"><Header title="买家主页" subtitle="其他用户可见的公开资料" back={() => go("chat")} /><section className="buyer-public-hero"><Avatar companion={companions[0]} size="lg" /><div><h2>熊崽玩家 K</h2><p>ID：10086</p><span>喜欢轻松沟通，也会认真确认服务时间。</span></div></section><section className="buyer-public-stats"><div><b>12</b><span>关注</span></div><div><b>8</b><span>公开评价</span></div><div><b>162 天</b><span>加入平台</span></div></section><section className="paper-panel buyer-public-reviews"><SectionTitle title="公开评价" note="仅展示已公开内容" /><article><b>★★★★★ 服务很耐心</b><p>开局前沟通很顺畅，整体体验很好。</p><small>评价了 Kirito 的经典模式服务</small></article></section></div>;
 }
 
-function CouponsScreen({ go }: { go: (page: PageId) => void }) {
-  return <div className="app-screen coupon-screen"><Header title="优惠券" subtitle="第一阶段暂不开放使用" back={() => go("mine")} /><section className="coupon-summary"><span><b>0</b> 张可用</span><small>优惠券入口保留，后续版本开放领取与核销</small></section><section className="empty-state coupon-empty"><span className="coupon-empty-icon"><img src="/assets/ui-coupon-rounded.jpg" alt="优惠券" /></span><h2>暂无可用优惠券</h2><p>第一阶段订单按服务实际价格结算，不展示虚假优惠信息。</p><button type="button" onClick={() => go("home")}>去看看服务</button></section></div>;
+function CouponsScreen({ go, backPage = "mine" }: { go: (page: PageId) => void; backPage?: PageId }) {
+  return <div className="app-screen coupon-screen"><Header title="优惠券" subtitle="第一阶段暂不开放使用" back={() => go(backPage)} /><section className="coupon-summary"><span><b>0</b> 张可用</span><small>优惠券入口保留，后续版本开放领取与核销</small></section><section className="empty-state coupon-empty"><span className="coupon-empty-icon"><img src="/assets/ui-coupon-rounded.jpg" alt="优惠券" /></span><h2>暂无可用优惠券</h2><p>第一阶段订单按服务实际价格结算，不展示虚假优惠信息。</p><button type="button" onClick={() => go("home")}>去看看服务</button></section></div>;
 }
 
 function PayoutAccountsScreen({ go, notify }: { go: (page: PageId) => void; notify: (message: string) => void }) {
@@ -1212,7 +1230,16 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [statePreview, setStatePreview] = useState(false);
-  const navigate = useCallback((next: PageId) => { setStatePreview(false); setPage(next); }, []);
+  const [entryReturnPages, setEntryReturnPages] = useState<Record<"rules" | "coupons" | "notifications", PageId>>({ rules: "mine", coupons: "mine", notifications: "messages" });
+  const navigate = useCallback((next: PageId) => {
+    if (next === "rules" || next === "coupons") {
+      setEntryReturnPages((current) => ({ ...current, [next]: page === "home" ? "home" : "mine" }));
+    } else if (next === "notifications" && page !== "notificationDetail") {
+      setEntryReturnPages((current) => ({ ...current, notifications: page === "home" ? "home" : "messages" }));
+    }
+    setStatePreview(false);
+    setPage(next);
+  }, [page]);
   const [sellerServicesTab, setSellerServicesTab] = useState("出售中");
   const [submittedServiceTitle, setSubmittedServiceTitle] = useState("");
   const [selectedTime, setSelectedTime] = useState<BookingSelection | null>(null);
@@ -1296,7 +1323,7 @@ export default function Home() {
       case "reviewDetail": return <ReviewDetailScreen {...common} review={currentReview} />;
       case "reviewStates": return <ReviewStatesScreen go={navigate} />;
       case "messages": return <MessagesScreen go={navigate} unreadCount={unreadCount} markRead={() => setUnreadCount(0)} onOpen={(conversation) => { setSelectedConversation(conversation); setPage("chat"); }} />;
-      case "notifications": return <NotificationsScreen go={navigate} onSelect={setSelectedNotification} />;
+      case "notifications": return <NotificationsScreen go={navigate} onSelect={setSelectedNotification} backPage={entryReturnPages.notifications} />;
       case "notificationDetail": return <NotificationDetailScreen go={navigate} notification={selectedNotification} />;
       case "chat": return <ChatScreen {...common} viewer={viewer} conversation={selectedConversation} order={currentOrder} product={selectedProduct} onConversation={setSelectedConversation} />;
       case "chatStates": return <ChatStatesScreen go={navigate} />;
@@ -1304,14 +1331,14 @@ export default function Home() {
       case "mine": return <MineScreen {...common} unreadCount={unreadCount} viewer={viewer} />;
       case "buyerProfile": return <BuyerProfileScreen go={navigate} />;
       case "favorites": return <FavoritesScreen go={navigate} onCompanionOpen={openCompanion} onServiceOpen={openService} />;
-      case "coupons": return <CouponsScreen go={navigate} />;
+      case "coupons": return <CouponsScreen go={navigate} backPage={entryReturnPages.coupons} />;
       case "editProfile": return <EditProfileScreen {...common} viewer={viewer} onUpdated={setViewer} />;
       case "privacySecurity": return <PrivacySecurityScreen {...common} viewer={viewer} />;
       case "phoneSecurity": return <PhoneSecurityScreen {...common} viewer={viewer} onIdentityUpdated={(identity) => setViewer((current) => current ? { ...current, identity_verification: identity } : current)} />;
       case "privacySettings": return <PrivacySettingsScreen {...common} />;
       case "dataExport": return <DataExportScreen {...common} />;
       case "accountCancellation": return <AccountCancellationScreen {...common} />;
-      case "rules": return <RulesScreen go={navigate} />;
+      case "rules": return <RulesScreen go={navigate} backPage={entryReturnPages.rules} />;
       case "settings": return <SettingsScreen {...common} onLoggedOut={() => { setViewer(null); setUnreadCount(0); }} />;
       case "transactionStates": return <TransactionStatesScreen go={navigate} />;
       case "globalStates": return <GlobalStatesScreen {...common} />;
