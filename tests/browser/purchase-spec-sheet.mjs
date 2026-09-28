@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict';
+import {chromium,expect} from '@playwright/test';
+import {mkdir} from 'node:fs/promises';
+const browser=await chromium.launch({executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',headless:true});
+const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
+const errors=[],writes=[];
+page.on('pageerror',e=>errors.push(e.message));
+await page.route('**/api/v1/**',route=>{if(route.request().method()!=='GET')writes.push(route.request().url());return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({items:[],next_cursor:null})});});
+const dialog=page.getByRole('dialog',{name:'选择服务规格',exact:true});
+const buy=page.locator('.preview-bottom .primary-action');
+try {
+ await page.goto('http://127.0.0.1:3001/',{waitUntil:'networkidle'});
+ await page.locator('.home-companion-list .shop-card').first().click();
+ await page.locator('.preview-product-grid button').first().click();
+ const product=page.locator('.local-catalog-preview');
+ const title=await product.locator('.preview-product-heading h2').innerText();
+ await product.evaluate(n=>n.scrollTop=200);
+ const scroll=await product.evaluate(n=>n.scrollTop);
+ const url=page.url();
+ await buy.click(); await expect(dialog).toBeVisible();
+ assert.equal(page.url(),url); await expect(product.locator('.preview-service-cover')).toHaveCount(1);
+ assert.equal(await product.evaluate(n=>n.inert),true);
+ await expect(dialog.getByRole('button',{name:'关闭规格弹窗',exact:true})).toBeFocused();
+ await page.keyboard.press('Shift+Tab');await expect(dialog.getByRole('button',{name:'确认规格，下一步',exact:true})).toBeFocused();
+ await page.keyboard.press('Tab');await expect(dialog.getByRole('button',{name:'关闭规格弹窗',exact:true})).toBeFocused();
+ await dialog.locator('.purchase-spec-options button').nth(1).click();
+ const spec=await dialog.locator('[aria-pressed="true"] span').innerText();
+ const unit=Number((await dialog.locator('[aria-pressed="true"] strong').innerText()).replace('¥',''));
+ await dialog.getByRole('button',{name:'增加数量',exact:true}).click();
+ await expect(dialog.locator('.purchase-spec-summary strong')).toHaveText(`¥${unit.toFixed(2)}`);
+ await expect(dialog.locator('.purchase-spec-footer strong')).toHaveText(`¥${(unit*2).toFixed(2)}`);
+ await page.keyboard.press('Escape');await expect(dialog).toHaveCount(0);await expect(buy).toBeFocused();
+ assert.equal(await product.evaluate(n=>n.scrollTop),scroll);assert.equal(await product.evaluate(n=>n.inert),false);
+ await buy.click();await expect(dialog.locator('output')).toHaveText('2');
+ await dialog.getByRole('button',{name:'关闭规格弹窗',exact:true}).click();await expect(dialog).toHaveCount(0);
+ await buy.click();await dialog.locator('.purchase-spec-scrim').click({position:{x:20,y:20}});await expect(dialog).toHaveCount(0);
+ await buy.click();await mkdir('.local/purchase-spec-sheet',{recursive:true});
+ for(const [width,height] of [[375,844],[390,844],[430,844],[390,480]]){
+  await page.setViewportSize({width,height});
+  assert(await dialog.locator('.purchase-spec-sheet').evaluate(n=>n.scrollWidth<=n.clientWidth+1),'sheet horizontal overflow');
+  const footer=await dialog.locator('.purchase-spec-footer').boundingBox();
+  const phone=await page.locator('.phone-shell').boundingBox();
+  assert(footer.y+footer.height<=phone.y+phone.height+1,'footer outside viewport');
+  await expect(dialog.getByRole('button',{name:'确认规格，下一步',exact:true})).toBeInViewport();
+  if(width===390)await page.locator('.phone-shell').screenshot({path:'.local/purchase-spec-sheet/mobile.png'});
+ }
+ await page.setViewportSize({width:390,height:844});
+ await dialog.getByRole('button',{name:'确认规格，下一步',exact:true}).click();
+ await expect(page.locator('.v31-screen')).toContainText(title);await expect(page.locator('.v31-screen')).toContainText(spec);await expect(page.locator('.v31-screen')).toContainText('× 2');await expect(page.locator('.v31-screen')).toContainText(`¥${(unit*2).toFixed(2)}`);
+ assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
+ console.log('PASS: product remains mounted; backdrop, Escape and close preserve scroll/selection; focus trapped/restored; prices and quantity transfer to checkout; four viewport sizes; zero API writes.');
+} finally {await browser.close();}

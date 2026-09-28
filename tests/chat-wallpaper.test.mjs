@@ -70,20 +70,20 @@ test("chat wallpaper groups stay inside the canvas with at least 10 units of spa
   }
 });
 
-test("both chat screens soften the original blue wallpaper without cropping or repeating it", () => {
+test("both chat screens soften the dense blue wallpaper without cropping or repeating it", () => {
   const wallpaperRules = css.match(/\.phone-shell \.chat-screen,\s*\.phone-shell \.customer-service-screen\s*\{([^}]+)\}/);
   assert.ok(wallpaperRules, "Missing shared chat wallpaper styles");
   const rules = wallpaperRules[1];
-  assert.match(rules, /url\("\/assets\/wallpapers\/chat-cartoon-blue-original-v2\.png"\)/);
-  assert.match(rules, /linear-gradient\(rgba\(250, 252, 255, \.65\), rgba\(250, 252, 255, \.65\)\)/);
-  assert.match(rules, /linear-gradient\(140deg, var\(--xiongzai-chat-cream\) 0%, var\(--xiongzai-chat-ivory\) 46%, var\(--xiongzai-chat-blue\) 100%\)/);
+  assert.match(rules, /url\("\/assets\/wallpapers\/chat-dense-blue-v3\.png"\)/);
+  assert.match(rules, /linear-gradient\(135deg, rgba\(255, 235, 177, \.68\) 0%, rgba\(230, 244, 255, \.65\) 43%/);
+  assert.match(rules, /linear-gradient\(135deg, #fff2cf 0%, #edf7ff 43%, #edf7ff 63%, #fff3d5 100%\)/);
   assert.match(rules, /background-attachment:\s*scroll\s*!important\s*;/);
   assert.match(rules, /background-size:\s*100% 100%\s*,\s*contain\s*,\s*100% 100%/);
   assert.match(rules, /background-repeat:\s*no-repeat\s*,\s*no-repeat\s*,\s*no-repeat/);
   assert.doesNotMatch(rules, /chat-dense-graygreen|opacity:/);
 });
 
-test("selected chat wallpaper preserves the user-supplied full-resolution PNG unchanged", async () => {
+test("previous user-supplied wallpaper stays available unchanged for rollback", async () => {
   const wallpaper = await readFile(new URL("chat-cartoon-blue-original-v2.png", assetRoot));
   assert.deepEqual([...wallpaper.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10]);
   assert.equal(wallpaper.toString("ascii", 12, 16), "IHDR");

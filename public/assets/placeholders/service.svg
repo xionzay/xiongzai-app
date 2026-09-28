@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="480" viewBox="0 0 480 480">
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#e3f3ff"/><stop offset="1" stop-color="#fff1dc"/></linearGradient><linearGradient id="pad" x2="0" y2="1"><stop stop-color="#fff"/><stop offset="1" stop-color="#e1effb"/></linearGradient></defs>
+  <rect width="480" height="480" fill="url(#bg)"/>
+  <circle cx="240" cy="230" r="143" fill="#fff" opacity=".58"/>
+  <circle cx="370" cy="97" r="17" fill="#b3d9f6" opacity=".65"/>
+  <circle cx="92" cy="353" r="11" fill="#ffd4b4"/>
+  <ellipse cx="241" cy="333" rx="111" ry="12" fill="#739cba" opacity=".12"/>
+  <path d="M173 164h134c31 0 47 25 55 55l18 70c6 31-23 50-43 27l-34-36H177l-34 36c-20 23-49 4-43-27l18-70c8-30 24-55 55-55Z" fill="#9ac9ec" stroke="#629aca" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M171 156h132c27 0 43 24 50 51l18 69c6 26-18 39-34 22l-35-36H176l-35 36c-16 17-40 4-34-22l18-69c7-27 23-51 46-51Z" fill="url(#pad)" stroke="#629aca" stroke-width="6" stroke-linejoin="round"/>
+  <path d="M160 190h18v20h20v18h-20v20h-18v-20h-20v-18h20Z" fill="#79b4e3" stroke="#629aca" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="303" cy="195" r="11" fill="#ffc38e"/><circle cx="326" cy="217" r="11" fill="#9bc9eb"/><circle cx="281" cy="217" r="11" fill="#b6b9ed"/><circle cx="303" cy="240" r="11" fill="#ffc38e"/>
+  <rect x="219" y="216" width="16" height="7" rx="3.5" fill="#aec6d8"/><rect x="244" y="216" width="16" height="7" rx="3.5" fill="#aec6d8"/>
+  <path d="m231 88 8 15 17 3-12 12 3 17-16-8-15 8 3-17-12-12 17-3Z" fill="#ffdf98" stroke="#d6af64" stroke-width="3" stroke-linejoin="round"/>
+</svg>

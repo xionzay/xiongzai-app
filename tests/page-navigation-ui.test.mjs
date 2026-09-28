@@ -11,7 +11,7 @@ const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8
 const chatCss = await readFile(new URL("../app/chat-redesign.css", import.meta.url), "utf8");
 const source = ts.createSourceFile("page.tsx", page, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 // Exercise the real presentational components without mounting the app or calling its APIs.
-const componentNames = new Set(["Header", "IconButton", "MineScreen"]);
+const componentNames = new Set(["Header", "IconButton", "MineScreen", "SectionTitle"]);
 const components = source.statements.filter((node) => ts.isFunctionDeclaration(node) && componentNames.has(node.name?.text));
 assert.equal(components.length, componentNames.size);
 const compiled = ts.transpileModule(components.map((node) => node.getText(source)).join("\n"), {
@@ -19,7 +19,7 @@ const compiled = ts.transpileModule(components.map((node) => node.getText(source
 }).outputText;
 const stub = () => null;
 const { Header, MineScreen } = vm.runInNewContext(`${compiled}\n({ Header, MineScreen });`, {
-  React, StatusBar: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}],
+  React, buyerOrderEntries: [{ label: "待付款", icon: "wallet" }], StatusBar: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}], DEFAULT_PLAYER_IMAGE: "/assets/placeholders/player.svg",
 });
 
 function* elements(node) {
@@ -54,9 +54,12 @@ test("headers with no controls collapse and centered chat identity stays availab
 
 test("the entire avatar, nickname and ID card opens edit profile using a native button", () => {
   const destinations = [];
-  const screen = MineScreen({ go: (page) => destinations.push(page), viewer: { profile: { nickname: "测试玩家", public_user_no: "12345" } } });
+  const screen = MineScreen({ go: (page) => destinations.push(page), viewer: { profile: { nickname: "测试玩家", public_user_no: "12345", avatar_file_id: "viewer-avatar" } } });
   const card = [...elements(screen)].find((element) => element.props.className === "mine-profile mine-profile-edit");
   assert.ok(card);
+  const avatar = [...elements(card)].find((element) => element.props.companion);
+  assert.equal(avatar.props.companion.avatarFileId, "viewer-avatar");
+  assert.equal(avatar.props.companion.online, false);
   assert.equal(card.type, "button");
   assert.equal(card.props.type, "button");
   assert.equal(card.props["aria-label"], "编辑个人资料");

@@ -3,6 +3,10 @@ import { headers } from "next/headers";
 import "./globals.css";
 import "./chat-redesign.css";
 import "./chat-stickers/stickers.css";
+import "./user-theme.css";
+import "./commerce-layout.css";
+import "./trade-v31/trade.css";
+import "./purchase-spec-sheet.css";
 
 export const viewport: Viewport = {
   width: "device-width",

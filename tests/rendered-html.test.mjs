@@ -290,13 +290,15 @@ test("connects chat, support cases and notifications to the real API", async () 
     readFile(new URL("../apps/api/src/chat-support-notification.controllers.ts", import.meta.url), "utf8"),
   ]);
   for (const endpoint of [
-    "/conversations?limit=50", "/conversations/consultations", "/conversations/orders",
+    "/conversations/consultations", "/conversations/orders",
     "/support-cases", "/notifications?limit=50", "/notifications/${item.id}/read",
   ]) assert.ok(page.includes(endpoint), `missing chat UI connection ${endpoint}`);
   assert.match(page, /client_message_id/);
   assert.match(page, /last_read_sequence_no/);
-  assert.match(page, /CursorResponse<SupportCaseApiView>/);
-  assert.match(page, /page\.items\.find/);
+  assert.match(page, /loadCursorItems<ConversationApiView>\("\/conversations"\)/);
+  assert.match(page, /loadCursorItems<SupportCaseApiView>\("\/support-cases"\)/);
+  assert.match(page, /cursor = page\.next_cursor/);
+  assert.match(page, /while \(cursor\)/);
   assert.match(controller, /evidence-view/);
   assert.match(controller, /RequirePermissions\("conversation\.evidence\.read"\)/);
 });
