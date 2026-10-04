@@ -30,8 +30,8 @@ function publicImage(fileId: string): Promise<string | null> {
   return promise;
 }
 
-export function CatalogImage({ src, alt, fileId, kind = "service", className = "" }: { src?: string; alt: string; fileId?: string | null; kind?: "avatar" | "service"; className?: string }) {
-  const fallback = kind === "avatar" ? DEFAULT_PLAYER_IMAGE : DEFAULT_SERVICE_IMAGE;
+export function CatalogImage({ src, alt, fileId, kind = "service", className = "", fallbackSrc }: { fallbackSrc?: string; src?: string; alt: string; fileId?: string | null; kind?: "avatar" | "service"; className?: string }) {
+  const fallback = fallbackSrc ?? (kind === "avatar" ? DEFAULT_PLAYER_IMAGE : DEFAULT_SERVICE_IMAGE);
   const legacy = src && /^\/assets\/(player-(kirito|luye|xiaoyou|susu|poster)|product-hero|home-hero|publish-arcade)\.png$/.test(src);
   const [remote, setRemote] = useState<{ id: string; url: string | null } | null>(null);
   useEffect(() => {

@@ -14,7 +14,7 @@ const databaseUrl=process.env.TEST_DATABASE_URL;const enabled=Boolean(databaseUr
 
 class TrackingPayoutProvider extends MockPayoutProvider { payoutCalls=[];async createPayout(input){this.payoutCalls.push(input);return super.createPayout(input);} }
 
-before(async()=>{if(!enabled)return;migrationClient=new pg.Client({connectionString:databaseUrl});await migrationClient.connect();await migrationClient.query(`CREATE SCHEMA "${schemaName}"`);await migrationClient.query(`SET search_path TO "${schemaName}", public`);await runMigration("0000_initial_schema.sql");await runMigration("0001_core_invariants.sql");await runMigration("0004_payment_channels_voice_constraints.sql");await runMigration("0005_policy_acceptance_context.sql");await runMigration("0006_policy_version_bindings.sql");await runMigration("0009_clear_rhodey.sql");database=createDatabaseClient({connectionString:databaseUrl,application_name:"xiongzai-finance-test",options:`-c search_path=${schemaName},public`,max:16});payoutProvider=new TrackingPayoutProvider(payoutSecret);app=await createApiApp({config,databaseClient:database,smsProvider:{sendCode:async()=>{}},payoutProvider,logger:new JsonLogger("finance-test",()=>{})});admin=await seedAdmin(["finance.read","finance.manage","finance.export","withdrawal.read","withdrawal.manage","withdrawal.review.initial"]);finalAdmin=await seedAdmin(["withdrawal.read","withdrawal.review.final"]);await seedConfigs();ledger=new FinanceLedgerEngine(database.db);});
+before(async()=>{if(!enabled)return;migrationClient=new pg.Client({connectionString:databaseUrl});await migrationClient.connect();await migrationClient.query(`CREATE SCHEMA "${schemaName}"`);await migrationClient.query(`SET search_path TO "${schemaName}", public`);await runMigration("0000_initial_schema.sql");await runMigration("0001_core_invariants.sql");await runMigration("0004_payment_channels_voice_constraints.sql");await runMigration("0005_policy_acceptance_context.sql");await runMigration("0006_policy_version_bindings.sql");await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_version.sql");database=createDatabaseClient({connectionString:databaseUrl,application_name:"xiongzai-finance-test",options:`-c search_path=${schemaName},public`,max:16});payoutProvider=new TrackingPayoutProvider(payoutSecret);app=await createApiApp({config,databaseClient:database,smsProvider:{sendCode:async()=>{}},payoutProvider,logger:new JsonLogger("finance-test",()=>{})});admin=await seedAdmin(["finance.read","finance.manage","finance.export","withdrawal.read","withdrawal.manage","withdrawal.review.initial"]);finalAdmin=await seedAdmin(["withdrawal.read","withdrawal.review.final"]);await seedConfigs();ledger=new FinanceLedgerEngine(database.db);});
 after(async()=>{if(!enabled)return;await app?.close();await migrationClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);await migrationClient.end();});
 
 test("order completion posts one balanced main income and settlement preserves bigint cents",{skip:!enabled},async()=>{const actor=await seedSeller("ledger");const order=await seedOrder(actor,10000000000000001n);await recordAndSettle(order.id);await recordIncome(order.id);const summary=await userRequest(actor,"GET","/api/v1/seller/finance/summary");assert.equal(summary.statusCode,200,summary.body);assert.equal(summary.json().available_cent,"9000000000000001");assert.equal(typeof summary.json().available_cent,"string");const facts=await migrationClient.query("SELECT (SELECT count(*) FROM seller_incomes WHERE order_id=$1)::integer income_count,(SELECT count(*) FROM ledger_transactions t WHERE t.source_id=$1 AND t.transaction_type='ORDER_COMPLETED')::integer tx_count",[order.id]);assert.deepEqual(facts.rows[0],{income_count:1,tx_count:1});await assertAllPostedBalanced();const account=await createAccount(actor,"13800138000");assert.equal(account.display_mask,"138******00");assert.equal("account_token_ciphertext" in account,false);const stored=await migrationClient.query("SELECT account_token_ciphertext,account_token_hash,display_mask FROM payout_accounts WHERE id=$1",[account.id]);assert.notEqual(stored.rows[0].account_token_ciphertext,"13800138000");assert.equal(stored.rows[0].account_token_hash.length,64);await createAccount(actor,"ledger-account-002");const wechat=await userRequest(actor,"POST","/api/v1/seller/payout-accounts",{account_type:"WECHAT",holder_name:"测试收款人",account_token:"wechat-account-001",is_default:true});assert.equal(wechat.statusCode,201,wechat.body);assert.equal(wechat.json().account_type,"WECHAT");const bank=await userRequest(actor,"POST","/api/v1/seller/payout-accounts",{account_type:"BANK",holder_name:"测试收款人",account_token:"bank-account-001",is_default:true});assert.equal(bank.statusCode,400,bank.body);const defaults=await migrationClient.query("SELECT count(*)::integer count FROM payout_accounts WHERE seller_id=$1 AND account_type='ALIPAY' AND is_default=true AND deleted_at IS NULL",[actor.sellerId]);assert.equal(defaults.rows[0].count,1);const duplicate=await userRequest(actor,"POST","/api/v1/seller/payout-accounts",{account_type:"ALIPAY",holder_name:"测试收款人",account_token:"ledger-account-002",is_default:true});assert.equal(duplicate.statusCode,409);assert.equal(duplicate.json().code,"PAYOUT_ACCOUNT_ALREADY_EXISTS");});
@@ -83,4 +83,44 @@ test("partial payout success preserves the income's remaining available balance"
   assert.equal(summary.withdrawn_cent,"5000");
   const income=await migrationClient.query("SELECT status,available_amount_cent::text available_cent,locked_amount_cent::text locked_cent,withdrawn_amount_cent::text withdrawn_cent FROM seller_incomes WHERE order_id=$1",[order.id]);
   assert.deepEqual(income.rows,[{status:"AVAILABLE",available_cent:"4000",locked_cent:"0",withdrawn_cent:"5000"}]);
+});
+
+
+test("V3.1 refund waives the whole commission once and keeps legacy rules unchanged",{skip:!enabled},async()=>{
+  for(const [rule,amount,expected] of [['V3.1',2000n,'8000'],['V3.1',1n,'9999'],['V3.1',10000n,'0'],['legacy',2000n,'7200']]) {
+    const actor=await seedSeller(`fee-${randomUUID().slice(0,6)}`), order=await seedOrder(actor,10000n);
+    await migrationClient.query('UPDATE orders SET rule_version=$1 WHERE id=$2',[rule,order.id]);
+    await recordAndSettle(order.id);
+    const refund=await seedRefund(order,amount);
+    for(let i=0;i<2;i++) await database.db.transaction(async tx=>{
+      const [row]=await tx.select().from(orders).where(eq(orders.id,order.id)).for('update');
+      await ledger.recordRefund(tx,refund,row,amount,0n,'fee-regression');
+    });
+    const summary=(await userRequest(actor,'GET','/api/v1/seller/finance/summary')).json();
+    assert.equal(summary.available_cent,expected,`${rule}/${amount}`);
+    const entries=await migrationClient.query(`SELECT count(*)::int count FROM ledger_transactions WHERE idempotency_key=$1`,[`finance:fee-waiver:${order.id}`]);
+    assert.equal(entries.rows[0].count,rule==='V3.1'?1:0);
+  }
+  await assertAllPostedBalanced();
+});
+
+test("V3.1 commission returned after withdrawal remains available and refund replay cannot spend it twice",{skip:!enabled},async()=>{
+  const actor=await seedSeller('v31-withdrawn'), order=await seedOrder(actor,10000n);
+  await migrationClient.query("UPDATE orders SET rule_version='V3.1' WHERE id=$1",[order.id]);
+  await recordAndSettle(order.id);
+  const account=await createAccount(actor,'v31-withdrawn-account');
+  const created=(await createWithdrawal(actor,9000n,account.id)).json();
+  const processing=(await adminRequest('POST',`/admin-api/v1/withdrawals/${created.id}/approve`,{version:created.version,reason:'测试整笔提现'})).json();
+  await payoutCallback({event_id:randomUUID(),event_type:'PAYOUT_SUCCEEDED',withdrawal_no:processing.withdrawal_no,provider_payout_no:processing.provider_payout_no,amount_cent:processing.actual_amount_cent});
+  const refund=await seedRefund(order,1n);
+  await Promise.all(Array.from({length:2},()=>database.db.transaction(async tx=>{
+    const [row]=await tx.select().from(orders).where(eq(orders.id,order.id)).for('update');
+    await ledger.recordRefund(tx,refund,row,1n,0n,'withdrawn-fee-regression');
+  })));
+  const summary=(await userRequest(actor,'GET','/api/v1/seller/finance/summary')).json();
+  assert.equal(summary.available_cent,'999');
+  assert.equal(summary.withdrawn_cent,'9000');
+  const next=await createWithdrawal(actor,999n,account.id);
+  assert.equal(next.statusCode,201,next.body);
+  await assertAllPostedBalanced();
 });

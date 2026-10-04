@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { OutboxService } from "@xiongzai/application";
-import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize } from "@xiongzai/contracts";
+import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize, getBearSticker, encodeBearSticker, decodeBearSticker, bearStickerSummary } from "@xiongzai/contracts";
 import {
   adminAccounts, adminOperationLogs, complaints, conversationMembers, conversations, deliveryLogs, messages, notifications, orders, payments,
   products, refunds, sellerProfiles, supportCaseLogs, supportCases, userProfiles, users, uuidv7, withdrawals,
@@ -23,6 +23,27 @@ export class ChatSupportNotificationService {
     @Inject(DATABASE_CLIENT) private readonly database: DatabaseClient,
     @Inject(API_CONFIG) private readonly config: ApiConfig,
   ) {}
+
+  async createSellerConsultation(userId: string, sellerId: string, metadata: RequestMetadata) {
+    return this.database.db.transaction(async tx => {
+      const [seller] = await tx.select().from(sellerProfiles).where(and(eq(sellerProfiles.id, sellerId), eq(sellerProfiles.status, "APPROVED"))).limit(1);
+      if (!seller) throw notFound("SELLER_NOT_FOUND", "卖家主页不可用");
+      if (seller.userId === userId) throw conflict("CONVERSATION_PARTIES_SAME", "不能联系自己");
+      // Serialize this buyer/seller pair, including requests from other browser tabs.
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`storefront:${userId}:${seller.userId}`}, 0))`);
+      const [existing] = await tx.select({ conversation: conversations, member: conversationMembers }).from(conversations)
+        .innerJoin(conversationMembers, eq(conversationMembers.conversationId, conversations.id))
+        .where(and(eq(conversations.conversationType, "CONSULTATION"), eq(conversationMembers.userId, userId), isNull(conversationMembers.leftAt),
+          sql`exists (select 1 from conversation_members other where other.conversation_id = ${conversations.id} and other.user_id = ${seller.userId} and other.role = 'SELLER' and other.left_at is null)`))
+        .orderBy(desc(conversations.createdAt)).limit(1);
+      if (existing) return conversationView(existing.conversation, existing.member.unreadCount, existing.member.role);
+      const conversation = await this.createConversation(tx, "CONSULTATION", {});
+      await tx.insert(conversationMembers).values([{ conversationId: conversation.id, userId, role: "USER" }, { conversationId: conversation.id, userId: seller.userId, role: "SELLER" }]);
+      await this.appendSystemMessage(tx, conversation.id, "卖家主页咨询，请在平台内沟通并交易");
+      await this.outbox.enqueue(tx, { aggregateType: "CONVERSATION", aggregateId: conversation.id, eventType: "ConsultationConversationCreated", payload: { conversation_id: conversation.id, seller_id: sellerId }, traceId: metadata.traceId });
+      return conversationView(conversation, 0, "USER");
+    });
+  }
 
   async createConsultation(userId: string, productId: string, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
@@ -94,7 +115,7 @@ export class ChatSupportNotificationService {
     return { ...page, items: page.items.map((message) => ({ ...message, read_by_recipient: message.sender_user_id === userId && recipients.length > 0 && recipients.every((recipient) => recipient.lastReadSequenceNo >= BigInt(message.sequence_no)) })) };
   }
 
-  async sendUserMessage(userId: string, conversationId: string, input: { clientMessageId: string; content: string }, metadata: RequestMetadata) {
+  async sendUserMessage(userId: string, conversationId: string, input: { clientMessageId: string; content: string } | { clientMessageId: string; messageType: "STICKER"; stickerId: string }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
       const member = await this.requireUserMember(tx, userId, conversationId);
       if (member.role === "ADMIN" || member.role === "SYSTEM") throw forbidden("CONVERSATION_ACCESS_DENIED", "当前成员角色不能发送用户消息");
@@ -104,6 +125,15 @@ export class ChatSupportNotificationService {
       if (conversation?.orderId) { const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, conversation.orderId)).limit(1); if (!order || inStatus(order.status, ["CANCELLED", "CLOSED", "SELLER_REJECTED"])) throw conflict("CONVERSATION_ORDER_CLOSED", "订单已关闭，当前会话只能查看历史消息"); }
       const [disabledCounterpart] = await tx.select({ id: users.id }).from(conversationMembers).innerJoin(users, eq(users.id, conversationMembers.userId)).where(and(eq(conversationMembers.conversationId, conversationId), ne(users.id, userId), ne(users.status, "NORMAL"), isNull(conversationMembers.leftAt))).limit(1);
       if (disabledCounterpart) throw conflict("CONVERSATION_COUNTERPART_UNAVAILABLE", "对方账号当前不可用，暂时无法发送消息");
+      if ("stickerId" in input) {
+        const sticker = getBearSticker(input.stickerId);
+        if (!sticker) throw validation("sticker_id", "表情不存在或不是已确认的 V3 素材");
+        // Consultation USER members are buyers. SUPPORT has one USER role for
+        // both identities; its authenticated requester may use either pack.
+        const expectedSide = member.role === "SELLER" ? "seller" : "buyer";
+        if (conversation?.conversationType !== "SUPPORT" && sticker.side !== expectedSide) throw forbidden("STICKER_SIDE_NOT_ALLOWED", "当前会话身份不能发送另一端表情");
+        return this.appendMessage(tx, conversationId, { senderUserId: userId, senderRole: member.role, clientMessageId: input.clientMessageId, messageType: "STICKER", content: encodeBearSticker(sticker.id) }, metadata);
+      }
       return this.appendMessage(tx, conversationId, { senderUserId: userId, senderRole: member.role, clientMessageId: input.clientMessageId, content: input.content }, metadata);
     });
   }
@@ -122,8 +152,19 @@ export class ChatSupportNotificationService {
     });
   }
 
-  async createSupportCase(userId: string, input: { topic: string; priority: SupportPriority; queueKey: string; relatedType?: RelatedType; relatedId?: string; sourcePage?: string; initialMessage: string }, metadata: RequestMetadata) {
+  async createSupportCase(userId: string, input: { topic: string; priority: SupportPriority; queueKey: string; relatedType?: RelatedType; relatedId?: string; sourcePage?: string; initialMessage?: string; initialStickerId?: string; initialClientMessageId?: string }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
+      const sticker = input.initialStickerId ? getBearSticker(input.initialStickerId) : undefined;
+      if (input.initialStickerId && (!sticker || !input.initialClientMessageId)) throw validation("initial_sticker_id", "请提供有效的 V3 表情与消息编号");
+      if (!sticker && !input.initialMessage) throw validation("initial_message", "请填写首条消息");
+      if (sticker && input.initialClientMessageId) {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`support-sticker:${userId}:${input.initialClientMessageId}`}, 0))`);
+        const [existing] = await tx.select({ message: messages, support: supportCases }).from(messages).innerJoin(supportCases, eq(supportCases.conversationId, messages.conversationId)).where(and(eq(messages.senderUserId, userId), eq(messages.clientMessageId, input.initialClientMessageId))).limit(1);
+        if (existing) {
+          if (existing.message.messageType !== "STICKER" || existing.message.content !== encodeBearSticker(sticker.id) || existing.support.relatedId !== (input.relatedId ?? null)) throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "消息编号已用于其他客服请求");
+          return supportCaseView(existing.support);
+        }
+      }
       if ((input.relatedType === undefined) !== (input.relatedId === undefined)) throw validation("related_id", "关联业务类型和编号必须同时填写");
       if (input.relatedType && input.relatedId) await this.assertRelatedResource(tx, userId, input.relatedType, input.relatedId);
       const conversation = await this.createConversation(tx, "SUPPORT", {});
@@ -131,7 +172,7 @@ export class ChatSupportNotificationService {
       const [supportCase] = await tx.insert(supportCases).values({ id: uuidv7(), caseNo: externalNo("SC"), requesterId: userId, conversationId: conversation.id, topic: input.topic, priority: input.priority, queueKey: input.queueKey, relatedType: input.relatedType, relatedId: input.relatedId, sourcePage: input.sourcePage }).returning();
       await tx.insert(supportCaseLogs).values({ id: uuidv7(), supportCaseId: supportCase!.id, action: "CREATED", oldStatus: null, newStatus: "WAITING", newQueueKey: input.queueKey, operatorUserId: userId, reason: input.topic, requestId: metadata.requestId });
       await this.appendSystemMessage(tx, conversation.id, `客服工单 ${supportCase!.caseNo} 已创建，正在排队等待接入`);
-      await this.appendMessage(tx, conversation.id, { senderUserId: userId, senderRole: "USER", clientMessageId: `support-initial-${supportCase!.id}`, content: input.initialMessage }, metadata);
+      await this.appendMessage(tx, conversation.id, { senderUserId: userId, senderRole: "USER", clientMessageId: sticker ? input.initialClientMessageId! : `support-initial-${supportCase!.id}`, messageType: sticker ? "STICKER" : "TEXT", content: sticker ? encodeBearSticker(sticker.id) : input.initialMessage! }, metadata);
       await this.outbox.enqueue(tx, { aggregateType: "SUPPORT_CASE", aggregateId: supportCase!.id, eventType: "SupportCaseCreated", payload: { support_case_id: supportCase!.id, case_no: supportCase!.caseNo, queue_key: input.queueKey, priority: input.priority }, traceId: metadata.traceId });
       return supportCaseView(supportCase!);
     });
@@ -337,19 +378,19 @@ export class ChatSupportNotificationService {
     return { items: page.map(messageView), next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.sequenceNo.toString(), id: last.id, scope }, this.config.cursorSigningSecret) : null };
   }
 
-  private async appendMessage(tx: DatabaseTransaction, conversationId: string, input: { senderUserId?: string; senderAdminId?: string; senderRole: typeof messages.$inferInsert.senderRole; clientMessageId: string; content: string }, metadata: RequestMetadata) {
+  private async appendMessage(tx: DatabaseTransaction, conversationId: string, input: { senderUserId?: string; senderAdminId?: string; senderRole: typeof messages.$inferInsert.senderRole; clientMessageId: string; content: string; messageType?: "TEXT" | "STICKER" }, metadata: RequestMetadata) {
     const [conversation] = await tx.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1).for("update");
     if (!conversation) throw notFound("CONVERSATION_NOT_FOUND", "会话不存在");
     const existingCondition = input.senderUserId ? and(eq(messages.senderUserId, input.senderUserId), eq(messages.clientMessageId, input.clientMessageId)) : and(eq(messages.senderAdminId, input.senderAdminId!), eq(messages.clientMessageId, input.clientMessageId));
     const [existing] = await tx.select().from(messages).where(existingCondition).limit(1);
     if (existing) {
-      if (existing.conversationId !== conversationId || existing.content !== input.content) throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "client_message_id 已用于其他消息");
+      if (existing.conversationId !== conversationId || existing.content !== input.content || existing.messageType !== (input.messageType ?? "TEXT")) throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "client_message_id 已用于其他消息");
       return messageView(existing);
     }
     const [last] = await tx.select({ sequenceNo: messages.sequenceNo }).from(messages).where(eq(messages.conversationId, conversationId)).orderBy(desc(messages.sequenceNo)).limit(1);
     const sequenceNo = (last?.sequenceNo ?? BigInt(0)) + BigInt(1); const now = new Date();
-    const [message] = await tx.insert(messages).values({ id: uuidv7(), conversationId, clientMessageId: input.clientMessageId, sequenceNo, senderUserId: input.senderUserId, senderAdminId: input.senderAdminId, senderRole: input.senderRole, messageType: "TEXT", content: input.content, moderationStatus: "PENDING" }).returning();
-    const preview = input.content.slice(0, 200);
+    const [message] = await tx.insert(messages).values({ id: uuidv7(), conversationId, clientMessageId: input.clientMessageId, sequenceNo, senderUserId: input.senderUserId, senderAdminId: input.senderAdminId, senderRole: input.senderRole, messageType: input.messageType ?? "TEXT", content: input.content, moderationStatus: input.messageType === "STICKER" ? "APPROVED" : "PENDING" }).returning();
+    const preview = input.messageType === "STICKER" ? bearStickerSummary(decodeBearSticker(input.content)) : input.content.slice(0, 200);
     await tx.update(conversations).set({ lastMessageId: message!.id, lastMessagePreview: preview, lastMessageAt: now, version: sql`${conversations.version} + 1`, updatedAt: now }).where(and(eq(conversations.id, conversationId), eq(conversations.version, conversation.version)));
     await tx.update(conversationMembers).set({ unreadCount: sql`${conversationMembers.unreadCount} + 1` }).where(and(eq(conversationMembers.conversationId, conversationId), isNull(conversationMembers.leftAt), input.senderUserId ? or(isNull(conversationMembers.userId), ne(conversationMembers.userId, input.senderUserId)) : or(isNull(conversationMembers.adminId), ne(conversationMembers.adminId, input.senderAdminId!))));
     if (input.senderUserId) await tx.update(conversationMembers).set({ lastReadSequenceNo: sequenceNo, unreadCount: 0 }).where(and(eq(conversationMembers.conversationId, conversationId), eq(conversationMembers.userId, input.senderUserId)));
@@ -437,7 +478,10 @@ export class ChatSupportNotificationService {
 }
 
 function conversationView(row: typeof conversations.$inferSelect, unreadCount: number, memberRole: string) { return { id: row.id, conversation_no: row.conversationNo, conversation_type: row.conversationType, product_id: row.productId, order_id: row.orderId, last_message_preview: row.lastMessagePreview, last_message_at: row.lastMessageAt, unread_count: unreadCount, member_role: memberRole, version: row.version, created_at: row.createdAt }; }
-function messageView(row: typeof messages.$inferSelect) { return { id: row.id, conversation_id: row.conversationId, client_message_id: row.clientMessageId, sequence_no: row.sequenceNo, sender_user_id: row.senderUserId, sender_admin_id: row.senderAdminId, sender_role: row.senderRole, message_type: row.messageType, content: row.content, send_status: row.sendStatus, moderation_status: row.moderationStatus, created_at: row.createdAt }; }
+function messageView(row: typeof messages.$inferSelect) {
+  const sticker = row.messageType === "STICKER" ? decodeBearSticker(row.content) : undefined;
+  return { id: row.id, conversation_id: row.conversationId, client_message_id: row.clientMessageId, sequence_no: row.sequenceNo, sender_user_id: row.senderUserId, sender_admin_id: row.senderAdminId, sender_role: row.senderRole, message_type: row.messageType, content: row.messageType === "STICKER" ? bearStickerSummary(sticker) : row.content, ...(sticker ? { sticker } : {}), send_status: row.sendStatus, moderation_status: row.moderationStatus, created_at: row.createdAt };
+}
 function supportCaseView(row: typeof supportCases.$inferSelect) { return { id: row.id, case_no: row.caseNo, requester_id: row.requesterId, conversation_id: row.conversationId, topic: row.topic, priority: row.priority, status: row.status, queue_key: row.queueKey, assigned_admin_id: row.assignedAdminId, related_type: row.relatedType, related_id: row.relatedId, source_page: row.sourcePage, first_response_at: row.firstResponseAt, closed_at: row.closedAt, close_reason: row.closeReason, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
 function supportCaseAdminView(row: typeof supportCases.$inferSelect, requester?: typeof users.$inferSelect, profile?: typeof userProfiles.$inferSelect | null, conversation?: typeof conversations.$inferSelect) {
   return {

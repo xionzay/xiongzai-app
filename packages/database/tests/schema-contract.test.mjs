@@ -47,7 +47,7 @@ const migrationJournal = JSON.parse(await readFile(
   "utf8",
 ));
 const latestSnapshot = JSON.parse(await readFile(
-  new URL("../migrations/meta/0009_snapshot.json", import.meta.url),
+  new URL("../migrations/meta/0011_snapshot.json", import.meta.url),
   "utf8",
 ));
 const schemaSource = await readFile(

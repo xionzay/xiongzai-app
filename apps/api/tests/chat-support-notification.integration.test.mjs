@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
 import { NotificationInboxConsumer } from "@xiongzai/application";
+import { bearStickers } from "@xiongzai/contracts";
 import { issueAccessToken } from "@xiongzai/auth";
 import { createDatabaseClient } from "@xiongzai/database";
 import { JsonLogger } from "@xiongzai/observability";
@@ -46,6 +47,8 @@ before(async () => {
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
   await runMigration("0006_policy_version_bindings.sql");
+  await runMigration("0010_order_rule_version.sql");
+  await runMigration("0011_bear_sticker_messages.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-chat-support-test", options: `-c search_path=${schemaName},public`, max: 10 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, logger: new JsonLogger("chat-support-test", () => {}) });
   buyer = await seedUser("buyer"); seller = await seedUser("seller"); stranger = await seedUser("stranger");
@@ -216,6 +219,24 @@ test("Inbox duplicate consumption creates one notification and one in-app delive
   assert.doesNotMatch(serialized, /content_variables|phone_ciphertext|object_key|token|secret|presigned/iu);
 });
 
+test("storefront contact is private, self-protected and idempotent across concurrent requests", { skip: !enabled }, async () => {
+  const target = (await migrationClient.query("SELECT id FROM seller_profiles WHERE user_id=$1", [seller.id])).rows[0].id;
+  const anonymous = await app.inject({ method: "POST", url: "/api/v1/conversations/sellers", payload: { seller_id: target } });
+  assert.equal(anonymous.statusCode, 401);
+  assert.equal((await userRequest(seller, "POST", "/api/v1/conversations/sellers", { seller_id: target })).statusCode, 409);
+  const responses = await Promise.all(Array.from({length:4}, () => userRequest(stranger,"POST","/api/v1/conversations/sellers",{seller_id:target})));
+  for (const response of responses) assert.equal(response.statusCode,201,response.body);
+  assert.equal(new Set(responses.map(r=>r.json().id)).size,1);
+  const conversationId = responses[0].json().id;
+  assert.equal((await userRequest(buyer,"GET",`/api/v1/conversations/${conversationId}/messages`)).statusCode,403);
+  assert.equal((await userRequest(seller,"GET",`/api/v1/conversations/${conversationId}/messages`)).statusCode,200);
+  const publicProfile = (await app.inject({method:"GET",url:`/api/v1/companions/${target}`})).json();
+  assert.ok(publicProfile.services[0].skus.every(s=>s.status==='ACTIVE'));
+  await migrationClient.query("UPDATE seller_profiles SET status='SUSPENDED' WHERE id=$1",[target]);
+  assert.equal((await userRequest(stranger,"POST","/api/v1/conversations/sellers",{seller_id:target})).statusCode,404);
+  await migrationClient.query("UPDATE seller_profiles SET status='APPROVED' WHERE id=$1",[target]);
+});
+
 async function seedOrderCatalog() {
   const sellerId = randomUUID(); productId = randomUUID(); const skuId = randomUUID(); orderId = randomUUID();
   await migrationClient.query("INSERT INTO seller_profiles (id, user_id, status, seller_nickname, accepting_orders, approved_at) VALUES ($1, $2, 'APPROVED', '聊天测试陪玩', true, now())", [sellerId, seller.id]);
@@ -257,3 +278,80 @@ function userRequest(account, method, url, payload) { return app.inject({ method
 function adminRequest(account, method, url, payload) { return app.inject({ method, url, headers: { authorization: `Bearer ${account.token}` }, ...(payload === undefined ? {} : { payload }) }); }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(fileName) { let source = await readFile(new URL(`../../../packages/database/migrations/${fileName}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }
+
+
+test("V3 all 70 stickers persist and both members receive trusted GIF metadata", { skip: !enabled }, async () => {
+  const conversation = (await userRequest(buyer, "POST", "/api/v1/conversations/consultations", { product_id: productId })).json();
+  for (const sticker of bearStickers) {
+    const result = await userRequest(sticker.side === "buyer" ? buyer : seller, "POST", `/api/v1/conversations/${conversation.id}/messages`, { client_message_id: `v3-${randomUUID()}`, message_type: "STICKER", sticker_id: sticker.id });
+    assert.equal(result.statusCode, 201, result.body);
+    assert.equal(result.json().message_type, "STICKER");
+    assert.equal(result.json().sticker.url, sticker.url);
+    assert.equal(result.json().moderation_status, "APPROVED");
+    assert.doesNotMatch(result.body, /\/Applications|file:|base64|thumbnail/);
+  }
+  for (const account of [buyer, seller]) {
+    const result = await userRequest(account, "GET", `/api/v1/conversations/${conversation.id}/messages?limit=100`);
+    const received = result.json().items.filter(row => row.message_type === "STICKER");
+    assert.equal(received.length, 70);
+    assert.deepEqual(new Set(received.map(row => row.sticker.id)), new Set(bearStickers.map(row => row.id)));
+  }
+  const stored = await migrationClient.query("SELECT content FROM messages WHERE conversation_id=$1 AND message_type='STICKER'", [conversation.id]);
+  assert.equal(stored.rows.length, 70);
+  assert.ok(stored.rows.every(row => JSON.parse(row.content).pack === "bear-v3"));
+});
+
+test("V3 stickers enforce identity, membership, whitelist and concurrent idempotency", { skip: !enabled }, async () => {
+  const outsider = await seedUser("sticker-outsider");
+  const conversation = (await userRequest(buyer, "POST", "/api/v1/conversations/orders", { order_id: orderId })).json();
+  const url = `/api/v1/conversations/${conversation.id}/messages`;
+  const payload = { client_message_id: `v3-retry-${randomUUID()}`, message_type: "STICKER", sticker_id: "bear-v3/buyer/001" };
+  const results = await Promise.all(Array.from({ length: 5 }, () => userRequest(buyer, "POST", url, payload)));
+  assert.ok(results.every(row => row.statusCode === 201), results.map(row => row.body).join("\n"));
+  assert.equal(new Set(results.map(row => row.json().id)).size, 1);
+  const sellerReply = await userRequest(seller, "POST", url, { client_message_id: `v3-order-seller-${randomUUID()}`, message_type: "STICKER", sticker_id: "bear-v3/seller/001" });
+  assert.equal(sellerReply.statusCode, 201, sellerReply.body);
+  for (const account of [buyer, seller]) {
+    const history = await userRequest(account, "GET", `${url}?limit=100`);
+    assert.deepEqual(new Set(history.json().items.filter(row => row.message_type === "STICKER").map(row => row.sticker.id)), new Set([payload.sticker_id, "bear-v3/seller/001"]));
+  }
+  const read = await userRequest(buyer, "POST", `/api/v1/conversations/${conversation.id}/read`, { last_read_sequence_no: sellerReply.json().sequence_no });
+  assert.equal(read.statusCode, 201, read.body);
+  const sellerHistory = await userRequest(seller, "GET", `${url}?limit=100`);
+  assert.equal(sellerHistory.json().items.find(row => row.id === sellerReply.json().id).read_by_recipient, true);
+  const changed = await userRequest(buyer, "POST", url, { ...payload, sticker_id: "bear-v3/buyer/002" });
+  assert.equal(changed.statusCode, 409);
+  for (const [account, stickerId] of [[buyer, "bear-v3/seller/001"], [seller, "bear-v3/buyer/001"]]) {
+    const result = await userRequest(account, "POST", url, { ...payload, client_message_id: randomUUID(), sticker_id: stickerId });
+    assert.equal(result.statusCode, 403);
+    assert.equal(result.json().code, "STICKER_SIDE_NOT_ALLOWED");
+  }
+  assert.equal((await userRequest(outsider, "POST", url, payload)).statusCode, 403);
+  assert.equal((await app.inject({ method: "POST", url, payload })).statusCode, 401);
+  assert.equal((await userRequest(buyer, "POST", url, { ...payload, sticker_id: "/internal/malicious.gif" })).statusCode, 400);
+  assert.equal((await userRequest(buyer, "POST", url, { ...payload, url: "https://external.invalid/track.gif" })).statusCode, 400);
+  const [row] = (await migrationClient.query("SELECT status FROM orders WHERE id=$1", [orderId])).rows;
+  try {
+    await migrationClient.query("UPDATE orders SET status='CLOSED' WHERE id=$1", [orderId]);
+    const blocked = await userRequest(buyer, "POST", url, { ...payload, client_message_id: randomUUID() });
+    assert.equal(blocked.statusCode, 409);
+    assert.equal(blocked.json().code, "CONVERSATION_ORDER_CLOSED");
+  } finally { await migrationClient.query("UPDATE orders SET status=$2 WHERE id=$1", [orderId, row.status]); }
+});
+
+test("first support sticker creates one persistent case, reaches assigned staff and obeys closure", { skip: !enabled }, async () => {
+  const payload = { topic: "动态表情接入测试", initial_sticker_id: "bear-v3/seller/001", client_message_id: `support-v3-${randomUUID()}` };
+  const results = await Promise.all([userRequest(seller, "POST", "/api/v1/support-cases", payload), userRequest(seller, "POST", "/api/v1/support-cases", payload)]);
+  assert.ok(results.every(row => row.statusCode === 201), results.map(row => row.body).join("\n"));
+  const support = results[0].json(); assert.equal(results[1].json().id, support.id);
+  const received = await adminRequest(adminA, "POST", `/admin-api/v1/support-cases/${support.id}/receive`, { version: support.version });
+  assert.equal(received.statusCode, 201, received.body);
+  const staff = await adminRequest(adminA, "GET", `/admin-api/v1/support-cases/${support.id}/messages`);
+  assert.equal(staff.json().items.filter(row => row.message_type === "STICKER").length, 1);
+  assert.equal(staff.json().items.find(row => row.message_type === "STICKER").sticker.id, payload.initial_sticker_id);
+  const closed = await adminRequest(adminA, "POST", `/admin-api/v1/support-cases/${support.id}/close`, { version: received.json().version, reason: "测试用例已验证完成" });
+  assert.equal(closed.statusCode, 201, closed.body);
+  const blocked = await userRequest(seller, "POST", `/api/v1/conversations/${support.conversation_id}/messages`, { message_type: "STICKER", sticker_id: "bear-v3/seller/002", client_message_id: randomUUID() });
+  assert.equal(blocked.statusCode, 409);
+  assert.equal(blocked.json().code, "SUPPORT_CASE_CLOSED");
+});

@@ -60,7 +60,7 @@ export class SellerProductService {
     const [latestApplication] = await this.database.db.select().from(sellerApplications)
       .where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo)).limit(1);
     const latestSnapshot = latestApplication ? safeJson(latestApplication.snapshotJson) : null;
-    const pendingProfileRevision = latestApplication && isProfileRevision(latestSnapshot) && ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEEDS_SUPPLEMENT"].includes(latestApplication.status)
+    const pendingProfileRevision = latestApplication && isProfileRevision(latestSnapshot) && ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEEDS_SUPPLEMENT", "REJECTED"].includes(latestApplication.status)
       ? profileRevisionView(latestApplication, latestSnapshot)
       : null;
     return { ...sellerView(seller), latest_application: latestApplication ? { ...applicationView(latestApplication), revision_kind: snapshotKind(latestSnapshot) } : null, pending_profile_revision: pendingProfileRevision };
@@ -516,7 +516,8 @@ export class SellerProductService {
     const [seller] = await this.database.db.select().from(sellerProfiles).where(and(eq(sellerProfiles.id, sellerId), eq(sellerProfiles.status, "APPROVED"))).limit(1);
     if (!seller) throw notFound("SELLER_NOT_FOUND", "陪玩主页不存在");
     const services = await this.database.db.select().from(products).where(and(eq(products.sellerId, sellerId), eq(products.status, "ON_SALE"), isNull(products.deletedAt))).orderBy(desc(products.approvedAt));
-    return { ...sellerView(seller), services: services.map((product) => productView(product, seller)) };
+    const skus = services.length ? await this.database.db.select().from(productSkus).where(and(inArray(productSkus.productId, services.map(p => p.id)), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt))).orderBy(asc(productSkus.sortOrder)) : [];
+    return { ...publicSellerView(seller), services: services.map((product) => ({ ...productView(product), seller: publicSellerView(seller), skus: skus.filter(sku => sku.productId === product.id).map(skuView) })) };
   }
 
   async listProducts(input: { cursor?: string; limit?: unknown; sellerId?: string; keyword?: string; minPriceCent?: bigint; maxPriceCent?: bigint; sort: "comprehensive" | "sales" | "price_asc" | "price_desc" }) {
@@ -742,7 +743,7 @@ function sellerInsert(input: SellerProfileInput) {
   };
 }
 function assertSellerApplicationComplete(row: typeof sellerProfiles.$inferSelect) {
-  const required: Array<[string, unknown]> = [["seller_avatar_file_id", row.sellerAvatarFileId], ["introduction", row.introduction], ["game_rank", row.gameRank], ["kd", row.kd], ["preferred_mode", row.preferredMode], ["play_style", row.playStyle], ["game_experience", row.gameExperience], ["voice_file_id", row.voiceFileId], ["voice_duration_ms", row.voiceDurationMs]];
+  const required: Array<[string, unknown]> = [["seller_avatar_file_id", row.sellerAvatarFileId], ["introduction", row.introduction], ["preferred_mode", row.preferredMode]];
   const missing = required.filter(([, value]) => value === null || value === undefined || value === "");
   if (missing.length) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "陪玩申请资料不完整", statusCode: 400, fieldErrors: missing.map(([field]) => ({ field, code: "REQUIRED", message: "申请提交前必须完成此项资料" })) });
 }
@@ -752,7 +753,7 @@ function sellerRevisionSnapshot(input: SellerProfileInput, voiceAuthorizationPol
 function snapshotKind(snapshot:Record<string,unknown>|null){return snapshot?.revision_kind==="PROFILE_UPDATE"?"PROFILE_UPDATE":"INITIAL_ONBOARDING";}
 function isProfileRevision(snapshot:Record<string,unknown>|null):snapshot is Record<string,unknown>{return snapshotKind(snapshot)==="PROFILE_UPDATE";}
 function profileRevisionView(row:typeof sellerApplications.$inferSelect,snapshot:Record<string,unknown>){return {...applicationView(row),revision_kind:"PROFILE_UPDATE" as const,snapshot};}
-function assertSellerSnapshotComplete(snapshot:Record<string,unknown>){const required=["seller_avatar_file_id","introduction","game_rank","kd","preferred_mode","play_style","game_experience","voice_file_id","voice_duration_ms"] as const;const missing=required.filter((key)=>snapshot[key]===null||snapshot[key]===undefined||snapshot[key]==="");if(missing.length)throw new AppError({code:errorCodes.VALIDATION_FAILED,message:"陪玩资料变更申请不完整",statusCode:400,fieldErrors:missing.map((field)=>({field,code:"REQUIRED",message:"提交审核前必须完成此项资料"}))});}
+function assertSellerSnapshotComplete(snapshot:Record<string,unknown>){const required=["seller_avatar_file_id","introduction","preferred_mode"] as const;const missing=required.filter((key)=>snapshot[key]===null||snapshot[key]===undefined||snapshot[key]==="");if(missing.length)throw new AppError({code:errorCodes.VALIDATION_FAILED,message:"陪玩资料变更申请不完整",statusCode:400,fieldErrors:missing.map((field)=>({field,code:"REQUIRED",message:"提交审核前必须完成此项资料"}))});}
 function sellerInputFromSnapshot(snapshot:Record<string,unknown>):SellerProfileInput{return {sellerNickname:requiredSnapshotString(snapshot,"seller_nickname"),sellerAvatarFileId:nullableSnapshotString(snapshot,"seller_avatar_file_id"),coverFileId:nullableSnapshotString(snapshot,"cover_file_id"),introduction:nullableSnapshotString(snapshot,"introduction"),gameRank:nullableSnapshotString(snapshot,"game_rank"),kd:nullableSnapshotString(snapshot,"kd"),preferredMode:nullableSnapshotString(snapshot,"preferred_mode"),playStyle:nullableSnapshotString(snapshot,"play_style"),gameExperience:nullableSnapshotString(snapshot,"game_experience"),voiceFileId:nullableSnapshotString(snapshot,"voice_file_id"),voiceDurationMs:typeof snapshot.voice_duration_ms==="number"?snapshot.voice_duration_ms:null};}
 function requiredSnapshotString(snapshot:Record<string,unknown>,key:string){const value=snapshot[key];if(typeof value!=="string"||!value.trim())throw validation(key,"审核快照字段无效");return value;}
 function nullableSnapshotString(snapshot:Record<string,unknown>,key:string){const value=snapshot[key];if(value===null||value===undefined)return null;if(typeof value!=="string")throw validation(key,"审核快照字段无效");return value;}
@@ -780,3 +781,8 @@ function conflict(code: `${Uppercase<string>}_${Uppercase<string>}`, message: st
 function invalidState(message: string) { return new AppError({ code: "RESOURCE_STATE_INVALID", message, statusCode: 409 }); }
 function versionConflict() { return new AppError({ code: errorCodes.RESOURCE_VERSION_CONFLICT, message: "数据已被其他操作更新，请刷新后重试", statusCode: 409 }); }
 function validation(field: string, message: string) { return new AppError({ code: errorCodes.VALIDATION_FAILED, message: "请求参数校验失败", statusCode: 400, fieldErrors: [{ field, code: "INVALID", message }] }); }
+
+function publicSellerView(row: typeof sellerProfiles.$inferSelect) {
+  const { voice_authorization_policy_version_id, suspended_reason, ...publicFields } = sellerView(row);
+  return publicFields;
+}

@@ -40,7 +40,7 @@ export class OrderJobProcessor {
   private async closeForAcceptTimeout(orderId: string, requestId: string): Promise<boolean> {
     return this.database.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
-      if (!order || order.status !== "PENDING_ACCEPT") return false;
+      if (!order || order.status !== "PENDING_ACCEPT" || order.afterSaleStatus === "IN_PROGRESS") return false;
       const changed = await tx.update(orders).set({ status: "CLOSED", closedAt: new Date(), cancelReason: "SELLER_ACCEPT_TIMEOUT", version: sql`${orders.version} + 1`, updatedAt: new Date() })
         .where(and(eq(orders.id, orderId), eq(orders.status, "PENDING_ACCEPT"), eq(orders.version, order.version))).returning({ id: orders.id });
       if (!changed[0]) return false;
@@ -54,7 +54,7 @@ export class OrderJobProcessor {
   private async autoConfirm(orderId: string, requestId: string): Promise<boolean> {
     return this.database.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
-      if (!order || order.status !== "PENDING_BUYER_CONFIRM" || !order.autoConfirmAt || order.autoConfirmAt > new Date()) return false;
+      if (!order || order.afterSaleStatus === "IN_PROGRESS" || order.paymentStatus === "REFUNDING" || order.status !== "PENDING_BUYER_CONFIRM" || !order.autoConfirmAt || order.autoConfirmAt > new Date()) return false;
       const changed = await tx.update(orders).set({ status: "COMPLETED", completedAt: new Date(), version: sql`${orders.version} + 1`, updatedAt: new Date() })
         .where(and(eq(orders.id, orderId), eq(orders.status, "PENDING_BUYER_CONFIRM"), eq(orders.version, order.version))).returning();
       if (!changed[0]) return false;

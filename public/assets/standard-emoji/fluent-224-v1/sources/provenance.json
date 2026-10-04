@@ -1,0 +1,3655 @@
+{
+  "source": "Microsoft Fluent Emoji 3D",
+  "upstream": "https://github.com/microsoft/fluentui-emoji",
+  "distribution": "@lobehub/fluent-emoji-3d",
+  "distributionVersion": "1.1.0",
+  "tarball": "https://registry.npmjs.org/@lobehub/fluent-emoji-3d/-/fluent-emoji-3d-1.1.0.tgz",
+  "integrity": "sha512-Wlq2lVStTnr8BDpIJ0pEnTKO4LuDxxqTEhTvRtD1DLRF0me7ogeRQjKoehDHXuVJ2Qaecgl5wRBv60lUAG3h7g==",
+  "sha256": "c1bb7eee7de090205a232518a9ab4adb3df458bfbe8a1f78232991194c8b2e58",
+  "emoji": [
+    {
+      "glyph": "😀",
+      "label": "开心",
+      "name": "Grinning face",
+      "category": "情绪",
+      "keywords": [
+        "笑",
+        "大笑"
+      ],
+      "id": "1f600",
+      "unicode": "1F600",
+      "shortcode": ":grinning_face:",
+      "sourcePackagePath": "package/assets/1f600.webp",
+      "sourceSha256": "434a8af4e1e48ef3a1c2b3a6490f6e96e8fd8d68008fab7ab630d72d7f9f3960",
+      "originalBytes": 5792,
+      "upstreamReferencePath": "assets/Grinning face/3D/grinning_face_3d.png"
+    },
+    {
+      "glyph": "😃",
+      "label": "开怀",
+      "name": "Grinning face with big eyes",
+      "category": "情绪",
+      "keywords": [
+        "开心",
+        "笑"
+      ],
+      "id": "1f603",
+      "unicode": "1F603",
+      "shortcode": ":grinning_face_with_big_eyes:",
+      "sourcePackagePath": "package/assets/1f603.webp",
+      "sourceSha256": "ad51143e2881b6af874d726de53d1e4e4da7f36f804d4ab189b9d5095f49ed00",
+      "originalBytes": 5788,
+      "upstreamReferencePath": "assets/Grinning face with big eyes/3D/grinning_face_with_big_eyes_3d.png"
+    },
+    {
+      "glyph": "😄",
+      "label": "笑眯眼",
+      "name": "Grinning face with smiling eyes",
+      "category": "情绪",
+      "keywords": [
+        "开心",
+        "笑"
+      ],
+      "id": "1f604",
+      "unicode": "1F604",
+      "shortcode": ":grinning_face_with_smiling_eyes:",
+      "sourcePackagePath": "package/assets/1f604.webp",
+      "sourceSha256": "7534e9e735f5d329333bda295e8e1bed2e5a62bff1cd4c57c04627faf000d016",
+      "originalBytes": 4994,
+      "upstreamReferencePath": "assets/Grinning face with smiling eyes/3D/grinning_face_with_smiling_eyes_3d.png"
+    },
+    {
+      "glyph": "😁",
+      "label": "咧嘴笑",
+      "name": "Beaming face with smiling eyes",
+      "category": "情绪",
+      "keywords": [
+        "开心",
+        "笑",
+        "露齿"
+      ],
+      "id": "1f601",
+      "unicode": "1F601",
+      "shortcode": ":beaming_face_with_smiling_eyes:",
+      "sourcePackagePath": "package/assets/1f601.webp",
+      "sourceSha256": "2b08375f87c9adf7fd5aadadac271aecc6f78c62304460b68e961e36ad74bede",
+      "originalBytes": 5256,
+      "upstreamReferencePath": "assets/Beaming face with smiling eyes/3D/beaming_face_with_smiling_eyes_3d.png"
+    },
+    {
+      "glyph": "😆",
+      "label": "笑翻了",
+      "name": "Grinning squinting face",
+      "category": "情绪",
+      "keywords": [
+        "大笑",
+        "开心"
+      ],
+      "id": "1f606",
+      "unicode": "1F606",
+      "shortcode": ":grinning_squinting_face:",
+      "sourcePackagePath": "package/assets/1f606.webp",
+      "sourceSha256": "6685bc96ebf0beaa4a7072d958e8cb34ef7176f8a483a3b269a8cbeff2773525",
+      "originalBytes": 5254,
+      "upstreamReferencePath": "assets/Grinning squinting face/3D/grinning_squinting_face_3d.png"
+    },
+    {
+      "glyph": "😅",
+      "label": "尴尬笑",
+      "name": "Grinning face with sweat",
+      "category": "情绪",
+      "keywords": [
+        "汗",
+        "尴尬"
+      ],
+      "id": "1f605",
+      "unicode": "1F605",
+      "shortcode": ":grinning_face_with_sweat:",
+      "sourcePackagePath": "package/assets/1f605.webp",
+      "sourceSha256": "fd6e7c7ad6639a09e1faf35dafeeeb3174ad06df8c34f2f7026ce0d7adf7b41d",
+      "originalBytes": 5442,
+      "upstreamReferencePath": "assets/Grinning face with sweat/3D/grinning_face_with_sweat_3d.png"
+    },
+    {
+      "glyph": "😂",
+      "label": "笑哭",
+      "name": "Face with tears of joy",
+      "category": "情绪",
+      "keywords": [
+        "大笑",
+        "眼泪"
+      ],
+      "id": "1f602",
+      "unicode": "1F602",
+      "shortcode": ":face_with_tears_of_joy:",
+      "sourcePackagePath": "package/assets/1f602.webp",
+      "sourceSha256": "d8c52c2518d763cfc191c34afd2c7e911ddcff6ed00e8e41ead459da0f3adacf",
+      "originalBytes": 5882,
+      "upstreamReferencePath": "assets/Face with tears of joy/3D/face_with_tears_of_joy_3d.png"
+    },
+    {
+      "glyph": "🤣",
+      "label": "笑到打滚",
+      "name": "Rolling on the floor laughing",
+      "category": "情绪",
+      "keywords": [
+        "大笑",
+        "笑哭"
+      ],
+      "id": "1f923",
+      "unicode": "1F923",
+      "shortcode": ":rolling_on_the_floor_laughing:",
+      "sourcePackagePath": "package/assets/1f923.webp",
+      "sourceSha256": "17ad7c9c880e09c07f02a9870cf43cc743fa9297a5de08fae46edb8ce2f626d7",
+      "originalBytes": 6528,
+      "upstreamReferencePath": "assets/Rolling on the floor laughing/3D/rolling_on_the_floor_laughing_3d.png"
+    },
+    {
+      "glyph": "🙂",
+      "label": "微笑",
+      "name": "Slightly smiling face",
+      "category": "情绪",
+      "keywords": [
+        "笑",
+        "礼貌"
+      ],
+      "id": "1f642",
+      "unicode": "1F642",
+      "shortcode": ":slightly_smiling_face:",
+      "sourcePackagePath": "package/assets/1f642.webp",
+      "sourceSha256": "cf4a1c4ab311f028dc9ecf3939114324fcd3467306ee7db58e19fd4f2f6fc8c2",
+      "originalBytes": 5556,
+      "upstreamReferencePath": "assets/Slightly smiling face/3D/slightly_smiling_face_3d.png"
+    },
+    {
+      "glyph": "🙃",
+      "label": "倒脸",
+      "name": "Upside-down face",
+      "category": "情绪",
+      "keywords": [
+        "无语",
+        "反话"
+      ],
+      "id": "1f643",
+      "unicode": "1F643",
+      "shortcode": ":upside-down_face:",
+      "sourcePackagePath": "package/assets/1f643.webp",
+      "sourceSha256": "d3c76efe807b547e12aeabc6a80ed218347f599419b327a5b8d1c74d29852324",
+      "originalBytes": 5612,
+      "upstreamReferencePath": "assets/Upside-down face/3D/upside-down_face_3d.png"
+    },
+    {
+      "glyph": "😉",
+      "label": "眨眼",
+      "name": "Winking face",
+      "category": "情绪",
+      "keywords": [
+        "wink"
+      ],
+      "id": "1f609",
+      "unicode": "1F609",
+      "shortcode": ":winking_face:",
+      "sourcePackagePath": "package/assets/1f609.webp",
+      "sourceSha256": "ff1af2412152fc36672294f0835625d0cead79b8014a4281a8e3a895c2568318",
+      "originalBytes": 6248,
+      "upstreamReferencePath": "assets/Winking face/3D/winking_face_3d.png"
+    },
+    {
+      "glyph": "😊",
+      "label": "害羞微笑",
+      "name": "Smiling face with smiling eyes",
+      "category": "情绪",
+      "keywords": [
+        "开心",
+        "害羞"
+      ],
+      "id": "1f60a",
+      "unicode": "1F60A",
+      "shortcode": ":smiling_face_with_smiling_eyes:",
+      "sourcePackagePath": "package/assets/1f60a.webp",
+      "sourceSha256": "b90a80c46360f663c9db3cbe4e17d45d889878a4ab455c31498278a31046cdcb",
+      "originalBytes": 4974,
+      "upstreamReferencePath": "assets/Smiling face with smiling eyes/3D/smiling_face_with_smiling_eyes_3d.png"
+    },
+    {
+      "glyph": "😇",
+      "label": "天使",
+      "name": "Smiling face with halo",
+      "category": "情绪",
+      "keywords": [
+        "乖"
+      ],
+      "id": "1f607",
+      "unicode": "1F607",
+      "shortcode": ":smiling_face_with_halo:",
+      "sourcePackagePath": "package/assets/1f607.webp",
+      "sourceSha256": "3ae7deca50177ced925b34e286f2ca82b9d4b96cf4a8a4c40218841726f28c31",
+      "originalBytes": 6352,
+      "upstreamReferencePath": "assets/Smiling face with halo/3D/smiling_face_with_halo_3d.png"
+    },
+    {
+      "glyph": "🥰",
+      "label": "爱意满满",
+      "name": "Smiling face with hearts",
+      "category": "情绪",
+      "keywords": [
+        "爱",
+        "喜欢"
+      ],
+      "id": "1f970",
+      "unicode": "1F970",
+      "shortcode": ":smiling_face_with_hearts:",
+      "sourcePackagePath": "package/assets/1f970.webp",
+      "sourceSha256": "03ffaa92b8a617ec644fdb7f190c7dcf0b25c78f69c79882467bd90f673d6d33",
+      "originalBytes": 6570,
+      "upstreamReferencePath": "assets/Smiling face with hearts/3D/smiling_face_with_hearts_3d.png"
+    },
+    {
+      "glyph": "😍",
+      "label": "花痴",
+      "name": "Smiling face with heart-eyes",
+      "category": "情绪",
+      "keywords": [
+        "喜欢",
+        "爱"
+      ],
+      "id": "1f60d",
+      "unicode": "1F60D",
+      "shortcode": ":smiling_face_with_heart-eyes:",
+      "sourcePackagePath": "package/assets/1f60d.webp",
+      "sourceSha256": "658e7f3625fd8778a19fb9ba9074a28ff9e6329729fe3c247d2cf4fb85e964c4",
+      "originalBytes": 5316,
+      "upstreamReferencePath": "assets/Smiling face with heart-eyes/3D/smiling_face_with_heart-eyes_3d.png"
+    },
+    {
+      "glyph": "🤩",
+      "label": "星星眼",
+      "name": "Star-struck",
+      "category": "情绪",
+      "keywords": [
+        "崇拜",
+        "惊喜"
+      ],
+      "id": "1f929",
+      "unicode": "1F929",
+      "shortcode": ":star-struck:",
+      "sourcePackagePath": "package/assets/1f929.webp",
+      "sourceSha256": "b2400786f74473fab190d82ebfb3289bb872a9c9b2efe1121d88de646c408a62",
+      "originalBytes": 5954,
+      "upstreamReferencePath": "assets/Star-struck/3D/star-struck_3d.png"
+    },
+    {
+      "glyph": "😘",
+      "label": "飞吻",
+      "name": "Face blowing a kiss",
+      "category": "情绪",
+      "keywords": [
+        "亲亲",
+        "爱"
+      ],
+      "id": "1f618",
+      "unicode": "1F618",
+      "shortcode": ":face_blowing_a_kiss:",
+      "sourcePackagePath": "package/assets/1f618.webp",
+      "sourceSha256": "a3d44d4dd72b9320508d32b2142993857efc2e28e6946c5ea28bae1d20555b67",
+      "originalBytes": 6102,
+      "upstreamReferencePath": "assets/Face blowing a kiss/3D/face_blowing_a_kiss_3d.png"
+    },
+    {
+      "glyph": "😗",
+      "label": "亲一下",
+      "name": "Kissing face",
+      "category": "情绪",
+      "keywords": [
+        "亲亲"
+      ],
+      "id": "1f617",
+      "unicode": "1F617",
+      "shortcode": ":kissing_face:",
+      "sourcePackagePath": "package/assets/1f617.webp",
+      "sourceSha256": "ba292172e3e830c310fc0c71232a07565cc29b65334fe01ddb7bf09ac2b1c694",
+      "originalBytes": 5482,
+      "upstreamReferencePath": "assets/Kissing face/3D/kissing_face_3d.png"
+    },
+    {
+      "glyph": "😚",
+      "label": "闭眼亲亲",
+      "name": "Kissing face with closed eyes",
+      "category": "情绪",
+      "keywords": [
+        "吻"
+      ],
+      "id": "1f61a",
+      "unicode": "1F61A",
+      "shortcode": ":kissing_face_with_closed_eyes:",
+      "sourcePackagePath": "package/assets/1f61a.webp",
+      "sourceSha256": "7a599ee76a7d0e0330387fb5cfc956c88f3e2d8a295d9a8c0090087adf85fb29",
+      "originalBytes": 5386,
+      "upstreamReferencePath": "assets/Kissing face with closed eyes/3D/kissing_face_with_closed_eyes_3d.png"
+    },
+    {
+      "glyph": "😙",
+      "label": "微笑亲亲",
+      "name": "Kissing face with smiling eyes",
+      "category": "情绪",
+      "keywords": [
+        "吻"
+      ],
+      "id": "1f619",
+      "unicode": "1F619",
+      "shortcode": ":kissing_face_with_smiling_eyes:",
+      "sourcePackagePath": "package/assets/1f619.webp",
+      "sourceSha256": "e632ef337a51d49860f295fc0e9504ea82a3aa5ce8460d88b189591463834706",
+      "originalBytes": 4636,
+      "upstreamReferencePath": "assets/Kissing face with smiling eyes/3D/kissing_face_with_smiling_eyes_3d.png"
+    },
+    {
+      "glyph": "😋",
+      "label": "好吃",
+      "name": "Face savoring food",
+      "category": "情绪",
+      "keywords": [
+        "馋"
+      ],
+      "id": "1f60b",
+      "unicode": "1F60B",
+      "shortcode": ":face_savoring_food:",
+      "sourcePackagePath": "package/assets/1f60b.webp",
+      "sourceSha256": "b2d875a5996deef3b69f56a7ff8d27f8e84b6d906591d2b9fc32fe8e4d7e86b7",
+      "originalBytes": 5204,
+      "upstreamReferencePath": "assets/Face savoring food/3D/face_savoring_food_3d.png"
+    },
+    {
+      "glyph": "😛",
+      "label": "吐舌",
+      "name": "Face with tongue",
+      "category": "情绪",
+      "keywords": [
+        "调皮"
+      ],
+      "id": "1f61b",
+      "unicode": "1F61B",
+      "shortcode": ":face_with_tongue:",
+      "sourcePackagePath": "package/assets/1f61b.webp",
+      "sourceSha256": "f5e65dbb4a90f0510a4aaf7e6846429af5d8d5168b8a39eff7dcb218594a7fb3",
+      "originalBytes": 5716,
+      "upstreamReferencePath": "assets/Face with tongue/3D/face_with_tongue_3d.png"
+    },
+    {
+      "glyph": "😜",
+      "label": "眨眼吐舌",
+      "name": "Winking face with tongue",
+      "category": "情绪",
+      "keywords": [
+        "调皮"
+      ],
+      "id": "1f61c",
+      "unicode": "1F61C",
+      "shortcode": ":winking_face_with_tongue:",
+      "sourcePackagePath": "package/assets/1f61c.webp",
+      "sourceSha256": "219f233d69396d8ae735d59237e359a80ff3a595994a9235d89ce78a5977c5f5",
+      "originalBytes": 6294,
+      "upstreamReferencePath": "assets/Winking face with tongue/3D/winking_face_with_tongue_3d.png"
+    },
+    {
+      "glyph": "🤪",
+      "label": "搞怪",
+      "name": "Zany face",
+      "category": "情绪",
+      "keywords": [
+        "调皮",
+        "疯狂"
+      ],
+      "id": "1f92a",
+      "unicode": "1F92A",
+      "shortcode": ":zany_face:",
+      "sourcePackagePath": "package/assets/1f92a.webp",
+      "sourceSha256": "1e111393d9a21530231e5c4fe57dff6dcdf8b052b65f3fddc216081cc8c63bde",
+      "originalBytes": 7206,
+      "upstreamReferencePath": "assets/Zany face/3D/zany_face_3d.png"
+    },
+    {
+      "glyph": "😝",
+      "label": "闭眼吐舌",
+      "name": "Squinting face with tongue",
+      "category": "情绪",
+      "keywords": [
+        "调皮"
+      ],
+      "id": "1f61d",
+      "unicode": "1F61D",
+      "shortcode": ":squinting_face_with_tongue:",
+      "sourcePackagePath": "package/assets/1f61d.webp",
+      "sourceSha256": "fb089536a170fc599b758e0ab11580629298a4437adc5190d9c07f5db612f0ab",
+      "originalBytes": 5028,
+      "upstreamReferencePath": "assets/Squinting face with tongue/3D/squinting_face_with_tongue_3d.png"
+    },
+    {
+      "glyph": "🤑",
+      "label": "发财",
+      "name": "Money-mouth face",
+      "category": "情绪",
+      "keywords": [
+        "钱",
+        "富有"
+      ],
+      "id": "1f911",
+      "unicode": "1F911",
+      "shortcode": ":money-mouth_face:",
+      "sourcePackagePath": "package/assets/1f911.webp",
+      "sourceSha256": "c2461e3be773bdbd525de1e8d9587bd0e0b97ffb536e6c81a44d2a912e230d10",
+      "originalBytes": 6406,
+      "upstreamReferencePath": "assets/Money-mouth face/3D/money-mouth_face_3d.png"
+    },
+    {
+      "glyph": "🤗",
+      "label": "抱抱",
+      "name": "Hugging face",
+      "category": "情绪",
+      "keywords": [
+        "拥抱",
+        "安慰"
+      ],
+      "id": "1f917",
+      "unicode": "1F917",
+      "shortcode": ":hugging_face:",
+      "sourcePackagePath": "package/assets/1f917.webp",
+      "sourceSha256": "116462ca54cf035e53c141a37211147643002841d28c76694d799b230ab96b4e",
+      "originalBytes": 6400,
+      "upstreamReferencePath": "assets/Hugging face/3D/hugging_face_3d.png"
+    },
+    {
+      "glyph": "🤭",
+      "label": "偷笑",
+      "name": "Face with hand over mouth",
+      "category": "情绪",
+      "keywords": [
+        "捂嘴"
+      ],
+      "id": "1f92d",
+      "unicode": "1F92D",
+      "shortcode": ":face_with_hand_over_mouth:",
+      "sourcePackagePath": "package/assets/1f92d.webp",
+      "sourceSha256": "1cfbff9eb80d989c377fd314b802240be5353c9c76faf0967cd3841148cebb28",
+      "originalBytes": 4912,
+      "upstreamReferencePath": "assets/Face with hand over mouth/3D/face_with_hand_over_mouth_3d.png"
+    },
+    {
+      "glyph": "🤫",
+      "label": "嘘",
+      "name": "Shushing face",
+      "category": "情绪",
+      "keywords": [
+        "安静",
+        "保密"
+      ],
+      "id": "1f92b",
+      "unicode": "1F92B",
+      "shortcode": ":shushing_face:",
+      "sourcePackagePath": "package/assets/1f92b.webp",
+      "sourceSha256": "c11f314e078d2d4cbcf9e1a224df62cd30885f8f83c6b9077f6257a93c6e0bac",
+      "originalBytes": 5664,
+      "upstreamReferencePath": "assets/Shushing face/3D/shushing_face_3d.png"
+    },
+    {
+      "glyph": "🤔",
+      "label": "思考",
+      "name": "Thinking face",
+      "category": "情绪",
+      "keywords": [
+        "想",
+        "疑问"
+      ],
+      "id": "1f914",
+      "unicode": "1F914",
+      "shortcode": ":thinking_face:",
+      "sourcePackagePath": "package/assets/1f914.webp",
+      "sourceSha256": "e113ed19dbd5745ce370c95329484cbd72eced09dc0f6d89214571227a42dba0",
+      "originalBytes": 6476,
+      "upstreamReferencePath": "assets/Thinking face/3D/thinking_face_3d.png"
+    },
+    {
+      "glyph": "🤐",
+      "label": "闭嘴",
+      "name": "Zipper-mouth face",
+      "category": "情绪",
+      "keywords": [
+        "保密"
+      ],
+      "id": "1f910",
+      "unicode": "1F910",
+      "shortcode": ":zipper-mouth_face:",
+      "sourcePackagePath": "package/assets/1f910.webp",
+      "sourceSha256": "70b0391b7935e3c5dfae19dae085e8ada853e01a077568510d6af608ee22d2d2",
+      "originalBytes": 6656,
+      "upstreamReferencePath": "assets/Zipper-mouth face/3D/zipper-mouth_face_3d.png"
+    },
+    {
+      "glyph": "🤨",
+      "label": "挑眉",
+      "name": "Face with raised eyebrow",
+      "category": "情绪",
+      "keywords": [
+        "怀疑"
+      ],
+      "id": "1f928",
+      "unicode": "1F928",
+      "shortcode": ":face_with_raised_eyebrow:",
+      "sourcePackagePath": "package/assets/1f928.webp",
+      "sourceSha256": "f334039cb8563f51043fa4da75c83bb6349f515ab247862977c32b544c83f7c2",
+      "originalBytes": 5602,
+      "upstreamReferencePath": "assets/Face with raised eyebrow/3D/face_with_raised_eyebrow_3d.png"
+    },
+    {
+      "glyph": "😐",
+      "label": "面无表情",
+      "name": "Neutral face",
+      "category": "情绪",
+      "keywords": [
+        "无语"
+      ],
+      "id": "1f610",
+      "unicode": "1F610",
+      "shortcode": ":neutral_face:",
+      "sourcePackagePath": "package/assets/1f610.webp",
+      "sourceSha256": "3aab05fe3fcfc43e3a87593f3f22be8cb446e4bf8c31ea561bae67ced08e2b3a",
+      "originalBytes": 5244,
+      "upstreamReferencePath": "assets/Neutral face/3D/neutral_face_3d.png"
+    },
+    {
+      "glyph": "😑",
+      "label": "无言",
+      "name": "Expressionless face",
+      "category": "情绪",
+      "keywords": [
+        "无语"
+      ],
+      "id": "1f611",
+      "unicode": "1F611",
+      "shortcode": ":expressionless_face:",
+      "sourcePackagePath": "package/assets/1f611.webp",
+      "sourceSha256": "ce119fc4fd40337968731dffd92a7ab30db56cc47dbebd610e320f73109d3b3c",
+      "originalBytes": 3948,
+      "upstreamReferencePath": "assets/Expressionless face/3D/expressionless_face_3d.png"
+    },
+    {
+      "glyph": "😶",
+      "label": "沉默",
+      "name": "Face without mouth",
+      "category": "情绪",
+      "keywords": [
+        "不说话"
+      ],
+      "id": "1f636",
+      "unicode": "1F636",
+      "shortcode": ":face_without_mouth:",
+      "sourcePackagePath": "package/assets/1f636.webp",
+      "sourceSha256": "a80a5ae9a999d1f9983a234c4f4939e4de4fa81ef9c9f75e3e111a70ca4df6ec",
+      "originalBytes": 5056,
+      "upstreamReferencePath": "assets/Face without mouth/3D/face_without_mouth_3d.png"
+    },
+    {
+      "glyph": "😏",
+      "label": "坏笑",
+      "name": "Smirking face",
+      "category": "情绪",
+      "keywords": [
+        "得意"
+      ],
+      "id": "1f60f",
+      "unicode": "1F60F",
+      "shortcode": ":smirking_face:",
+      "sourcePackagePath": "package/assets/1f60f.webp",
+      "sourceSha256": "540ecc8002513c05a746c0bf18988fc7d662e6f411d46a07fe1d679d6dfb9879",
+      "originalBytes": 5366,
+      "upstreamReferencePath": "assets/Smirking face/3D/smirking_face_3d.png"
+    },
+    {
+      "glyph": "😒",
+      "label": "不爽",
+      "name": "Unamused face",
+      "category": "情绪",
+      "keywords": [
+        "嫌弃"
+      ],
+      "id": "1f612",
+      "unicode": "1F612",
+      "shortcode": ":unamused_face:",
+      "sourcePackagePath": "package/assets/1f612.webp",
+      "sourceSha256": "c584e838f0f064b67e3990b58bb583e83224bb305a572d3e0b4b743367e95d1e",
+      "originalBytes": 5314,
+      "upstreamReferencePath": "assets/Unamused face/3D/unamused_face_3d.png"
+    },
+    {
+      "glyph": "🙄",
+      "label": "白眼",
+      "name": "Face with rolling eyes",
+      "category": "情绪",
+      "keywords": [
+        "无语"
+      ],
+      "id": "1f644",
+      "unicode": "1F644",
+      "shortcode": ":face_with_rolling_eyes:",
+      "sourcePackagePath": "package/assets/1f644.webp",
+      "sourceSha256": "0f2cfa25ab39269e9ebfd21c238e017cab6a04d266fa604951d9a6883bbddfce",
+      "originalBytes": 4806,
+      "upstreamReferencePath": "assets/Face with rolling eyes/3D/face_with_rolling_eyes_3d.png"
+    },
+    {
+      "glyph": "😬",
+      "label": "龇牙",
+      "name": "Grimacing face",
+      "category": "情绪",
+      "keywords": [
+        "尴尬"
+      ],
+      "id": "1f62c",
+      "unicode": "1F62C",
+      "shortcode": ":grimacing_face:",
+      "sourcePackagePath": "package/assets/1f62c.webp",
+      "sourceSha256": "c62712009962395fad7a82424aaa8cb34f04322b1dca93603f0bfd4039829e09",
+      "originalBytes": 5854,
+      "upstreamReferencePath": "assets/Grimacing face/3D/grimacing_face_3d.png"
+    },
+    {
+      "glyph": "😮‍💨",
+      "label": "叹气",
+      "name": "Face exhaling",
+      "category": "情绪",
+      "keywords": [
+        "累"
+      ],
+      "id": "1f62e-200d-1f4a8",
+      "unicode": "1F62E 200D 1F4A8",
+      "shortcode": ":face_exhaling:",
+      "sourcePackagePath": "package/assets/1f62e-200d-1f4a8.webp",
+      "sourceSha256": "d9479b54f83eebac2eaa099cb612670b4d378094c362300ccf2f39b1779c7223",
+      "originalBytes": 5628,
+      "upstreamReferencePath": "assets/Face exhaling/3D/face_exhaling_3d.png"
+    },
+    {
+      "glyph": "😌",
+      "label": "舒心",
+      "name": "Relieved face",
+      "category": "情绪",
+      "keywords": [
+        "放松"
+      ],
+      "id": "1f60c",
+      "unicode": "1F60C",
+      "shortcode": ":relieved_face:",
+      "sourcePackagePath": "package/assets/1f60c.webp",
+      "sourceSha256": "55b9e3bd7e07db316ef86806350e653c8e2223f3cd78122d7c650524690d4df5",
+      "originalBytes": 5460,
+      "upstreamReferencePath": "assets/Relieved face/3D/relieved_face_3d.png"
+    },
+    {
+      "glyph": "😔",
+      "label": "失落",
+      "name": "Pensive face",
+      "category": "情绪",
+      "keywords": [
+        "难过"
+      ],
+      "id": "1f614",
+      "unicode": "1F614",
+      "shortcode": ":pensive_face:",
+      "sourcePackagePath": "package/assets/1f614.webp",
+      "sourceSha256": "0653c115aba4b6ebab0ca21b0d47257f5a6694ac15b973ce7efa5168520abc93",
+      "originalBytes": 4990,
+      "upstreamReferencePath": "assets/Pensive face/3D/pensive_face_3d.png"
+    },
+    {
+      "glyph": "😪",
+      "label": "困困",
+      "name": "Sleepy face",
+      "category": "情绪",
+      "keywords": [
+        "睡觉"
+      ],
+      "id": "1f62a",
+      "unicode": "1F62A",
+      "shortcode": ":sleepy_face:",
+      "sourcePackagePath": "package/assets/1f62a.webp",
+      "sourceSha256": "2ef93e9d8e7b141f44954d6ddf279eab22af50fa2125ce98f91180219c8f9c51",
+      "originalBytes": 5506,
+      "upstreamReferencePath": "assets/Sleepy face/3D/sleepy_face_3d.png"
+    },
+    {
+      "glyph": "🤤",
+      "label": "流口水",
+      "name": "Drooling face",
+      "category": "情绪",
+      "keywords": [
+        "馋"
+      ],
+      "id": "1f924",
+      "unicode": "1F924",
+      "shortcode": ":drooling_face:",
+      "sourcePackagePath": "package/assets/1f924.webp",
+      "sourceSha256": "d5adc059ddf4cf41c1ac9170fa74ea664e9ecbe28dd2731dee0a86a0f87081ce",
+      "originalBytes": 5608,
+      "upstreamReferencePath": "assets/Drooling face/3D/drooling_face_3d.png"
+    },
+    {
+      "glyph": "😴",
+      "label": "睡觉",
+      "name": "Sleeping face",
+      "category": "情绪",
+      "keywords": [
+        "困",
+        "晚安"
+      ],
+      "id": "1f634",
+      "unicode": "1F634",
+      "shortcode": ":sleeping_face:",
+      "sourcePackagePath": "package/assets/1f634.webp",
+      "sourceSha256": "8e990a9ae25ad7186787c2c2908251e9a1b28afd4fd2056fff55be848ce3fc6b",
+      "originalBytes": 6060,
+      "upstreamReferencePath": "assets/Sleeping face/3D/sleeping_face_3d.png"
+    },
+    {
+      "glyph": "😷",
+      "label": "口罩",
+      "name": "Face with medical mask",
+      "category": "情绪",
+      "keywords": [
+        "生病"
+      ],
+      "id": "1f637",
+      "unicode": "1F637",
+      "shortcode": ":face_with_medical_mask:",
+      "sourcePackagePath": "package/assets/1f637.webp",
+      "sourceSha256": "3efaabb10465ca9e3aff623fbf3f1da592f692595c78ab581de645c304e4dd98",
+      "originalBytes": 5780,
+      "upstreamReferencePath": "assets/Face with medical mask/3D/face_with_medical_mask_3d.png"
+    },
+    {
+      "glyph": "🤒",
+      "label": "发烧",
+      "name": "Face with thermometer",
+      "category": "情绪",
+      "keywords": [
+        "生病"
+      ],
+      "id": "1f912",
+      "unicode": "1F912",
+      "shortcode": ":face_with_thermometer:",
+      "sourcePackagePath": "package/assets/1f912.webp",
+      "sourceSha256": "420bbc279fcfff2c3d59c37cfede482904c3dbe69241836b7c2c9902f9c4e057",
+      "originalBytes": 6712,
+      "upstreamReferencePath": "assets/Face with thermometer/3D/face_with_thermometer_3d.png"
+    },
+    {
+      "glyph": "🤕",
+      "label": "受伤",
+      "name": "Face with head-bandage",
+      "category": "情绪",
+      "keywords": [
+        "生病"
+      ],
+      "id": "1f915",
+      "unicode": "1F915",
+      "shortcode": ":face_with_head-bandage:",
+      "sourcePackagePath": "package/assets/1f915.webp",
+      "sourceSha256": "897ba7132819637c40e0791cffe3df25f0d456a8e59d548200f17e0247cc5ad9",
+      "originalBytes": 5908,
+      "upstreamReferencePath": "assets/Face with head-bandage/3D/face_with_head-bandage_3d.png"
+    },
+    {
+      "glyph": "🤢",
+      "label": "恶心",
+      "name": "Nauseated face",
+      "category": "情绪",
+      "keywords": [
+        "难受"
+      ],
+      "id": "1f922",
+      "unicode": "1F922",
+      "shortcode": ":nauseated_face:",
+      "sourcePackagePath": "package/assets/1f922.webp",
+      "sourceSha256": "9db816c4ce39e8c64a0f259ba496524b17aeb2811b4b9d965f2f896c83149cf0",
+      "originalBytes": 5960,
+      "upstreamReferencePath": "assets/Nauseated face/3D/nauseated_face_3d.png"
+    },
+    {
+      "glyph": "🤮",
+      "label": "呕吐",
+      "name": "Face vomiting",
+      "category": "情绪",
+      "keywords": [
+        "恶心"
+      ],
+      "id": "1f92e",
+      "unicode": "1F92E",
+      "shortcode": ":face_vomiting:",
+      "sourcePackagePath": "package/assets/1f92e.webp",
+      "sourceSha256": "1d7c5c5191b4199ab944cf85734e72d012f16918fc8cfc05f9279275e2535d79",
+      "originalBytes": 5454,
+      "upstreamReferencePath": "assets/Face vomiting/3D/face_vomiting_3d.png"
+    },
+    {
+      "glyph": "🤧",
+      "label": "打喷嚏",
+      "name": "Sneezing face",
+      "category": "情绪",
+      "keywords": [
+        "感冒"
+      ],
+      "id": "1f927",
+      "unicode": "1F927",
+      "shortcode": ":sneezing_face:",
+      "sourcePackagePath": "package/assets/1f927.webp",
+      "sourceSha256": "93e0105ddd56bbbcb47aa8c342ee8154884fe6bbf2f211c4475d15a4cc8d7143",
+      "originalBytes": 5580,
+      "upstreamReferencePath": "assets/Sneezing face/3D/sneezing_face_3d.png"
+    },
+    {
+      "glyph": "🥵",
+      "label": "热死了",
+      "name": "Hot face",
+      "category": "情绪",
+      "keywords": [
+        "热"
+      ],
+      "id": "1f975",
+      "unicode": "1F975",
+      "shortcode": ":hot_face:",
+      "sourcePackagePath": "package/assets/1f975.webp",
+      "sourceSha256": "715b6666fced8f0c2d8760e9490c97ba02a85417bf16c9c7ce424bb5c155e97e",
+      "originalBytes": 6478,
+      "upstreamReferencePath": "assets/Hot face/3D/hot_face_3d.png"
+    },
+    {
+      "glyph": "🥶",
+      "label": "冷死了",
+      "name": "Cold face",
+      "category": "情绪",
+      "keywords": [
+        "冷"
+      ],
+      "id": "1f976",
+      "unicode": "1F976",
+      "shortcode": ":cold_face:",
+      "sourcePackagePath": "package/assets/1f976.webp",
+      "sourceSha256": "7d9e37f5333d1d3a683e4e85a891d46bc1f4067595898ce9f2e8285991e8e99d",
+      "originalBytes": 5900,
+      "upstreamReferencePath": "assets/Cold face/3D/cold_face_3d.png"
+    },
+    {
+      "glyph": "🥴",
+      "label": "晕乎乎",
+      "name": "Woozy face",
+      "category": "情绪",
+      "keywords": [
+        "醉"
+      ],
+      "id": "1f974",
+      "unicode": "1F974",
+      "shortcode": ":woozy_face:",
+      "sourcePackagePath": "package/assets/1f974.webp",
+      "sourceSha256": "4a57a2fb96c160b517b92c617c4cc91256883c49d742c516275b74ae23f49e63",
+      "originalBytes": 6184,
+      "upstreamReferencePath": "assets/Woozy face/3D/woozy_face_3d.png"
+    },
+    {
+      "glyph": "😵",
+      "label": "晕倒",
+      "name": "Knocked-out face",
+      "category": "情绪",
+      "keywords": [
+        "晕"
+      ],
+      "id": "1f635",
+      "unicode": "1F635",
+      "shortcode": ":knocked-out_face:",
+      "sourcePackagePath": "package/assets/1f635.webp",
+      "sourceSha256": "eeb41622ffebd13d173328556cc3bf95e4414f1b6f740a76929595c55dc35c22",
+      "originalBytes": 5310,
+      "upstreamReferencePath": "assets/Knocked-out face/3D/knocked-out_face_3d.png"
+    },
+    {
+      "glyph": "🤯",
+      "label": "脑袋爆炸",
+      "name": "Exploding head",
+      "category": "情绪",
+      "keywords": [
+        "震惊"
+      ],
+      "id": "1f92f",
+      "unicode": "1F92F",
+      "shortcode": ":exploding_head:",
+      "sourcePackagePath": "package/assets/1f92f.webp",
+      "sourceSha256": "5243de0964141fcadeaafc0895a5b351f2f52f4871724b91bee0e70385f7850f",
+      "originalBytes": 7076,
+      "upstreamReferencePath": "assets/Exploding head/3D/exploding_head_3d.png"
+    },
+    {
+      "glyph": "🤠",
+      "label": "牛仔",
+      "name": "Cowboy hat face",
+      "category": "情绪",
+      "keywords": [
+        "帽子"
+      ],
+      "id": "1f920",
+      "unicode": "1F920",
+      "shortcode": ":cowboy_hat_face:",
+      "sourcePackagePath": "package/assets/1f920.webp",
+      "sourceSha256": "f88deb1afaa70828292e7b94d7d86b524d153e98e33507c58222105d8c254f85",
+      "originalBytes": 6692,
+      "upstreamReferencePath": "assets/Cowboy hat face/3D/cowboy_hat_face_3d.png"
+    },
+    {
+      "glyph": "🥳",
+      "label": "庆祝",
+      "name": "Partying face",
+      "category": "情绪",
+      "keywords": [
+        "派对"
+      ],
+      "id": "1f973",
+      "unicode": "1F973",
+      "shortcode": ":partying_face:",
+      "sourcePackagePath": "package/assets/1f973.webp",
+      "sourceSha256": "5e56ee1b76cf5dfba8439a912d4d1cac451bad7a52a190457964d7f27a4f1222",
+      "originalBytes": 7108,
+      "upstreamReferencePath": "assets/Partying face/3D/partying_face_3d.png"
+    },
+    {
+      "glyph": "😎",
+      "label": "酷",
+      "name": "Smiling face with sunglasses",
+      "category": "情绪",
+      "keywords": [
+        "墨镜",
+        "得意"
+      ],
+      "id": "1f60e",
+      "unicode": "1F60E",
+      "shortcode": ":smiling_face_with_sunglasses:",
+      "sourcePackagePath": "package/assets/1f60e.webp",
+      "sourceSha256": "83f3eb70572d7448cf1e5711c11eb4b8fee01ab707ef8e3f8f7400d34b593484",
+      "originalBytes": 6088,
+      "upstreamReferencePath": "assets/Smiling face with sunglasses/3D/smiling_face_with_sunglasses_3d.png"
+    },
+    {
+      "glyph": "🤓",
+      "label": "书呆子",
+      "name": "Nerd face",
+      "category": "情绪",
+      "keywords": [
+        "眼镜"
+      ],
+      "id": "1f913",
+      "unicode": "1F913",
+      "shortcode": ":nerd_face:",
+      "sourcePackagePath": "package/assets/1f913.webp",
+      "sourceSha256": "c2b06b66aeeb6569dd02249e59c8ee7c69be6c81433b2e5bfcdaeda23d327988",
+      "originalBytes": 6982,
+      "upstreamReferencePath": "assets/Nerd face/3D/nerd_face_3d.png"
+    },
+    {
+      "glyph": "🧐",
+      "label": "仔细看",
+      "name": "Face with monocle",
+      "category": "情绪",
+      "keywords": [
+        "怀疑"
+      ],
+      "id": "1f9d0",
+      "unicode": "1F9D0",
+      "shortcode": ":face_with_monocle:",
+      "sourcePackagePath": "package/assets/1f9d0.webp",
+      "sourceSha256": "ba984b23e9553a87e0ac433a9d49647e27b830fc6d8ad3b3178b44a6e5f2dec6",
+      "originalBytes": 6506,
+      "upstreamReferencePath": "assets/Face with monocle/3D/face_with_monocle_3d.png"
+    },
+    {
+      "glyph": "😕",
+      "label": "困惑",
+      "name": "Confused face",
+      "category": "情绪",
+      "keywords": [
+        "疑问"
+      ],
+      "id": "1f615",
+      "unicode": "1F615",
+      "shortcode": ":confused_face:",
+      "sourcePackagePath": "package/assets/1f615.webp",
+      "sourceSha256": "0e0d351fe513a9777485c43567c6c5c9c7819dac8f538a998f0e55faf95a9033",
+      "originalBytes": 5540,
+      "upstreamReferencePath": "assets/Confused face/3D/confused_face_3d.png"
+    },
+    {
+      "glyph": "😟",
+      "label": "担心",
+      "name": "Worried face",
+      "category": "情绪",
+      "keywords": [
+        "难过"
+      ],
+      "id": "1f61f",
+      "unicode": "1F61F",
+      "shortcode": ":worried_face:",
+      "sourcePackagePath": "package/assets/1f61f.webp",
+      "sourceSha256": "e893e35e1fa9ea77caf1979b9092c78ceac322cb167cdc457b10586ba96723d1",
+      "originalBytes": 5956,
+      "upstreamReferencePath": "assets/Worried face/3D/worried_face_3d.png"
+    },
+    {
+      "glyph": "🙁",
+      "label": "不开心",
+      "name": "Slightly frowning face",
+      "category": "情绪",
+      "keywords": [
+        "难过"
+      ],
+      "id": "1f641",
+      "unicode": "1F641",
+      "shortcode": ":slightly_frowning_face:",
+      "sourcePackagePath": "package/assets/1f641.webp",
+      "sourceSha256": "d3907b0228040e10ad59ddda8d9db3f571904691baf9f2dc04776b902d2b4539",
+      "originalBytes": 5564,
+      "upstreamReferencePath": "assets/Slightly frowning face/3D/slightly_frowning_face_3d.png"
+    },
+    {
+      "glyph": "☹️",
+      "label": "皱眉",
+      "name": "Frowning face",
+      "category": "情绪",
+      "keywords": [
+        "难过"
+      ],
+      "id": "2639",
+      "unicode": "2639 FE0F",
+      "shortcode": ":frowning_face:",
+      "sourcePackagePath": "package/assets/2639-fe0f.webp",
+      "sourceSha256": "5469005279d99153ec984aaa15a18e39133814b00a3caf454ca6315fc586fdd4",
+      "originalBytes": 5714,
+      "upstreamReferencePath": "assets/Frowning face/3D/frowning_face_3d.png"
+    },
+    {
+      "glyph": "😮",
+      "label": "惊讶",
+      "name": "Face with open mouth",
+      "category": "情绪",
+      "keywords": [
+        "震惊"
+      ],
+      "id": "1f62e",
+      "unicode": "1F62E",
+      "shortcode": ":face_with_open_mouth:",
+      "sourcePackagePath": "package/assets/1f62e.webp",
+      "sourceSha256": "ad7d322dfaa247c5b8d98d0a8358358c2559f976ca0a17551cba394a04233430",
+      "originalBytes": 5334,
+      "upstreamReferencePath": "assets/Face with open mouth/3D/face_with_open_mouth_3d.png"
+    },
+    {
+      "glyph": "😯",
+      "label": "愣住",
+      "name": "Hushed face",
+      "category": "情绪",
+      "keywords": [
+        "惊讶"
+      ],
+      "id": "1f62f",
+      "unicode": "1F62F",
+      "shortcode": ":hushed_face:",
+      "sourcePackagePath": "package/assets/1f62f.webp",
+      "sourceSha256": "824fdc66a414b7129ecb5c53e366a30f2e0c794e759f0521427d0a750ed82fe9",
+      "originalBytes": 5770,
+      "upstreamReferencePath": "assets/Hushed face/3D/hushed_face_3d.png"
+    },
+    {
+      "glyph": "😲",
+      "label": "吃惊",
+      "name": "Astonished face",
+      "category": "情绪",
+      "keywords": [
+        "惊讶"
+      ],
+      "id": "1f632",
+      "unicode": "1F632",
+      "shortcode": ":astonished_face:",
+      "sourcePackagePath": "package/assets/1f632.webp",
+      "sourceSha256": "521056466a4e0090c8979ad272443308733530260f1687bfad8c4fd5a3cdfa0d",
+      "originalBytes": 5758,
+      "upstreamReferencePath": "assets/Astonished face/3D/astonished_face_3d.png"
+    },
+    {
+      "glyph": "😳",
+      "label": "脸红",
+      "name": "Flushed face",
+      "category": "情绪",
+      "keywords": [
+        "害羞"
+      ],
+      "id": "1f633",
+      "unicode": "1F633",
+      "shortcode": ":flushed_face:",
+      "sourcePackagePath": "package/assets/1f633.webp",
+      "sourceSha256": "8fc9583f22aa6677d444b5d2d9d4432c8070c315f7033030456f263c3a40a87f",
+      "originalBytes": 5586,
+      "upstreamReferencePath": "assets/Flushed face/3D/flushed_face_3d.png"
+    },
+    {
+      "glyph": "🥺",
+      "label": "拜托",
+      "name": "Pleading face",
+      "category": "情绪",
+      "keywords": [
+        "可怜",
+        "求求"
+      ],
+      "id": "1f97a",
+      "unicode": "1F97A",
+      "shortcode": ":pleading_face:",
+      "sourcePackagePath": "package/assets/1f97a.webp",
+      "sourceSha256": "1469cae6f63b1c7621ba8a4cb280b657264050dc9bc4250434b4a13da29f3d4b",
+      "originalBytes": 6062,
+      "upstreamReferencePath": "assets/Pleading face/3D/pleading_face_3d.png"
+    },
+    {
+      "glyph": "😦",
+      "label": "惊愕",
+      "name": "Frowning face with open mouth",
+      "category": "情绪",
+      "keywords": [
+        "惊讶"
+      ],
+      "id": "1f626",
+      "unicode": "1F626",
+      "shortcode": ":frowning_face_with_open_mouth:",
+      "sourcePackagePath": "package/assets/1f626.webp",
+      "sourceSha256": "07d7856fce3756c17ee9ad1ea7a22302b66c38277e64cc5968e3ec265e05a20a",
+      "originalBytes": 5174,
+      "upstreamReferencePath": "assets/Frowning face with open mouth/3D/frowning_face_with_open_mouth_3d.png"
+    },
+    {
+      "glyph": "😧",
+      "label": "痛苦",
+      "name": "Anguished face",
+      "category": "情绪",
+      "keywords": [
+        "难受"
+      ],
+      "id": "1f627",
+      "unicode": "1F627",
+      "shortcode": ":anguished_face:",
+      "sourcePackagePath": "package/assets/1f627.webp",
+      "sourceSha256": "964addf80b58fcb090761bab9d8b93122c3adf78b72c2cc4ec8ae1c840685bce",
+      "originalBytes": 5846,
+      "upstreamReferencePath": "assets/Anguished face/3D/anguished_face_3d.png"
+    },
+    {
+      "glyph": "😨",
+      "label": "害怕",
+      "name": "Fearful face",
+      "category": "情绪",
+      "keywords": [
+        "惊恐"
+      ],
+      "id": "1f628",
+      "unicode": "1F628",
+      "shortcode": ":fearful_face:",
+      "sourcePackagePath": "package/assets/1f628.webp",
+      "sourceSha256": "fe0ba2baaf5029801e452036c9112d6859b1e6ee4a088377bdf729e27d2228fe",
+      "originalBytes": 5856,
+      "upstreamReferencePath": "assets/Fearful face/3D/fearful_face_3d.png"
+    },
+    {
+      "glyph": "😰",
+      "label": "紧张",
+      "name": "Anxious face with sweat",
+      "category": "情绪",
+      "keywords": [
+        "汗",
+        "担心"
+      ],
+      "id": "1f630",
+      "unicode": "1F630",
+      "shortcode": ":anxious_face_with_sweat:",
+      "sourcePackagePath": "package/assets/1f630.webp",
+      "sourceSha256": "6a8aed18a9cb6d8fc76747e94771fcde5bf77869782132fdb1a69588fc58c674",
+      "originalBytes": 6058,
+      "upstreamReferencePath": "assets/Anxious face with sweat/3D/anxious_face_with_sweat_3d.png"
+    },
+    {
+      "glyph": "😥",
+      "label": "委屈",
+      "name": "Sad but relieved face",
+      "category": "情绪",
+      "keywords": [
+        "难过"
+      ],
+      "id": "1f625",
+      "unicode": "1F625",
+      "shortcode": ":sad_but_relieved_face:",
+      "sourcePackagePath": "package/assets/1f625.webp",
+      "sourceSha256": "418a7aee8c8a114e385cfe38826c896a5596d4f509eb81142e79264b14e38b62",
+      "originalBytes": 6272,
+      "upstreamReferencePath": "assets/Sad but relieved face/3D/sad_but_relieved_face_3d.png"
+    },
+    {
+      "glyph": "😢",
+      "label": "难过",
+      "name": "Crying face",
+      "category": "情绪",
+      "keywords": [
+        "哭"
+      ],
+      "id": "1f622",
+      "unicode": "1F622",
+      "shortcode": ":crying_face:",
+      "sourcePackagePath": "package/assets/1f622.webp",
+      "sourceSha256": "c10a5cf868787d95ddc3197c98086a5f3f334b406f150a2fc22dcd0f105aa038",
+      "originalBytes": 6194,
+      "upstreamReferencePath": "assets/Crying face/3D/crying_face_3d.png"
+    },
+    {
+      "glyph": "😭",
+      "label": "大哭",
+      "name": "Loudly crying face",
+      "category": "情绪",
+      "keywords": [
+        "哭",
+        "眼泪"
+      ],
+      "id": "1f62d",
+      "unicode": "1F62D",
+      "shortcode": ":loudly_crying_face:",
+      "sourcePackagePath": "package/assets/1f62d.webp",
+      "sourceSha256": "d9161c4a9aefc8b424bf0d12937a2ab411599f71da8b41fe9477d19a59a75016",
+      "originalBytes": 5080,
+      "upstreamReferencePath": "assets/Loudly crying face/3D/loudly_crying_face_3d.png"
+    },
+    {
+      "glyph": "😱",
+      "label": "吓到了",
+      "name": "Face screaming in fear",
+      "category": "情绪",
+      "keywords": [
+        "惊恐"
+      ],
+      "id": "1f631",
+      "unicode": "1F631",
+      "shortcode": ":face_screaming_in_fear:",
+      "sourcePackagePath": "package/assets/1f631.webp",
+      "sourceSha256": "56dac029340cc524964b46bc079a8b980fcaf9abc0072ccee73204256afbe473",
+      "originalBytes": 5778,
+      "upstreamReferencePath": "assets/Face screaming in fear/3D/face_screaming_in_fear_3d.png"
+    },
+    {
+      "glyph": "😠",
+      "label": "生气",
+      "name": "Angry face",
+      "category": "情绪",
+      "keywords": [
+        "怒"
+      ],
+      "id": "1f620",
+      "unicode": "1F620",
+      "shortcode": ":angry_face:",
+      "sourcePackagePath": "package/assets/1f620.webp",
+      "sourceSha256": "68ca166e9dc8dbd2ed826061a9c1c0800e0ad3e2499ebdeba7577fc644c830f2",
+      "originalBytes": 5882,
+      "upstreamReferencePath": "assets/Angry face/3D/angry_face_3d.png"
+    },
+    {
+      "glyph": "😡",
+      "label": "愤怒",
+      "name": "Pouting face",
+      "category": "情绪",
+      "keywords": [
+        "怒"
+      ],
+      "id": "1f621",
+      "unicode": "1F621",
+      "shortcode": ":pouting_face:",
+      "sourcePackagePath": "package/assets/1f621.webp",
+      "sourceSha256": "509c4a3f1228f0b21773c6e3074adcf2e3fbd3c27091dada4191103ce4ab644b",
+      "originalBytes": 5954,
+      "upstreamReferencePath": "assets/Pouting face/3D/pouting_face_3d.png"
+    },
+    {
+      "glyph": "😤",
+      "label": "气鼓鼓",
+      "name": "Face with steam from nose",
+      "category": "情绪",
+      "keywords": [
+        "怒"
+      ],
+      "id": "1f624",
+      "unicode": "1F624",
+      "shortcode": ":face_with_steam_from_nose:",
+      "sourcePackagePath": "package/assets/1f624.webp",
+      "sourceSha256": "5c80d5959230b2ac2d1f05abe0a5c83eb6c38925ad19d4603aedeb5526bca1f9",
+      "originalBytes": 6078,
+      "upstreamReferencePath": "assets/Face with steam from nose/3D/face_with_steam_from_nose_3d.png"
+    },
+    {
+      "glyph": "🤬",
+      "label": "气到骂人",
+      "name": "Face with symbols on mouth",
+      "category": "情绪",
+      "keywords": [
+        "怒"
+      ],
+      "id": "1f92c",
+      "unicode": "1F92C",
+      "shortcode": ":face_with_symbols_on_mouth:",
+      "sourcePackagePath": "package/assets/1f92c.webp",
+      "sourceSha256": "aee6ed3e431e5fc23ae2a1282893b7021f25ed9d2fb13f5c3aa3779f4fe36fb9",
+      "originalBytes": 6484,
+      "upstreamReferencePath": "assets/Face with symbols on mouth/3D/face_with_symbols_on_mouth_3d.png"
+    },
+    {
+      "glyph": "😈",
+      "label": "小恶魔",
+      "name": "Smiling face with horns",
+      "category": "情绪",
+      "keywords": [
+        "坏笑"
+      ],
+      "id": "1f608",
+      "unicode": "1F608",
+      "shortcode": ":smiling_face_with_horns:",
+      "sourcePackagePath": "package/assets/1f608.webp",
+      "sourceSha256": "9832057534fee792635f91db1bd9b75ed6c044817d12c170d71a4cc29525da82",
+      "originalBytes": 5950,
+      "upstreamReferencePath": "assets/Smiling face with horns/3D/smiling_face_with_horns_3d.png"
+    },
+    {
+      "glyph": "👿",
+      "label": "恶魔生气",
+      "name": "Angry face with horns",
+      "category": "情绪",
+      "keywords": [
+        "怒"
+      ],
+      "id": "1f47f",
+      "unicode": "1F47F",
+      "shortcode": ":angry_face_with_horns:",
+      "sourcePackagePath": "package/assets/1f47f.webp",
+      "sourceSha256": "fc2f61c9572c433b3a0de7ba4bbe5ee3883844605f2c1bcce8224023b40adb36",
+      "originalBytes": 5980,
+      "upstreamReferencePath": "assets/Angry face with horns/3D/angry_face_with_horns_3d.png"
+    },
+    {
+      "glyph": "🥱",
+      "label": "打哈欠",
+      "name": "Yawning face",
+      "category": "情绪",
+      "keywords": [
+        "困"
+      ],
+      "id": "1f971",
+      "unicode": "1F971",
+      "shortcode": ":yawning_face:",
+      "sourcePackagePath": "package/assets/1f971.webp",
+      "sourceSha256": "9da27e4ef6bbc5d66226f874522d4b735fcf980e60bf4738defa76274f71d201",
+      "originalBytes": 5658,
+      "upstreamReferencePath": "assets/Yawning face/3D/yawning_face_3d.png"
+    },
+    {
+      "glyph": "🫡",
+      "label": "敬礼",
+      "name": "Saluting face",
+      "category": "情绪",
+      "keywords": [
+        "收到"
+      ],
+      "id": "1fae1",
+      "unicode": "1FAE1",
+      "shortcode": ":saluting_face:",
+      "sourcePackagePath": "package/assets/1fae1.webp",
+      "sourceSha256": "73b56b3205d932eeea4a05f62185617941de525c04f6ce2249f1df4a7ab2cef9",
+      "originalBytes": 6522,
+      "upstreamReferencePath": "assets/Saluting face/3D/saluting_face_3d.png"
+    },
+    {
+      "glyph": "🫠",
+      "label": "融化了",
+      "name": "Melting face",
+      "category": "情绪",
+      "keywords": [
+        "无语",
+        "热"
+      ],
+      "id": "1fae0",
+      "unicode": "1FAE0",
+      "shortcode": ":melting_face:",
+      "sourcePackagePath": "package/assets/1fae0.webp",
+      "sourceSha256": "fdf522b903b9054f49da63c9aeacb7ad77871b27cf0a430d81108c1ea5de76c3",
+      "originalBytes": 6248,
+      "upstreamReferencePath": "assets/Melting face/3D/melting_face_3d.png"
+    },
+    {
+      "glyph": "🫢",
+      "label": "捂嘴惊讶",
+      "name": "Face with open eyes and hand over mouth",
+      "category": "情绪",
+      "keywords": [
+        "震惊"
+      ],
+      "id": "1fae2",
+      "unicode": "1FAE2",
+      "shortcode": ":face_with_open_eyes_and_hand_over_mouth:",
+      "sourcePackagePath": "package/assets/1fae2.webp",
+      "sourceSha256": "0da262cde722bbfc4eee6552174df4e7d4973be80d2f81881ea8838d6344dd0b",
+      "originalBytes": 6728,
+      "upstreamReferencePath": "assets/Face with open eyes and hand over mouth/3D/face_with_open_eyes_and_hand_over_mouth_3d.png"
+    },
+    {
+      "glyph": "👍",
+      "label": "点赞",
+      "name": "Thumbs up",
+      "category": "手势",
+      "keywords": [
+        "赞",
+        "好的"
+      ],
+      "id": "1f44d",
+      "unicode": "1F44D",
+      "shortcode": ":thumbs_up:",
+      "sourcePackagePath": "package/assets/1f44d.webp",
+      "sourceSha256": "932180dc17ab7fcb77318fd26def2986bb9dfd73015d1ea8e07cdcefaefb35a9",
+      "originalBytes": 3790,
+      "upstreamReferencePath": "assets/Thumbs up/Default/3D/thumbs_up_3d_default.png"
+    },
+    {
+      "glyph": "👎",
+      "label": "踩",
+      "name": "Thumbs down",
+      "category": "手势",
+      "keywords": [
+        "不好"
+      ],
+      "id": "1f44e",
+      "unicode": "1F44E",
+      "shortcode": ":thumbs_down:",
+      "sourcePackagePath": "package/assets/1f44e.webp",
+      "sourceSha256": "bf8d26e7bbf9d7bff74ea33ce2b06b61c904b8c537b537f547ce20079aa79a30",
+      "originalBytes": 3866,
+      "upstreamReferencePath": "assets/Thumbs down/Default/3D/thumbs_down_3d_default.png"
+    },
+    {
+      "glyph": "👌",
+      "label": "OK",
+      "name": "Ok hand",
+      "category": "手势",
+      "keywords": [
+        "好的",
+        "收到"
+      ],
+      "id": "1f44c",
+      "unicode": "1F44C",
+      "shortcode": ":ok_hand:",
+      "sourcePackagePath": "package/assets/1f44c.webp",
+      "sourceSha256": "17e2c7375006bcfbe0c9cea6b8e8137827ffd02defbb48a8517da0529b0e92c6",
+      "originalBytes": 5264,
+      "upstreamReferencePath": "assets/Ok hand/Default/3D/ok_hand_3d_default.png"
+    },
+    {
+      "glyph": "✌️",
+      "label": "胜利",
+      "name": "Victory hand",
+      "category": "手势",
+      "keywords": [
+        "耶"
+      ],
+      "id": "270c",
+      "unicode": "270C FE0F",
+      "shortcode": ":victory_hand:",
+      "sourcePackagePath": "package/assets/270c-fe0f.webp",
+      "sourceSha256": "c17543c60a14be32385b6402d6b66337ad5643d4e2ffdc64a6c4c9f8a2fbf561",
+      "originalBytes": 4382,
+      "upstreamReferencePath": "assets/Victory hand/Default/3D/victory_hand_3d_default.png"
+    },
+    {
+      "glyph": "🤞",
+      "label": "祝好运",
+      "name": "Crossed fingers",
+      "category": "手势",
+      "keywords": [
+        "祈愿"
+      ],
+      "id": "1f91e",
+      "unicode": "1F91E",
+      "shortcode": ":crossed_fingers:",
+      "sourcePackagePath": "package/assets/1f91e.webp",
+      "sourceSha256": "1e0df20662802fd0f9b92524bcf5c1cb2504b971431beb138db02b79b6abf9a4",
+      "originalBytes": 4304,
+      "upstreamReferencePath": "assets/Crossed fingers/Default/3D/crossed_fingers_3d_default.png"
+    },
+    {
+      "glyph": "🤟",
+      "label": "爱你",
+      "name": "Love-you gesture",
+      "category": "手势",
+      "keywords": [
+        "喜欢"
+      ],
+      "id": "1f91f",
+      "unicode": "1F91F",
+      "shortcode": ":love-you_gesture:",
+      "sourcePackagePath": "package/assets/1f91f.webp",
+      "sourceSha256": "1db587e60582802dcf8752557d43b5570613f38936346d54d32e00569257da40",
+      "originalBytes": 4206,
+      "upstreamReferencePath": "assets/Love-you gesture/Default/3D/love-you_gesture_3d_default.png"
+    },
+    {
+      "glyph": "🤘",
+      "label": "摇滚",
+      "name": "Sign of the horns",
+      "category": "手势",
+      "keywords": [
+        "酷"
+      ],
+      "id": "1f918",
+      "unicode": "1F918",
+      "shortcode": ":sign_of_the_horns:",
+      "sourcePackagePath": "package/assets/1f918.webp",
+      "sourceSha256": "4c2cb0110a61299fd3c431836f7e90466e70bc75f94648d87eaec434bdc6dceb",
+      "originalBytes": 3802,
+      "upstreamReferencePath": "assets/Sign of the horns/Default/3D/sign_of_the_horns_3d_default.png"
+    },
+    {
+      "glyph": "🤙",
+      "label": "打给我",
+      "name": "Call me hand",
+      "category": "手势",
+      "keywords": [
+        "电话"
+      ],
+      "id": "1f919",
+      "unicode": "1F919",
+      "shortcode": ":call_me_hand:",
+      "sourcePackagePath": "package/assets/1f919.webp",
+      "sourceSha256": "05598d11da3741d7e411a8a73fe6e58ae2ba0a5f2569ad4f9c128a8c39cf0a9c",
+      "originalBytes": 4372,
+      "upstreamReferencePath": "assets/Call me hand/Default/3D/call_me_hand_3d_default.png"
+    },
+    {
+      "glyph": "👈",
+      "label": "向左",
+      "name": "Backhand index pointing left",
+      "category": "手势",
+      "keywords": [
+        "指"
+      ],
+      "id": "1f448",
+      "unicode": "1F448",
+      "shortcode": ":backhand_index_pointing_left:",
+      "sourcePackagePath": "package/assets/1f448.webp",
+      "sourceSha256": "b47ef9a7602982ea3b91ac4ee642296bd90dc14dca80045031a9a2a9131a1b5a",
+      "originalBytes": 3820,
+      "upstreamReferencePath": "assets/Backhand index pointing left/Default/3D/backhand_index_pointing_left_3d_default.png"
+    },
+    {
+      "glyph": "👉",
+      "label": "向右",
+      "name": "Backhand index pointing right",
+      "category": "手势",
+      "keywords": [
+        "指"
+      ],
+      "id": "1f449",
+      "unicode": "1F449",
+      "shortcode": ":backhand_index_pointing_right:",
+      "sourcePackagePath": "package/assets/1f449.webp",
+      "sourceSha256": "a67567ac2a98f778f68cab259c7d8a844d6506464ccc2738e0a031590129b1ac",
+      "originalBytes": 3982,
+      "upstreamReferencePath": "assets/Backhand index pointing right/Default/3D/backhand_index_pointing_right_3d_default.png"
+    },
+    {
+      "glyph": "👆",
+      "label": "向上",
+      "name": "Backhand index pointing up",
+      "category": "手势",
+      "keywords": [
+        "指"
+      ],
+      "id": "1f446",
+      "unicode": "1F446",
+      "shortcode": ":backhand_index_pointing_up:",
+      "sourcePackagePath": "package/assets/1f446.webp",
+      "sourceSha256": "ddd1761468e7a5ad4ada9d5ce61ebf3f1d6519d4f4a7898c031b452c1030ed2e",
+      "originalBytes": 3964,
+      "upstreamReferencePath": "assets/Backhand index pointing up/Default/3D/backhand_index_pointing_up_3d_default.png"
+    },
+    {
+      "glyph": "👇",
+      "label": "向下",
+      "name": "Backhand index pointing down",
+      "category": "手势",
+      "keywords": [
+        "指"
+      ],
+      "id": "1f447",
+      "unicode": "1F447",
+      "shortcode": ":backhand_index_pointing_down:",
+      "sourcePackagePath": "package/assets/1f447.webp",
+      "sourceSha256": "75482cc7127b4c7e426fc1db198418c1582ccf480873b5c2d82d523bd943909e",
+      "originalBytes": 3886,
+      "upstreamReferencePath": "assets/Backhand index pointing down/Default/3D/backhand_index_pointing_down_3d_default.png"
+    },
+    {
+      "glyph": "☝️",
+      "label": "注意",
+      "name": "Index pointing up",
+      "category": "手势",
+      "keywords": [
+        "指"
+      ],
+      "id": "261d",
+      "unicode": "261D FE0F",
+      "shortcode": ":index_pointing_up:",
+      "sourcePackagePath": "package/assets/261d-fe0f.webp",
+      "sourceSha256": "29f67b6dc5e76d2db65abe1bee52081217f1e2c2bcb429aeeaadeafa0529d7a3",
+      "originalBytes": 4044,
+      "upstreamReferencePath": "assets/Index pointing up/Default/3D/index_pointing_up_3d_default.png"
+    },
+    {
+      "glyph": "🫵",
+      "label": "就是你",
+      "name": "Index pointing at the viewer",
+      "category": "手势",
+      "keywords": [
+        "指"
+      ],
+      "id": "1faf5",
+      "unicode": "1FAF5",
+      "shortcode": ":index_pointing_at_the_viewer:",
+      "sourcePackagePath": "package/assets/1faf5.webp",
+      "sourceSha256": "cf3f965917a16d17893e667662a3abecebf09adc1305acf6f7e4a00c57b01862",
+      "originalBytes": 4580,
+      "upstreamReferencePath": "assets/Index pointing at the viewer/Default/3D/index_pointing_at_the_viewer_3d_default.png"
+    },
+    {
+      "glyph": "👋",
+      "label": "挥手",
+      "name": "Waving hand",
+      "category": "手势",
+      "keywords": [
+        "你好",
+        "拜拜"
+      ],
+      "id": "1f44b",
+      "unicode": "1F44B",
+      "shortcode": ":waving_hand:",
+      "sourcePackagePath": "package/assets/1f44b.webp",
+      "sourceSha256": "a178590a016c14f2a9cb8d3184bc47b2581e98127d507c4184af6d0a8f4535c0",
+      "originalBytes": 6710,
+      "upstreamReferencePath": "assets/Waving hand/Default/3D/waving_hand_3d_default.png"
+    },
+    {
+      "glyph": "🤚",
+      "label": "举手背",
+      "name": "Raised back of hand",
+      "category": "手势",
+      "keywords": [
+        "手"
+      ],
+      "id": "1f91a",
+      "unicode": "1F91A",
+      "shortcode": ":raised_back_of_hand:",
+      "sourcePackagePath": "package/assets/1f91a.webp",
+      "sourceSha256": "48a5daf0d686cd3faad3aa59e0bf38d33fc20b62b5d81c4ae80f8a31e71853ab",
+      "originalBytes": 4008,
+      "upstreamReferencePath": "assets/Raised back of hand/Default/3D/raised_back_of_hand_3d_default.png"
+    },
+    {
+      "glyph": "🖐️",
+      "label": "张开手",
+      "name": "Hand with fingers splayed",
+      "category": "手势",
+      "keywords": [
+        "手"
+      ],
+      "id": "1f590",
+      "unicode": "1F590 FE0F",
+      "shortcode": ":hand_with_fingers_splayed:",
+      "sourcePackagePath": "package/assets/1f590-fe0f.webp",
+      "sourceSha256": "55293e4dcd68bf2d42bc6f82994b2a344bcbf9ed1b4bc80404798cd2acbb71d5",
+      "originalBytes": 5468,
+      "upstreamReferencePath": "assets/Hand with fingers splayed/Default/3D/hand_with_fingers_splayed_3d_default.png"
+    },
+    {
+      "glyph": "✋",
+      "label": "举手",
+      "name": "Raised hand",
+      "category": "手势",
+      "keywords": [
+        "停止"
+      ],
+      "id": "270b",
+      "unicode": "270B",
+      "shortcode": ":raised_hand:",
+      "sourcePackagePath": "package/assets/270b.webp",
+      "sourceSha256": "a913601b0cae3cc0f930eab04c96d62f7df2a246e4db288c270da98900ac89d0",
+      "originalBytes": 4192,
+      "upstreamReferencePath": "assets/Raised hand/Default/3D/raised_hand_3d_default.png"
+    },
+    {
+      "glyph": "🖖",
+      "label": "瓦肯礼",
+      "name": "Vulcan salute",
+      "category": "手势",
+      "keywords": [
+        "手"
+      ],
+      "id": "1f596",
+      "unicode": "1F596",
+      "shortcode": ":vulcan_salute:",
+      "sourcePackagePath": "package/assets/1f596.webp",
+      "sourceSha256": "84535b8fd5a849e3ccce6e1b23075f95555063e834b8c9526491c379adf899f5",
+      "originalBytes": 5246,
+      "upstreamReferencePath": "assets/Vulcan salute/Default/3D/vulcan_salute_3d_default.png"
+    },
+    {
+      "glyph": "👏",
+      "label": "鼓掌",
+      "name": "Clapping hands",
+      "category": "手势",
+      "keywords": [
+        "赞",
+        "恭喜"
+      ],
+      "id": "1f44f",
+      "unicode": "1F44F",
+      "shortcode": ":clapping_hands:",
+      "sourcePackagePath": "package/assets/1f44f.webp",
+      "sourceSha256": "b7c72cd89ae57ec70d744a5a3eb0e712b31890ed9686eab6b52f3ca9a66d3b3c",
+      "originalBytes": 5384,
+      "upstreamReferencePath": "assets/Clapping hands/Default/3D/clapping_hands_3d_default.png"
+    },
+    {
+      "glyph": "🙌",
+      "label": "欢呼",
+      "name": "Raising hands",
+      "category": "手势",
+      "keywords": [
+        "耶"
+      ],
+      "id": "1f64c",
+      "unicode": "1F64C",
+      "shortcode": ":raising_hands:",
+      "sourcePackagePath": "package/assets/1f64c.webp",
+      "sourceSha256": "2173dd3009ca40df295b3815f9635f1b0712943feecb0f7de348e6aced2c7a4b",
+      "originalBytes": 6074,
+      "upstreamReferencePath": "assets/Raising hands/Default/3D/raising_hands_3d_default.png"
+    },
+    {
+      "glyph": "👐",
+      "label": "摊手",
+      "name": "Open hands",
+      "category": "手势",
+      "keywords": [
+        "手"
+      ],
+      "id": "1f450",
+      "unicode": "1F450",
+      "shortcode": ":open_hands:",
+      "sourcePackagePath": "package/assets/1f450.webp",
+      "sourceSha256": "0efd93dace59256b205da86ee29a0b544c8f462d2264dd1555e58f4462dc1363",
+      "originalBytes": 4726,
+      "upstreamReferencePath": "assets/Open hands/Default/3D/open_hands_3d_default.png"
+    },
+    {
+      "glyph": "🤲",
+      "label": "双手托起",
+      "name": "Palms up together",
+      "category": "手势",
+      "keywords": [
+        "手"
+      ],
+      "id": "1f932",
+      "unicode": "1F932",
+      "shortcode": ":palms_up_together:",
+      "sourcePackagePath": "package/assets/1f932.webp",
+      "sourceSha256": "cfde9e49e4968ebf96bf88420c49003de653f626d22237d7ae31e7473fb7ac51",
+      "originalBytes": 5000,
+      "upstreamReferencePath": "assets/Palms up together/Default/3D/palms_up_together_3d_default.png"
+    },
+    {
+      "glyph": "🙏",
+      "label": "感谢",
+      "name": "Folded hands",
+      "category": "手势",
+      "keywords": [
+        "谢谢",
+        "拜托"
+      ],
+      "id": "1f64f",
+      "unicode": "1F64F",
+      "shortcode": ":folded_hands:",
+      "sourcePackagePath": "package/assets/1f64f.webp",
+      "sourceSha256": "6f0e4297133d00d42e3631182eecfa7877c125a7b24075b29a55c94aca2ce3f8",
+      "originalBytes": 3532,
+      "upstreamReferencePath": "assets/Folded hands/Default/3D/folded_hands_3d_default.png"
+    },
+    {
+      "glyph": "🤝",
+      "label": "握手",
+      "name": "Handshake",
+      "category": "手势",
+      "keywords": [
+        "合作"
+      ],
+      "id": "1f91d",
+      "unicode": "1F91D",
+      "shortcode": ":handshake:",
+      "sourcePackagePath": "package/assets/1f91d.webp",
+      "sourceSha256": "34a063baa17773b33c1d0e29711a4dfc70ec755446f8ad563eabe18e7fde60ad",
+      "originalBytes": 4516,
+      "upstreamReferencePath": "assets/Handshake/3D/handshake_3d.png"
+    },
+    {
+      "glyph": "👊",
+      "label": "击拳",
+      "name": "Oncoming fist",
+      "category": "手势",
+      "keywords": [
+        "加油"
+      ],
+      "id": "1f44a",
+      "unicode": "1F44A",
+      "shortcode": ":oncoming_fist:",
+      "sourcePackagePath": "package/assets/1f44a.webp",
+      "sourceSha256": "ec08e164f8b83c94f61c2e28a280b306ff3dd4ccac550b075fbca5592c6f8b4a",
+      "originalBytes": 3530,
+      "upstreamReferencePath": "assets/Oncoming fist/Default/3D/oncoming_fist_3d_default.png"
+    },
+    {
+      "glyph": "✊",
+      "label": "拳头",
+      "name": "Raised fist",
+      "category": "手势",
+      "keywords": [
+        "加油"
+      ],
+      "id": "270a",
+      "unicode": "270A",
+      "shortcode": ":raised_fist:",
+      "sourcePackagePath": "package/assets/270a.webp",
+      "sourceSha256": "b9967b5f2186d4e25b51b33ea10014cf559848ae6455a21a933e2aaef87dde9e",
+      "originalBytes": 4320,
+      "upstreamReferencePath": "assets/Raised fist/Default/3D/raised_fist_3d_default.png"
+    },
+    {
+      "glyph": "💪",
+      "label": "加油",
+      "name": "Flexed biceps",
+      "category": "手势",
+      "keywords": [
+        "力量"
+      ],
+      "id": "1f4aa",
+      "unicode": "1F4AA",
+      "shortcode": ":flexed_biceps:",
+      "sourcePackagePath": "package/assets/1f4aa.webp",
+      "sourceSha256": "8ddb63f25ebe1596b34e7532aeb1bb0b1c09aa9cfec9744bc3c9945b6d60e51f",
+      "originalBytes": 4180,
+      "upstreamReferencePath": "assets/Flexed biceps/Default/3D/flexed_biceps_3d_default.png"
+    },
+    {
+      "glyph": "❤️",
+      "label": "红心",
+      "name": "Red heart",
+      "category": "爱心",
+      "keywords": [
+        "爱",
+        "喜欢"
+      ],
+      "id": "2764",
+      "unicode": "2764 FE0F",
+      "shortcode": ":red_heart:",
+      "sourcePackagePath": "package/assets/2764-fe0f.webp",
+      "sourceSha256": "3f8e6daa210d663ed36d6a4998517031941b8b8580181014fab0460beddde487",
+      "originalBytes": 4102,
+      "upstreamReferencePath": "assets/Red heart/3D/red_heart_3d.png"
+    },
+    {
+      "glyph": "🧡",
+      "label": "橙心",
+      "name": "Orange heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f9e1",
+      "unicode": "1F9E1",
+      "shortcode": ":orange_heart:",
+      "sourcePackagePath": "package/assets/1f9e1.webp",
+      "sourceSha256": "af10c018345285a5324c59b99a00a9b39a52dd1508443bcb6a600d66e9f759a9",
+      "originalBytes": 3916,
+      "upstreamReferencePath": "assets/Orange heart/3D/orange_heart_3d.png"
+    },
+    {
+      "glyph": "💛",
+      "label": "黄心",
+      "name": "Yellow heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f49b",
+      "unicode": "1F49B",
+      "shortcode": ":yellow_heart:",
+      "sourcePackagePath": "package/assets/1f49b.webp",
+      "sourceSha256": "b9f012d4d0ccbcd6c13e9c58bab1fb4f77ab1a158ac221984060242f4354c265",
+      "originalBytes": 3778,
+      "upstreamReferencePath": "assets/Yellow heart/3D/yellow_heart_3d.png"
+    },
+    {
+      "glyph": "💚",
+      "label": "绿心",
+      "name": "Green heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f49a",
+      "unicode": "1F49A",
+      "shortcode": ":green_heart:",
+      "sourcePackagePath": "package/assets/1f49a.webp",
+      "sourceSha256": "f123c4b155224d7fabf36ad302128c6de6e9fa42bac3b5e372f0b41f3baf137d",
+      "originalBytes": 3650,
+      "upstreamReferencePath": "assets/Green heart/3D/green_heart_3d.png"
+    },
+    {
+      "glyph": "💙",
+      "label": "蓝心",
+      "name": "Blue heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f499",
+      "unicode": "1F499",
+      "shortcode": ":blue_heart:",
+      "sourcePackagePath": "package/assets/1f499.webp",
+      "sourceSha256": "9e5e03310183aca7dc55cf5d496916e18bdd82d422c19809596a967fba337cca",
+      "originalBytes": 4022,
+      "upstreamReferencePath": "assets/Blue heart/3D/blue_heart_3d.png"
+    },
+    {
+      "glyph": "💜",
+      "label": "紫心",
+      "name": "Purple heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f49c",
+      "unicode": "1F49C",
+      "shortcode": ":purple_heart:",
+      "sourcePackagePath": "package/assets/1f49c.webp",
+      "sourceSha256": "91b59eea7591930a94deb2776a2097eb6b404f5084f7d65b184aab0f91a0ec58",
+      "originalBytes": 4018,
+      "upstreamReferencePath": "assets/Purple heart/3D/purple_heart_3d.png"
+    },
+    {
+      "glyph": "🖤",
+      "label": "黑心",
+      "name": "Black heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f5a4",
+      "unicode": "1F5A4",
+      "shortcode": ":black_heart:",
+      "sourcePackagePath": "package/assets/1f5a4.webp",
+      "sourceSha256": "4400b8425e6b34a49e2445b2022c1d25e899ded9f0b75122e7040394f98c4954",
+      "originalBytes": 3426,
+      "upstreamReferencePath": "assets/Black heart/3D/black_heart_3d.png"
+    },
+    {
+      "glyph": "🤍",
+      "label": "白心",
+      "name": "White heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f90d",
+      "unicode": "1F90D",
+      "shortcode": ":white_heart:",
+      "sourcePackagePath": "package/assets/1f90d.webp",
+      "sourceSha256": "8c4937701e14cfccc04da44693a7ebed2f029362fc2276f8a49b869983ebc60b",
+      "originalBytes": 3016,
+      "upstreamReferencePath": "assets/White heart/3D/white_heart_3d.png"
+    },
+    {
+      "glyph": "🤎",
+      "label": "棕心",
+      "name": "Brown heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f90e",
+      "unicode": "1F90E",
+      "shortcode": ":brown_heart:",
+      "sourcePackagePath": "package/assets/1f90e.webp",
+      "sourceSha256": "bad029d2956023c23d1723e6e9a067aecae4e7004be7eb48a2c7b3d2d0d6ab2f",
+      "originalBytes": 3508,
+      "upstreamReferencePath": "assets/Brown heart/3D/brown_heart_3d.png"
+    },
+    {
+      "glyph": "💔",
+      "label": "心碎",
+      "name": "Broken heart",
+      "category": "爱心",
+      "keywords": [
+        "难过",
+        "失恋"
+      ],
+      "id": "1f494",
+      "unicode": "1F494",
+      "shortcode": ":broken_heart:",
+      "sourcePackagePath": "package/assets/1f494.webp",
+      "sourceSha256": "0b78011bb2330fedfa0606c285188d860d13126c07e9f6484cfa4bdb6c9f91f2",
+      "originalBytes": 5912,
+      "upstreamReferencePath": "assets/Broken heart/3D/broken_heart_3d.png"
+    },
+    {
+      "glyph": "💕",
+      "label": "两颗心",
+      "name": "Two hearts",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f495",
+      "unicode": "1F495",
+      "shortcode": ":two_hearts:",
+      "sourcePackagePath": "package/assets/1f495.webp",
+      "sourceSha256": "03f680455859aa84f319d2efe1130427c8a7ff23e0276959308b6c43075fab62",
+      "originalBytes": 4832,
+      "upstreamReferencePath": "assets/Two hearts/3D/two_hearts_3d.png"
+    },
+    {
+      "glyph": "💞",
+      "label": "心心相印",
+      "name": "Revolving hearts",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f49e",
+      "unicode": "1F49E",
+      "shortcode": ":revolving_hearts:",
+      "sourcePackagePath": "package/assets/1f49e.webp",
+      "sourceSha256": "e1bba1ced4aed1e03ddabae5a0bd30765b6c4c82c3270fdf9708f07c0e118770",
+      "originalBytes": 7116,
+      "upstreamReferencePath": "assets/Revolving hearts/3D/revolving_hearts_3d.png"
+    },
+    {
+      "glyph": "💓",
+      "label": "心动",
+      "name": "Beating heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f493",
+      "unicode": "1F493",
+      "shortcode": ":beating_heart:",
+      "sourcePackagePath": "package/assets/1f493.webp",
+      "sourceSha256": "9a1b2d4123c390a5e71ef2d2d9334c1b574a14b1cc1429d73e84df8fe2d565ce",
+      "originalBytes": 6270,
+      "upstreamReferencePath": "assets/Beating heart/3D/beating_heart_3d.png"
+    },
+    {
+      "glyph": "💗",
+      "label": "爱心放大",
+      "name": "Growing heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f497",
+      "unicode": "1F497",
+      "shortcode": ":growing_heart:",
+      "sourcePackagePath": "package/assets/1f497.webp",
+      "sourceSha256": "9ebac7adf0676692c519cd3473cdfdaca801a52fd587ecf10c82f076ce6e88bb",
+      "originalBytes": 5060,
+      "upstreamReferencePath": "assets/Growing heart/3D/growing_heart_3d.png"
+    },
+    {
+      "glyph": "💖",
+      "label": "闪亮爱心",
+      "name": "Sparkling heart",
+      "category": "爱心",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f496",
+      "unicode": "1F496",
+      "shortcode": ":sparkling_heart:",
+      "sourcePackagePath": "package/assets/1f496.webp",
+      "sourceSha256": "69339317317bfa3e47772af287b0e5927dd0dd433575f08cd57e21456dec4bc6",
+      "originalBytes": 5306,
+      "upstreamReferencePath": "assets/Sparkling heart/3D/sparkling_heart_3d.png"
+    },
+    {
+      "glyph": "🫶",
+      "label": "比心",
+      "name": "Heart hands",
+      "category": "爱心",
+      "keywords": [
+        "爱",
+        "喜欢"
+      ],
+      "id": "1faf6",
+      "unicode": "1FAF6",
+      "shortcode": ":heart_hands:",
+      "sourcePackagePath": "package/assets/1faf6.webp",
+      "sourceSha256": "c24cd7917f900a48d9eed27f14b9c74be0a9756a769b71fd9597aa360b9f8cbe",
+      "originalBytes": 5458,
+      "upstreamReferencePath": "assets/Heart hands/Default/3D/heart_hands_3d_default.png"
+    },
+    {
+      "glyph": "🐱",
+      "label": "猫咪",
+      "name": "Cat face",
+      "category": "动物",
+      "keywords": [
+        "猫"
+      ],
+      "id": "1f431",
+      "unicode": "1F431",
+      "shortcode": ":cat_face:",
+      "sourcePackagePath": "package/assets/1f431.webp",
+      "sourceSha256": "79637fefff1ed3a974a8d4292d0bb04a647b2a23c17b663b76c8a1c9f9bd5556",
+      "originalBytes": 5058,
+      "upstreamReferencePath": "assets/Cat face/3D/cat_face_3d.png"
+    },
+    {
+      "glyph": "🐶",
+      "label": "狗狗",
+      "name": "Dog face",
+      "category": "动物",
+      "keywords": [
+        "狗"
+      ],
+      "id": "1f436",
+      "unicode": "1F436",
+      "shortcode": ":dog_face:",
+      "sourcePackagePath": "package/assets/1f436.webp",
+      "sourceSha256": "36072d0163456871a79475ed6e310a1d5e7afc920ebe961bcf4b132151ee27a5",
+      "originalBytes": 4156,
+      "upstreamReferencePath": "assets/Dog face/3D/dog_face_3d.png"
+    },
+    {
+      "glyph": "🐻",
+      "label": "小熊",
+      "name": "Bear",
+      "category": "动物",
+      "keywords": [
+        "熊"
+      ],
+      "id": "1f43b",
+      "unicode": "1F43B",
+      "shortcode": ":bear:",
+      "sourcePackagePath": "package/assets/1f43b.webp",
+      "sourceSha256": "94eb7f22af94d04200aae78db2e2c2a16e034607ad2931b9075859ec1e7a3f10",
+      "originalBytes": 4860,
+      "upstreamReferencePath": "assets/Bear/3D/bear_3d.png"
+    },
+    {
+      "glyph": "🐼",
+      "label": "熊猫",
+      "name": "Panda",
+      "category": "动物",
+      "keywords": [
+        "熊"
+      ],
+      "id": "1f43c",
+      "unicode": "1F43C",
+      "shortcode": ":panda:",
+      "sourcePackagePath": "package/assets/1f43c.webp",
+      "sourceSha256": "6f8aeb0db512b49476497501032baffb483540836b699193fd62ddfb478127e7",
+      "originalBytes": 4616,
+      "upstreamReferencePath": "assets/Panda/3D/panda_3d.png"
+    },
+    {
+      "glyph": "🐨",
+      "label": "考拉",
+      "name": "Koala",
+      "category": "动物",
+      "keywords": [
+        "动物"
+      ],
+      "id": "1f428",
+      "unicode": "1F428",
+      "shortcode": ":koala:",
+      "sourcePackagePath": "package/assets/1f428.webp",
+      "sourceSha256": "abcf7cda9664a9be8aa444ccad5e8c9b50adf0fdddf86eb406fd66402b61f41c",
+      "originalBytes": 3676,
+      "upstreamReferencePath": "assets/Koala/3D/koala_3d.png"
+    },
+    {
+      "glyph": "🐷",
+      "label": "猪猪",
+      "name": "Pig face",
+      "category": "动物",
+      "keywords": [
+        "猪"
+      ],
+      "id": "1f437",
+      "unicode": "1F437",
+      "shortcode": ":pig_face:",
+      "sourcePackagePath": "package/assets/1f437.webp",
+      "sourceSha256": "5675b9ab414fa6a9f92cd6e637bffb022f8aaac7f0b9b6b061753f2b4bd8c446",
+      "originalBytes": 4406,
+      "upstreamReferencePath": "assets/Pig face/3D/pig_face_3d.png"
+    },
+    {
+      "glyph": "🐸",
+      "label": "青蛙",
+      "name": "Frog",
+      "category": "动物",
+      "keywords": [
+        "动物"
+      ],
+      "id": "1f438",
+      "unicode": "1F438",
+      "shortcode": ":frog:",
+      "sourcePackagePath": "package/assets/1f438.webp",
+      "sourceSha256": "a28600e0e9562601b4c250e5293a235a1fd80f3a167e8b5cc8d81708ebec6bab",
+      "originalBytes": 5588,
+      "upstreamReferencePath": "assets/Frog/3D/frog_3d.png"
+    },
+    {
+      "glyph": "🐹",
+      "label": "仓鼠",
+      "name": "Hamster",
+      "category": "动物",
+      "keywords": [
+        "动物"
+      ],
+      "id": "1f439",
+      "unicode": "1F439",
+      "shortcode": ":hamster:",
+      "sourcePackagePath": "package/assets/1f439.webp",
+      "sourceSha256": "935d348b6e9ef8bb5c977d95e04b2df511d15d1a0313d6d44cfc3ad0a49535bb",
+      "originalBytes": 5110,
+      "upstreamReferencePath": "assets/Hamster/3D/hamster_3d.png"
+    },
+    {
+      "glyph": "🐰",
+      "label": "兔兔",
+      "name": "Rabbit face",
+      "category": "动物",
+      "keywords": [
+        "兔"
+      ],
+      "id": "1f430",
+      "unicode": "1F430",
+      "shortcode": ":rabbit_face:",
+      "sourcePackagePath": "package/assets/1f430.webp",
+      "sourceSha256": "942995ecdb90dcb750939d6d7859e428c9ad8ccc8b5b418bbb1c3cf7b50238f7",
+      "originalBytes": 4508,
+      "upstreamReferencePath": "assets/Rabbit face/3D/rabbit_face_3d.png"
+    },
+    {
+      "glyph": "🦊",
+      "label": "狐狸",
+      "name": "Fox",
+      "category": "动物",
+      "keywords": [
+        "动物"
+      ],
+      "id": "1f98a",
+      "unicode": "1F98A",
+      "shortcode": ":fox:",
+      "sourcePackagePath": "package/assets/1f98a.webp",
+      "sourceSha256": "d8278492904a8c58a2584eca7badab8dd0d74c9100f530cff04934b943e34d16",
+      "originalBytes": 5128,
+      "upstreamReferencePath": "assets/Fox/3D/fox_3d.png"
+    },
+    {
+      "glyph": "🐯",
+      "label": "老虎",
+      "name": "Tiger face",
+      "category": "动物",
+      "keywords": [
+        "动物"
+      ],
+      "id": "1f42f",
+      "unicode": "1F42F",
+      "shortcode": ":tiger_face:",
+      "sourcePackagePath": "package/assets/1f42f.webp",
+      "sourceSha256": "d1deabc16e320ae34d611f6b1bac2d4c1002cc6b084bb2a544d70e76080b29ea",
+      "originalBytes": 6020,
+      "upstreamReferencePath": "assets/Tiger face/3D/tiger_face_3d.png"
+    },
+    {
+      "glyph": "🦁",
+      "label": "狮子",
+      "name": "Lion",
+      "category": "动物",
+      "keywords": [
+        "动物"
+      ],
+      "id": "1f981",
+      "unicode": "1F981",
+      "shortcode": ":lion:",
+      "sourcePackagePath": "package/assets/1f981.webp",
+      "sourceSha256": "03fa2e12b2c36b90a9ef9f5ba1fc9fd67a6f8d396cf180636de3ab45b446b2e9",
+      "originalBytes": 5684,
+      "upstreamReferencePath": "assets/Lion/3D/lion_3d.png"
+    },
+    {
+      "glyph": "🐮",
+      "label": "奶牛",
+      "name": "Cow face",
+      "category": "动物",
+      "keywords": [
+        "动物"
+      ],
+      "id": "1f42e",
+      "unicode": "1F42E",
+      "shortcode": ":cow_face:",
+      "sourcePackagePath": "package/assets/1f42e.webp",
+      "sourceSha256": "20b8c3190fe10b1b7614cdbaaed811954da1fdb17fa81c34caa890044c7a471b",
+      "originalBytes": 4252,
+      "upstreamReferencePath": "assets/Cow face/3D/cow_face_3d.png"
+    },
+    {
+      "glyph": "🐵",
+      "label": "猴子",
+      "name": "Monkey face",
+      "category": "动物",
+      "keywords": [
+        "猴"
+      ],
+      "id": "1f435",
+      "unicode": "1F435",
+      "shortcode": ":monkey_face:",
+      "sourcePackagePath": "package/assets/1f435.webp",
+      "sourceSha256": "b289624b73d8a6b88696377611f52ceb4d809effac68b8bfa240de66f740c71f",
+      "originalBytes": 4518,
+      "upstreamReferencePath": "assets/Monkey face/3D/monkey_face_3d.png"
+    },
+    {
+      "glyph": "🙈",
+      "label": "不看",
+      "name": "See-no-evil monkey",
+      "category": "动物",
+      "keywords": [
+        "猴",
+        "害羞"
+      ],
+      "id": "1f648",
+      "unicode": "1F648",
+      "shortcode": ":see-no-evil_monkey:",
+      "sourcePackagePath": "package/assets/1f648.webp",
+      "sourceSha256": "409999451e2431803599cf2ba2b08dc54fe446fdf92f738ce32c617e6e42d50e",
+      "originalBytes": 5346,
+      "upstreamReferencePath": "assets/See-no-evil monkey/3D/see-no-evil_monkey_3d.png"
+    },
+    {
+      "glyph": "🙉",
+      "label": "不听",
+      "name": "Hear-no-evil monkey",
+      "category": "动物",
+      "keywords": [
+        "猴"
+      ],
+      "id": "1f649",
+      "unicode": "1F649",
+      "shortcode": ":hear-no-evil_monkey:",
+      "sourcePackagePath": "package/assets/1f649.webp",
+      "sourceSha256": "b97975072076056dd7ad080787539205a21ba3c9ebacd45df49d4171b2ec6674",
+      "originalBytes": 4700,
+      "upstreamReferencePath": "assets/Hear-no-evil monkey/3D/hear-no-evil_monkey_3d.png"
+    },
+    {
+      "glyph": "🙊",
+      "label": "不说",
+      "name": "Speak-no-evil monkey",
+      "category": "动物",
+      "keywords": [
+        "猴",
+        "保密"
+      ],
+      "id": "1f64a",
+      "unicode": "1F64A",
+      "shortcode": ":speak-no-evil_monkey:",
+      "sourcePackagePath": "package/assets/1f64a.webp",
+      "sourceSha256": "320591fe5bdc8d0f819ff579e417f8361cc8ad5d1c42609b1303ba58f9b4dac9",
+      "originalBytes": 5530,
+      "upstreamReferencePath": "assets/Speak-no-evil monkey/3D/speak-no-evil_monkey_3d.png"
+    },
+    {
+      "glyph": "😺",
+      "label": "笑猫",
+      "name": "Grinning cat",
+      "category": "动物",
+      "keywords": [
+        "猫",
+        "开心"
+      ],
+      "id": "1f63a",
+      "unicode": "1F63A",
+      "shortcode": ":grinning_cat:",
+      "sourcePackagePath": "package/assets/1f63a.webp",
+      "sourceSha256": "79637fefff1ed3a974a8d4292d0bb04a647b2a23c17b663b76c8a1c9f9bd5556",
+      "originalBytes": 5058,
+      "upstreamReferencePath": "assets/Grinning cat/3D/grinning_cat_3d.png"
+    },
+    {
+      "glyph": "😸",
+      "label": "眯眼笑猫",
+      "name": "Grinning cat with smiling eyes",
+      "category": "动物",
+      "keywords": [
+        "猫",
+        "开心"
+      ],
+      "id": "1f638",
+      "unicode": "1F638",
+      "shortcode": ":grinning_cat_with_smiling_eyes:",
+      "sourcePackagePath": "package/assets/1f638.webp",
+      "sourceSha256": "24c185faef0ccb05ab94d5fbba352c05887c22c9fed84c0e7b04dc5d89c9ea3e",
+      "originalBytes": 5206,
+      "upstreamReferencePath": "assets/Grinning cat with smiling eyes/3D/grinning_cat_with_smiling_eyes_3d.png"
+    },
+    {
+      "glyph": "😹",
+      "label": "笑哭猫",
+      "name": "Cat with tears of joy",
+      "category": "动物",
+      "keywords": [
+        "猫",
+        "笑"
+      ],
+      "id": "1f639",
+      "unicode": "1F639",
+      "shortcode": ":cat_with_tears_of_joy:",
+      "sourcePackagePath": "package/assets/1f639.webp",
+      "sourceSha256": "8a312fdca050b1e30776e706f89b4b0d288dd0bd8f7d95e9533aa41c16f915b2",
+      "originalBytes": 5772,
+      "upstreamReferencePath": "assets/Cat with tears of joy/3D/cat_with_tears_of_joy_3d.png"
+    },
+    {
+      "glyph": "😻",
+      "label": "心眼猫",
+      "name": "Smiling cat with heart-eyes",
+      "category": "动物",
+      "keywords": [
+        "猫",
+        "爱"
+      ],
+      "id": "1f63b",
+      "unicode": "1F63B",
+      "shortcode": ":smiling_cat_with_heart-eyes:",
+      "sourcePackagePath": "package/assets/1f63b.webp",
+      "sourceSha256": "81814332af046970a3e88b722264d3779e55701e08768f928fa1ced79cec0c45",
+      "originalBytes": 5674,
+      "upstreamReferencePath": "assets/Smiling cat with heart-eyes/3D/smiling_cat_with_heart-eyes_3d.png"
+    },
+    {
+      "glyph": "😽",
+      "label": "亲亲猫",
+      "name": "Kissing cat",
+      "category": "动物",
+      "keywords": [
+        "猫",
+        "亲亲"
+      ],
+      "id": "1f63d",
+      "unicode": "1F63D",
+      "shortcode": ":kissing_cat:",
+      "sourcePackagePath": "package/assets/1f63d.webp",
+      "sourceSha256": "0ffdb1936e16b4258a9026ca553fef3ba7413eb2d7cd2e70260ca9249bc331cd",
+      "originalBytes": 5444,
+      "upstreamReferencePath": "assets/Kissing cat/3D/kissing_cat_3d.png"
+    },
+    {
+      "glyph": "😿",
+      "label": "哭哭猫",
+      "name": "Crying cat",
+      "category": "动物",
+      "keywords": [
+        "猫",
+        "哭"
+      ],
+      "id": "1f63f",
+      "unicode": "1F63F",
+      "shortcode": ":crying_cat:",
+      "sourcePackagePath": "package/assets/1f63f.webp",
+      "sourceSha256": "0260e1ff7649a6db6ed1b050bc7cfab20ba6076c0716248b316476f55a8842b7",
+      "originalBytes": 5364,
+      "upstreamReferencePath": "assets/Crying cat/3D/crying_cat_3d.png"
+    },
+    {
+      "glyph": "😾",
+      "label": "生气猫",
+      "name": "Pouting cat",
+      "category": "动物",
+      "keywords": [
+        "猫",
+        "怒"
+      ],
+      "id": "1f63e",
+      "unicode": "1F63E",
+      "shortcode": ":pouting_cat:",
+      "sourcePackagePath": "package/assets/1f63e.webp",
+      "sourceSha256": "10e7dad7352822e669d48f6b863ac437a724074bcd27b067e633320efd38a7d6",
+      "originalBytes": 5366,
+      "upstreamReferencePath": "assets/Pouting cat/3D/pouting_cat_3d.png"
+    },
+    {
+      "glyph": "🍎",
+      "label": "苹果",
+      "name": "Red apple",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f34e",
+      "unicode": "1F34E",
+      "shortcode": ":red_apple:",
+      "sourcePackagePath": "package/assets/1f34e.webp",
+      "sourceSha256": "88148f6ddd4fde65459b6f08c4ab82948a2bc355455f2f323e9fea167ce8c52a",
+      "originalBytes": 4340,
+      "upstreamReferencePath": "assets/Red apple/3D/red_apple_3d.png"
+    },
+    {
+      "glyph": "🍉",
+      "label": "西瓜",
+      "name": "Watermelon",
+      "category": "食物",
+      "keywords": [
+        "水果",
+        "吃瓜"
+      ],
+      "id": "1f349",
+      "unicode": "1F349",
+      "shortcode": ":watermelon:",
+      "sourcePackagePath": "package/assets/1f349.webp",
+      "sourceSha256": "e4a432b3e235d60038190b649d5c627c238c77ac39927dcced6a001915636051",
+      "originalBytes": 5396,
+      "upstreamReferencePath": "assets/Watermelon/3D/watermelon_3d.png"
+    },
+    {
+      "glyph": "🍓",
+      "label": "草莓",
+      "name": "Strawberry",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f353",
+      "unicode": "1F353",
+      "shortcode": ":strawberry:",
+      "sourcePackagePath": "package/assets/1f353.webp",
+      "sourceSha256": "08094ee1b336fe76cd28f68f8001f92b3add6748a0e4548d3698a41f059d7d0d",
+      "originalBytes": 4078,
+      "upstreamReferencePath": "assets/Strawberry/3D/strawberry_3d.png"
+    },
+    {
+      "glyph": "🍒",
+      "label": "樱桃",
+      "name": "Cherries",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f352",
+      "unicode": "1F352",
+      "shortcode": ":cherries:",
+      "sourcePackagePath": "package/assets/1f352.webp",
+      "sourceSha256": "497624d27efa15c793d52158cd2a39fd65b7b9afb52710e6b7bd7339adb0f103",
+      "originalBytes": 7344,
+      "upstreamReferencePath": "assets/Cherries/3D/cherries_3d.png"
+    },
+    {
+      "glyph": "🍑",
+      "label": "桃子",
+      "name": "Peach",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f351",
+      "unicode": "1F351",
+      "shortcode": ":peach:",
+      "sourcePackagePath": "package/assets/1f351.webp",
+      "sourceSha256": "8b2bf30fb91df0d9633915377a455d5125e26c3927e64acafd15a3099dd522ea",
+      "originalBytes": 4556,
+      "upstreamReferencePath": "assets/Peach/3D/peach_3d.png"
+    },
+    {
+      "glyph": "🍋",
+      "label": "柠檬",
+      "name": "Lemon",
+      "category": "食物",
+      "keywords": [
+        "水果",
+        "酸"
+      ],
+      "id": "1f34b",
+      "unicode": "1F34B",
+      "shortcode": ":lemon:",
+      "sourcePackagePath": "package/assets/1f34b.webp",
+      "sourceSha256": "9713b1472f51906fd958b49213c9299e9a093b815cc4d5ac4247bcbd29aae2a4",
+      "originalBytes": 4230,
+      "upstreamReferencePath": "assets/Lemon/3D/lemon_3d.png"
+    },
+    {
+      "glyph": "🍌",
+      "label": "香蕉",
+      "name": "Banana",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f34c",
+      "unicode": "1F34C",
+      "shortcode": ":banana:",
+      "sourcePackagePath": "package/assets/1f34c.webp",
+      "sourceSha256": "6ec2e63f4ea6debbe2c4afb79921dc1d5f834a60b3b76b4c178356b9268f8cf8",
+      "originalBytes": 5230,
+      "upstreamReferencePath": "assets/Banana/3D/banana_3d.png"
+    },
+    {
+      "glyph": "🍇",
+      "label": "葡萄",
+      "name": "Grapes",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f347",
+      "unicode": "1F347",
+      "shortcode": ":grapes:",
+      "sourcePackagePath": "package/assets/1f347.webp",
+      "sourceSha256": "14aac5ce18a69fa7009a28f822a66176e5d899cc7bf90e18006e324bf4f4ec75",
+      "originalBytes": 5174,
+      "upstreamReferencePath": "assets/Grapes/3D/grapes_3d.png"
+    },
+    {
+      "glyph": "🍍",
+      "label": "菠萝",
+      "name": "Pineapple",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f34d",
+      "unicode": "1F34D",
+      "shortcode": ":pineapple:",
+      "sourcePackagePath": "package/assets/1f34d.webp",
+      "sourceSha256": "83b703b4882e0145af40b8bd00b1aabdf0c9744ab7a8d0396d8cd94c45999a8f",
+      "originalBytes": 4564,
+      "upstreamReferencePath": "assets/Pineapple/3D/pineapple_3d.png"
+    },
+    {
+      "glyph": "🥭",
+      "label": "芒果",
+      "name": "Mango",
+      "category": "食物",
+      "keywords": [
+        "水果"
+      ],
+      "id": "1f96d",
+      "unicode": "1F96D",
+      "shortcode": ":mango:",
+      "sourcePackagePath": "package/assets/1f96d.webp",
+      "sourceSha256": "ba56bdad39a2b4c61776140826208e294f313e7646abc02b8caae8c46c83b17a",
+      "originalBytes": 4050,
+      "upstreamReferencePath": "assets/Mango/3D/mango_3d.png"
+    },
+    {
+      "glyph": "🍔",
+      "label": "汉堡",
+      "name": "Hamburger",
+      "category": "食物",
+      "keywords": [
+        "吃饭"
+      ],
+      "id": "1f354",
+      "unicode": "1F354",
+      "shortcode": ":hamburger:",
+      "sourcePackagePath": "package/assets/1f354.webp",
+      "sourceSha256": "a0fb435eb35afd71e8d77005971e33427e0e87c0e9d0638b29553e1f1ea31dbd",
+      "originalBytes": 4182,
+      "upstreamReferencePath": "assets/Hamburger/3D/hamburger_3d.png"
+    },
+    {
+      "glyph": "🍟",
+      "label": "薯条",
+      "name": "French fries",
+      "category": "食物",
+      "keywords": [
+        "吃饭"
+      ],
+      "id": "1f35f",
+      "unicode": "1F35F",
+      "shortcode": ":french_fries:",
+      "sourcePackagePath": "package/assets/1f35f.webp",
+      "sourceSha256": "0d604b034b04a879fadf88271c681713c7ec82f278d8ae7b4fe33314d459161e",
+      "originalBytes": 4690,
+      "upstreamReferencePath": "assets/French fries/3D/french_fries_3d.png"
+    },
+    {
+      "glyph": "🍕",
+      "label": "披萨",
+      "name": "Pizza",
+      "category": "食物",
+      "keywords": [
+        "吃饭"
+      ],
+      "id": "1f355",
+      "unicode": "1F355",
+      "shortcode": ":pizza:",
+      "sourcePackagePath": "package/assets/1f355.webp",
+      "sourceSha256": "f6713f402afdefc2ebf22667447cd03089266cb518dc97b94e0ebdb9b2ff2425",
+      "originalBytes": 4260,
+      "upstreamReferencePath": "assets/Pizza/3D/pizza_3d.png"
+    },
+    {
+      "glyph": "🌭",
+      "label": "热狗",
+      "name": "Hot dog",
+      "category": "食物",
+      "keywords": [
+        "吃饭"
+      ],
+      "id": "1f32d",
+      "unicode": "1F32D",
+      "shortcode": ":hot_dog:",
+      "sourcePackagePath": "package/assets/1f32d.webp",
+      "sourceSha256": "f4994e58b7a69383ec465137961c5735e1b1e4ddf8dd146ad93e6552f24c2352",
+      "originalBytes": 4974,
+      "upstreamReferencePath": "assets/Hot dog/3D/hot_dog_3d.png"
+    },
+    {
+      "glyph": "🍗",
+      "label": "鸡腿",
+      "name": "Poultry leg",
+      "category": "食物",
+      "keywords": [
+        "吃饭",
+        "肉"
+      ],
+      "id": "1f357",
+      "unicode": "1F357",
+      "shortcode": ":poultry_leg:",
+      "sourcePackagePath": "package/assets/1f357.webp",
+      "sourceSha256": "0d825d75da5825b2389eca152ede3dfdd4c901a34cb2903191f8bb643548950f",
+      "originalBytes": 3708,
+      "upstreamReferencePath": "assets/Poultry leg/3D/poultry_leg_3d.png"
+    },
+    {
+      "glyph": "🍜",
+      "label": "面条",
+      "name": "Steaming bowl",
+      "category": "食物",
+      "keywords": [
+        "吃饭"
+      ],
+      "id": "1f35c",
+      "unicode": "1F35C",
+      "shortcode": ":steaming_bowl:",
+      "sourcePackagePath": "package/assets/1f35c.webp",
+      "sourceSha256": "d0c39f3c68cb35cd33645ca5ea3a570ccec6f36558254ff529470b2bf0402586",
+      "originalBytes": 4882,
+      "upstreamReferencePath": "assets/Steaming bowl/3D/steaming_bowl_3d.png"
+    },
+    {
+      "glyph": "🍣",
+      "label": "寿司",
+      "name": "Sushi",
+      "category": "食物",
+      "keywords": [
+        "吃饭"
+      ],
+      "id": "1f363",
+      "unicode": "1F363",
+      "shortcode": ":sushi:",
+      "sourcePackagePath": "package/assets/1f363.webp",
+      "sourceSha256": "db6081a764be206f65e111a278eb0651942680841ec13a9bd1d97cde05106b09",
+      "originalBytes": 4084,
+      "upstreamReferencePath": "assets/Sushi/3D/sushi_3d.png"
+    },
+    {
+      "glyph": "🍿",
+      "label": "爆米花",
+      "name": "Popcorn",
+      "category": "食物",
+      "keywords": [
+        "零食"
+      ],
+      "id": "1f37f",
+      "unicode": "1F37F",
+      "shortcode": ":popcorn:",
+      "sourcePackagePath": "package/assets/1f37f.webp",
+      "sourceSha256": "6b09729a92e6110aaeb94b9778ac7d16f749960aab4737027d77b942d4e3e945",
+      "originalBytes": 4960,
+      "upstreamReferencePath": "assets/Popcorn/3D/popcorn_3d.png"
+    },
+    {
+      "glyph": "🍩",
+      "label": "甜甜圈",
+      "name": "Doughnut",
+      "category": "食物",
+      "keywords": [
+        "甜点"
+      ],
+      "id": "1f369",
+      "unicode": "1F369",
+      "shortcode": ":doughnut:",
+      "sourcePackagePath": "package/assets/1f369.webp",
+      "sourceSha256": "f2214c87c72390af60f1c9781ea86cea314686ed2fe6c9bf3f4b5f5f1b4f30c8",
+      "originalBytes": 6226,
+      "upstreamReferencePath": "assets/Doughnut/3D/doughnut_3d.png"
+    },
+    {
+      "glyph": "🍰",
+      "label": "蛋糕",
+      "name": "Shortcake",
+      "category": "食物",
+      "keywords": [
+        "甜点"
+      ],
+      "id": "1f370",
+      "unicode": "1F370",
+      "shortcode": ":shortcake:",
+      "sourcePackagePath": "package/assets/1f370.webp",
+      "sourceSha256": "d7fdbb1cec941bb057235d276375e45ca78846c1c3a1447a0617e8725c18fee8",
+      "originalBytes": 5376,
+      "upstreamReferencePath": "assets/Shortcake/3D/shortcake_3d.png"
+    },
+    {
+      "glyph": "🎂",
+      "label": "生日蛋糕",
+      "name": "Birthday cake",
+      "category": "食物",
+      "keywords": [
+        "生日",
+        "甜点"
+      ],
+      "id": "1f382",
+      "unicode": "1F382",
+      "shortcode": ":birthday_cake:",
+      "sourcePackagePath": "package/assets/1f382.webp",
+      "sourceSha256": "7e9225c7362bd78468135d1af77ae3a667ae459cef0a36fb77d62ccaf98d30f2",
+      "originalBytes": 5794,
+      "upstreamReferencePath": "assets/Birthday cake/3D/birthday_cake_3d.png"
+    },
+    {
+      "glyph": "🍺",
+      "label": "啤酒",
+      "name": "Beer mug",
+      "category": "食物",
+      "keywords": [
+        "喝酒"
+      ],
+      "id": "1f37a",
+      "unicode": "1F37A",
+      "shortcode": ":beer_mug:",
+      "sourcePackagePath": "package/assets/1f37a.webp",
+      "sourceSha256": "e8578e2459782f5f019d03dcae29403e1fa17f174fdcb1e26f68053702ba21e8",
+      "originalBytes": 3244,
+      "upstreamReferencePath": "assets/Beer mug/3D/beer_mug_3d.png"
+    },
+    {
+      "glyph": "☕",
+      "label": "咖啡",
+      "name": "Hot beverage",
+      "category": "食物",
+      "keywords": [
+        "饮料"
+      ],
+      "id": "2615",
+      "unicode": "2615",
+      "shortcode": ":hot_beverage:",
+      "sourcePackagePath": "package/assets/2615.webp",
+      "sourceSha256": "bad529edc821f1ded582b4f9cf4c14faf3a97b12a0dffe4184050aba0f4e45f3",
+      "originalBytes": 4470,
+      "upstreamReferencePath": "assets/Hot beverage/3D/hot_beverage_3d.png"
+    },
+    {
+      "glyph": "🧋",
+      "label": "奶茶",
+      "name": "Bubble tea",
+      "category": "食物",
+      "keywords": [
+        "饮料"
+      ],
+      "id": "1f9cb",
+      "unicode": "1F9CB",
+      "shortcode": ":bubble_tea:",
+      "sourcePackagePath": "package/assets/1f9cb.webp",
+      "sourceSha256": "62427c2454ce1945238b84339c6f238fb21bdb8ec0adf2be30246f41d0014991",
+      "originalBytes": 3154,
+      "upstreamReferencePath": "assets/Bubble tea/3D/bubble_tea_3d.png"
+    },
+    {
+      "glyph": "🔥",
+      "label": "火",
+      "name": "Fire",
+      "category": "物品",
+      "keywords": [
+        "热",
+        "火爆"
+      ],
+      "id": "1f525",
+      "unicode": "1F525",
+      "shortcode": ":fire:",
+      "sourcePackagePath": "package/assets/1f525.webp",
+      "sourceSha256": "e8fd5a9d696bd595f99c52b7627ee3d4060f1dcfd7944c52d65539bc13f5892d",
+      "originalBytes": 4148,
+      "upstreamReferencePath": "assets/Fire/3D/fire_3d.png"
+    },
+    {
+      "glyph": "💯",
+      "label": "满分",
+      "name": "Hundred points",
+      "category": "物品",
+      "keywords": [
+        "赞"
+      ],
+      "id": "1f4af",
+      "unicode": "1F4AF",
+      "shortcode": ":hundred_points:",
+      "sourcePackagePath": "package/assets/1f4af.webp",
+      "sourceSha256": "d30e9da7dd89665bf254f36276aeb537c7d107b1cf32e46c3ba282a521562182",
+      "originalBytes": 9288,
+      "upstreamReferencePath": "assets/Hundred points/3D/hundred_points_3d.png"
+    },
+    {
+      "glyph": "⭐",
+      "label": "星星",
+      "name": "Star",
+      "category": "物品",
+      "keywords": [
+        "闪亮"
+      ],
+      "id": "2b50",
+      "unicode": "2B50",
+      "shortcode": ":star:",
+      "sourcePackagePath": "package/assets/2b50.webp",
+      "sourceSha256": "99d5d7f51c3fe48d1920939a20862412f1fa8eb8a754d04360601fc6fb806c34",
+      "originalBytes": 3948,
+      "upstreamReferencePath": "assets/Star/3D/star_3d.png"
+    },
+    {
+      "glyph": "✨",
+      "label": "闪光",
+      "name": "Sparkles",
+      "category": "物品",
+      "keywords": [
+        "闪亮"
+      ],
+      "id": "2728",
+      "unicode": "2728",
+      "shortcode": ":sparkles:",
+      "sourcePackagePath": "package/assets/2728.webp",
+      "sourceSha256": "d03807407b60a6a970ad5fd1fcb93c826ed30f4a52749a9d384e6ce43afadaa2",
+      "originalBytes": 6066,
+      "upstreamReferencePath": "assets/Sparkles/3D/sparkles_3d.png"
+    },
+    {
+      "glyph": "💥",
+      "label": "爆炸",
+      "name": "Collision",
+      "category": "物品",
+      "keywords": [
+        "震惊"
+      ],
+      "id": "1f4a5",
+      "unicode": "1F4A5",
+      "shortcode": ":collision:",
+      "sourcePackagePath": "package/assets/1f4a5.webp",
+      "sourceSha256": "bb007cd6e8376dde4ace2f7d19b73556e9a21da5c8d24c50814b24b35ee66a26",
+      "originalBytes": 6320,
+      "upstreamReferencePath": "assets/Collision/3D/collision_3d.png"
+    },
+    {
+      "glyph": "💢",
+      "label": "怒气",
+      "name": "Anger symbol",
+      "category": "物品",
+      "keywords": [
+        "怒"
+      ],
+      "id": "1f4a2",
+      "unicode": "1F4A2",
+      "shortcode": ":anger_symbol:",
+      "sourcePackagePath": "package/assets/1f4a2.webp",
+      "sourceSha256": "757d7f87f34019dc5019a3a3e12f5aaad9b2613f585b3667468cfaf12f3b2b16",
+      "originalBytes": 8036,
+      "upstreamReferencePath": "assets/Anger symbol/3D/anger_symbol_3d.png"
+    },
+    {
+      "glyph": "💤",
+      "label": "睡眠",
+      "name": "Zzz",
+      "category": "物品",
+      "keywords": [
+        "困"
+      ],
+      "id": "1f4a4",
+      "unicode": "1F4A4",
+      "shortcode": ":zzz:",
+      "sourcePackagePath": "package/assets/1f4a4.webp",
+      "sourceSha256": "fad6543dea4795ee6b7cc636e1c13f9c272e936b1a87e6d68bfd22aee36bb03d",
+      "originalBytes": 6198,
+      "upstreamReferencePath": "assets/Zzz/3D/zzz_3d.png"
+    },
+    {
+      "glyph": "💦",
+      "label": "汗滴",
+      "name": "Sweat droplets",
+      "category": "物品",
+      "keywords": [
+        "汗"
+      ],
+      "id": "1f4a6",
+      "unicode": "1F4A6",
+      "shortcode": ":sweat_droplets:",
+      "sourcePackagePath": "package/assets/1f4a6.webp",
+      "sourceSha256": "9057427061babb630829971afc4b2afa008bff6e5933e2b4121a1d3005e2b2ff",
+      "originalBytes": 6144,
+      "upstreamReferencePath": "assets/Sweat droplets/3D/sweat_droplets_3d.png"
+    },
+    {
+      "glyph": "💬",
+      "label": "聊天",
+      "name": "Speech balloon",
+      "category": "物品",
+      "keywords": [
+        "说话"
+      ],
+      "id": "1f4ac",
+      "unicode": "1F4AC",
+      "shortcode": ":speech_balloon:",
+      "sourcePackagePath": "package/assets/1f4ac.webp",
+      "sourceSha256": "7a05e20c24fef10b2b14c9d21f1183b3314b7f11945e06a26b66ef51fd865aee",
+      "originalBytes": 3134,
+      "upstreamReferencePath": "assets/Speech balloon/3D/speech_balloon_3d.png"
+    },
+    {
+      "glyph": "👀",
+      "label": "眼睛",
+      "name": "Eyes",
+      "category": "物品",
+      "keywords": [
+        "看",
+        "吃瓜"
+      ],
+      "id": "1f440",
+      "unicode": "1F440",
+      "shortcode": ":eyes:",
+      "sourcePackagePath": "package/assets/1f440.webp",
+      "sourceSha256": "43174c295d2dd6d68cba1e0bc283a82b34a421d46ec0b17f329d7564842dc121",
+      "originalBytes": 3622,
+      "upstreamReferencePath": "assets/Eyes/3D/eyes_3d.png"
+    },
+    {
+      "glyph": "💋",
+      "label": "唇印",
+      "name": "Kiss mark",
+      "category": "物品",
+      "keywords": [
+        "亲亲"
+      ],
+      "id": "1f48b",
+      "unicode": "1F48B",
+      "shortcode": ":kiss_mark:",
+      "sourcePackagePath": "package/assets/1f48b.webp",
+      "sourceSha256": "523075b5ebf6dd5383a951ff2d5ab7c62d3e3661bd518273351c39c2a40e8efa",
+      "originalBytes": 6280,
+      "upstreamReferencePath": "assets/Kiss mark/3D/kiss_mark_3d.png"
+    },
+    {
+      "glyph": "🌹",
+      "label": "玫瑰",
+      "name": "Rose",
+      "category": "物品",
+      "keywords": [
+        "花",
+        "爱"
+      ],
+      "id": "1f339",
+      "unicode": "1F339",
+      "shortcode": ":rose:",
+      "sourcePackagePath": "package/assets/1f339.webp",
+      "sourceSha256": "a464040bb4104a2d8ceba811bfb344312de18c657d367707ee91fae5434ab17e",
+      "originalBytes": 3802,
+      "upstreamReferencePath": "assets/Rose/3D/rose_3d.png"
+    },
+    {
+      "glyph": "🥀",
+      "label": "凋谢",
+      "name": "Wilted flower",
+      "category": "物品",
+      "keywords": [
+        "花",
+        "难过"
+      ],
+      "id": "1f940",
+      "unicode": "1F940",
+      "shortcode": ":wilted_flower:",
+      "sourcePackagePath": "package/assets/1f940.webp",
+      "sourceSha256": "170210d790f7f07ef0e8475fe47ad570dd836bf8d6942a44d3fd18be23b21817",
+      "originalBytes": 5932,
+      "upstreamReferencePath": "assets/Wilted flower/3D/wilted_flower_3d.png"
+    },
+    {
+      "glyph": "🎁",
+      "label": "礼物",
+      "name": "Wrapped gift",
+      "category": "物品",
+      "keywords": [
+        "生日"
+      ],
+      "id": "1f381",
+      "unicode": "1F381",
+      "shortcode": ":wrapped_gift:",
+      "sourcePackagePath": "package/assets/1f381.webp",
+      "sourceSha256": "0e70523a35e99b14b5b1cdf2ae8c10ea0784021c7efa666bd0d833cb75ff43ea",
+      "originalBytes": 3402,
+      "upstreamReferencePath": "assets/Wrapped gift/3D/wrapped_gift_3d.png"
+    },
+    {
+      "glyph": "💎",
+      "label": "钻石",
+      "name": "Gem stone",
+      "category": "物品",
+      "keywords": [
+        "珍贵"
+      ],
+      "id": "1f48e",
+      "unicode": "1F48E",
+      "shortcode": ":gem_stone:",
+      "sourcePackagePath": "package/assets/1f48e.webp",
+      "sourceSha256": "dfc53e05a3a7b7ada45a3f64929343220b0334f54c70eb9646d2033954597053",
+      "originalBytes": 3744,
+      "upstreamReferencePath": "assets/Gem stone/3D/gem_stone_3d.png"
+    },
+    {
+      "glyph": "💍",
+      "label": "戒指",
+      "name": "Ring",
+      "category": "物品",
+      "keywords": [
+        "爱"
+      ],
+      "id": "1f48d",
+      "unicode": "1F48D",
+      "shortcode": ":ring:",
+      "sourcePackagePath": "package/assets/1f48d.webp",
+      "sourceSha256": "8ce317b34fd839856d0851dff345b04ff774fc8eee96814d366f331a898df073",
+      "originalBytes": 5076,
+      "upstreamReferencePath": "assets/Ring/3D/ring_3d.png"
+    },
+    {
+      "glyph": "💰",
+      "label": "钱袋",
+      "name": "Money bag",
+      "category": "物品",
+      "keywords": [
+        "钱"
+      ],
+      "id": "1f4b0",
+      "unicode": "1F4B0",
+      "shortcode": ":money_bag:",
+      "sourcePackagePath": "package/assets/1f4b0.webp",
+      "sourceSha256": "c5401ebc65780431fe6b7ab2621537671ea6d687efccc807657e3b641c9ebabf",
+      "originalBytes": 4664,
+      "upstreamReferencePath": "assets/Money bag/3D/money_bag_3d.png"
+    },
+    {
+      "glyph": "💸",
+      "label": "钱飞了",
+      "name": "Money with wings",
+      "category": "物品",
+      "keywords": [
+        "钱"
+      ],
+      "id": "1f4b8",
+      "unicode": "1F4B8",
+      "shortcode": ":money_with_wings:",
+      "sourcePackagePath": "package/assets/1f4b8.webp",
+      "sourceSha256": "1501ce2a40bba4183a7d45eacf21f0aa6ab54c79761f1dff652bb133e6ee392b",
+      "originalBytes": 5168,
+      "upstreamReferencePath": "assets/Money with wings/3D/money_with_wings_3d.png"
+    },
+    {
+      "glyph": "🎮",
+      "label": "手柄",
+      "name": "Video game",
+      "category": "物品",
+      "keywords": [
+        "游戏"
+      ],
+      "id": "1f3ae",
+      "unicode": "1F3AE",
+      "shortcode": ":video_game:",
+      "sourcePackagePath": "package/assets/1f3ae.webp",
+      "sourceSha256": "c07bbd1b3246a99e4cb830abac616036abbce613ca5417a781c3dc4ba267eb34",
+      "originalBytes": 4976,
+      "upstreamReferencePath": "assets/Video game/3D/video_game_3d.png"
+    },
+    {
+      "glyph": "🎧",
+      "label": "耳机",
+      "name": "Headphone",
+      "category": "物品",
+      "keywords": [
+        "音乐"
+      ],
+      "id": "1f3a7",
+      "unicode": "1F3A7",
+      "shortcode": ":headphone:",
+      "sourcePackagePath": "package/assets/1f3a7.webp",
+      "sourceSha256": "3833f337b70cfabc0b07df0b024f32fa1f960133c28c6c5265d37ee659593e53",
+      "originalBytes": 5910,
+      "upstreamReferencePath": "assets/Headphone/3D/headphone_3d.png"
+    },
+    {
+      "glyph": "🏆",
+      "label": "奖杯",
+      "name": "Trophy",
+      "category": "物品",
+      "keywords": [
+        "冠军"
+      ],
+      "id": "1f3c6",
+      "unicode": "1F3C6",
+      "shortcode": ":trophy:",
+      "sourcePackagePath": "package/assets/1f3c6.webp",
+      "sourceSha256": "63ac3c2fe72c9394032b5552d8fcc08edeab3799e459bcd6e6b7b374e3ecb946",
+      "originalBytes": 4378,
+      "upstreamReferencePath": "assets/Trophy/3D/trophy_3d.png"
+    },
+    {
+      "glyph": "🥇",
+      "label": "金牌",
+      "name": "1st place medal",
+      "category": "物品",
+      "keywords": [
+        "冠军"
+      ],
+      "id": "1f947",
+      "unicode": "1F947",
+      "shortcode": ":1st_place_medal:",
+      "sourcePackagePath": "package/assets/1f947.webp",
+      "sourceSha256": "693a8279eb9665eaa79ac9e2a2b9d611449fa7a724af38c1d9a1a39027cff52e",
+      "originalBytes": 5396,
+      "upstreamReferencePath": "assets/1st place medal/3D/1st_place_medal_3d.png"
+    },
+    {
+      "glyph": "⚽",
+      "label": "足球",
+      "name": "Soccer ball",
+      "category": "物品",
+      "keywords": [
+        "运动"
+      ],
+      "id": "26bd",
+      "unicode": "26BD",
+      "shortcode": ":soccer_ball:",
+      "sourcePackagePath": "package/assets/26bd.webp",
+      "sourceSha256": "d0d24cdce403d0a71a96dc867346f057a36523ac95f1d4257de5f0f7d8e9530c",
+      "originalBytes": 5846,
+      "upstreamReferencePath": "assets/Soccer ball/3D/soccer_ball_3d.png"
+    },
+    {
+      "glyph": "🏀",
+      "label": "篮球",
+      "name": "Basketball",
+      "category": "物品",
+      "keywords": [
+        "运动"
+      ],
+      "id": "1f3c0",
+      "unicode": "1F3C0",
+      "shortcode": ":basketball:",
+      "sourcePackagePath": "package/assets/1f3c0.webp",
+      "sourceSha256": "46399fa1d5bd0333929a240fc02ed2c8542ba66cadcd82b1400fa95206e4f790",
+      "originalBytes": 7168,
+      "upstreamReferencePath": "assets/Basketball/3D/basketball_3d.png"
+    },
+    {
+      "glyph": "💣",
+      "label": "炸弹",
+      "name": "Bomb",
+      "category": "物品",
+      "keywords": [
+        "爆炸"
+      ],
+      "id": "1f4a3",
+      "unicode": "1F4A3",
+      "shortcode": ":bomb:",
+      "sourcePackagePath": "package/assets/1f4a3.webp",
+      "sourceSha256": "d6a221595cfa8ea6e4f070c9aff17e4322eeb579a626d044a7bcf13bb46b3841",
+      "originalBytes": 4388,
+      "upstreamReferencePath": "assets/Bomb/3D/bomb_3d.png"
+    },
+    {
+      "glyph": "🚀",
+      "label": "火箭",
+      "name": "Rocket",
+      "category": "物品",
+      "keywords": [
+        "出发"
+      ],
+      "id": "1f680",
+      "unicode": "1F680",
+      "shortcode": ":rocket:",
+      "sourcePackagePath": "package/assets/1f680.webp",
+      "sourceSha256": "5800059e61b40bfcf279624f02cc2d76fbbaa008c18982cc143b8b096d7cf686",
+      "originalBytes": 5336,
+      "upstreamReferencePath": "assets/Rocket/3D/rocket_3d.png"
+    },
+    {
+      "glyph": "✈️",
+      "label": "飞机",
+      "name": "Airplane",
+      "category": "物品",
+      "keywords": [
+        "旅行"
+      ],
+      "id": "2708",
+      "unicode": "2708 FE0F",
+      "shortcode": ":airplane:",
+      "sourcePackagePath": "package/assets/2708-fe0f.webp",
+      "sourceSha256": "92fcef2a3117ec86245c4845b7678e4a509321f615bd8718b2a268f2bdf404bc",
+      "originalBytes": 5922,
+      "upstreamReferencePath": "assets/Airplane/3D/airplane_3d.png"
+    },
+    {
+      "glyph": "📷",
+      "label": "相机",
+      "name": "Camera",
+      "category": "物品",
+      "keywords": [
+        "拍照"
+      ],
+      "id": "1f4f7",
+      "unicode": "1F4F7",
+      "shortcode": ":camera:",
+      "sourcePackagePath": "package/assets/1f4f7.webp",
+      "sourceSha256": "2d8350552074501f30785391255a443eb1955b1da9f3cf7d47c298a63b178c01",
+      "originalBytes": 2284,
+      "upstreamReferencePath": "assets/Camera/3D/camera_3d.png"
+    },
+    {
+      "glyph": "☀️",
+      "label": "太阳",
+      "name": "Sun",
+      "category": "节日",
+      "keywords": [
+        "天气",
+        "早上"
+      ],
+      "id": "2600",
+      "unicode": "2600 FE0F",
+      "shortcode": ":sun:",
+      "sourcePackagePath": "package/assets/2600-fe0f.webp",
+      "sourceSha256": "f2a04dd695ba645c2a89dc599052008480999a26af079c127c7a07cbd11a3764",
+      "originalBytes": 4584,
+      "upstreamReferencePath": "assets/Sun/3D/sun_3d.png"
+    },
+    {
+      "glyph": "🌙",
+      "label": "月亮",
+      "name": "Crescent moon",
+      "category": "节日",
+      "keywords": [
+        "天气",
+        "晚安"
+      ],
+      "id": "1f319",
+      "unicode": "1F319",
+      "shortcode": ":crescent_moon:",
+      "sourcePackagePath": "package/assets/1f319.webp",
+      "sourceSha256": "24420d675d9e0c5ea6609a05e8e3b4b88c7ecf39ea14e6518af607adcd347470",
+      "originalBytes": 3700,
+      "upstreamReferencePath": "assets/Crescent moon/3D/crescent_moon_3d.png"
+    },
+    {
+      "glyph": "🌈",
+      "label": "彩虹",
+      "name": "Rainbow",
+      "category": "节日",
+      "keywords": [
+        "天气"
+      ],
+      "id": "1f308",
+      "unicode": "1F308",
+      "shortcode": ":rainbow:",
+      "sourcePackagePath": "package/assets/1f308.webp",
+      "sourceSha256": "79f77d32a30babe102691ec19b66592a7b01987bbbe295e9ea6e9009cc9f4cad",
+      "originalBytes": 5194,
+      "upstreamReferencePath": "assets/Rainbow/3D/rainbow_3d.png"
+    },
+    {
+      "glyph": "❄️",
+      "label": "雪花",
+      "name": "Snowflake",
+      "category": "节日",
+      "keywords": [
+        "天气",
+        "冬天"
+      ],
+      "id": "2744",
+      "unicode": "2744 FE0F",
+      "shortcode": ":snowflake:",
+      "sourcePackagePath": "package/assets/2744-fe0f.webp",
+      "sourceSha256": "db67ccba882e303648075debd1466595397e7ac9f8f819d44c8c702220e4e530",
+      "originalBytes": 9416,
+      "upstreamReferencePath": "assets/Snowflake/3D/snowflake_3d.png"
+    },
+    {
+      "glyph": "☃️",
+      "label": "雪人",
+      "name": "Snowman",
+      "category": "节日",
+      "keywords": [
+        "冬天"
+      ],
+      "id": "2603",
+      "unicode": "2603 FE0F",
+      "shortcode": ":snowman:",
+      "sourcePackagePath": "package/assets/2603-fe0f.webp",
+      "sourceSha256": "8c58da44f5745c3de641c510b27be80c47960953fea9c7405bb724732fa2b6f1",
+      "originalBytes": 6706,
+      "upstreamReferencePath": "assets/Snowman/3D/snowman_3d.png"
+    },
+    {
+      "glyph": "🎄",
+      "label": "圣诞树",
+      "name": "Christmas tree",
+      "category": "节日",
+      "keywords": [
+        "圣诞",
+        "节日"
+      ],
+      "id": "1f384",
+      "unicode": "1F384",
+      "shortcode": ":christmas_tree:",
+      "sourcePackagePath": "package/assets/1f384.webp",
+      "sourceSha256": "81f994df29670300f691c0a1dfe9aaec7e4861459ebf485e2d4eb22627b5a404",
+      "originalBytes": 4218,
+      "upstreamReferencePath": "assets/Christmas tree/3D/christmas_tree_3d.png"
+    },
+    {
+      "glyph": "🎅",
+      "label": "圣诞老人",
+      "name": "Santa claus",
+      "category": "节日",
+      "keywords": [
+        "圣诞",
+        "节日"
+      ],
+      "id": "1f385",
+      "unicode": "1F385",
+      "shortcode": ":santa_claus:",
+      "sourcePackagePath": "package/assets/1f385.webp",
+      "sourceSha256": "9124837f9218b6813cd6f25b2003770484850cd7986145fa31b668c4ba64c98e",
+      "originalBytes": 6916,
+      "upstreamReferencePath": "assets/Santa claus/Default/3D/santa_claus_3d_default.png"
+    },
+    {
+      "glyph": "🎉",
+      "label": "庆祝礼花",
+      "name": "Party popper",
+      "category": "节日",
+      "keywords": [
+        "恭喜",
+        "节日"
+      ],
+      "id": "1f389",
+      "unicode": "1F389",
+      "shortcode": ":party_popper:",
+      "sourcePackagePath": "package/assets/1f389.webp",
+      "sourceSha256": "714503d4daae7f32de7ae1ba3007aef8f64127f8c8d3f576b8406bcdb18f5853",
+      "originalBytes": 9184,
+      "upstreamReferencePath": "assets/Party popper/3D/party_popper_3d.png"
+    },
+    {
+      "glyph": "🎊",
+      "label": "彩纸球",
+      "name": "Confetti ball",
+      "category": "节日",
+      "keywords": [
+        "庆祝"
+      ],
+      "id": "1f38a",
+      "unicode": "1F38A",
+      "shortcode": ":confetti_ball:",
+      "sourcePackagePath": "package/assets/1f38a.webp",
+      "sourceSha256": "12a89ca16123505ebf9ca098ec1e995e001613f7e89cc7d586439947cc9885ff",
+      "originalBytes": 8094,
+      "upstreamReferencePath": "assets/Confetti ball/3D/confetti_ball_3d.png"
+    },
+    {
+      "glyph": "🎈",
+      "label": "气球",
+      "name": "Balloon",
+      "category": "节日",
+      "keywords": [
+        "生日"
+      ],
+      "id": "1f388",
+      "unicode": "1F388",
+      "shortcode": ":balloon:",
+      "sourcePackagePath": "package/assets/1f388.webp",
+      "sourceSha256": "dfdfda793cc953ec3845b1ba647870e72c9a9320093cfff2915fd8dc2bece978",
+      "originalBytes": 4302,
+      "upstreamReferencePath": "assets/Balloon/3D/balloon_3d.png"
+    },
+    {
+      "glyph": "🎆",
+      "label": "烟花",
+      "name": "Fireworks",
+      "category": "节日",
+      "keywords": [
+        "庆祝",
+        "新年"
+      ],
+      "id": "1f386",
+      "unicode": "1F386",
+      "shortcode": ":fireworks:",
+      "sourcePackagePath": "package/assets/1f386.webp",
+      "sourceSha256": "99004bcffbdcf64ac5e600526090e5102f2a12dbf2b486d385ec6d8be46d2677",
+      "originalBytes": 5462,
+      "upstreamReferencePath": "assets/Fireworks/3D/fireworks_3d.png"
+    },
+    {
+      "glyph": "🎇",
+      "label": "仙女棒",
+      "name": "Sparkler",
+      "category": "节日",
+      "keywords": [
+        "庆祝",
+        "新年"
+      ],
+      "id": "1f387",
+      "unicode": "1F387",
+      "shortcode": ":sparkler:",
+      "sourcePackagePath": "package/assets/1f387.webp",
+      "sourceSha256": "a9e973c45aa9c7853ddd14962ca1e3979c51602346cbf84fe61d73051443ea3d",
+      "originalBytes": 5568,
+      "upstreamReferencePath": "assets/Sparkler/3D/sparkler_3d.png"
+    },
+    {
+      "glyph": "🧨",
+      "label": "鞭炮",
+      "name": "Firecracker",
+      "category": "节日",
+      "keywords": [
+        "新年"
+      ],
+      "id": "1f9e8",
+      "unicode": "1F9E8",
+      "shortcode": ":firecracker:",
+      "sourcePackagePath": "package/assets/1f9e8.webp",
+      "sourceSha256": "43aafdf55c17bc6eeedb2a5f10fbe7ee6ce0b25f1ed1001e63015bfcbac7e90c",
+      "originalBytes": 3658,
+      "upstreamReferencePath": "assets/Firecracker/3D/firecracker_3d.png"
+    },
+    {
+      "glyph": "🧧",
+      "label": "红包",
+      "name": "Red envelope",
+      "category": "节日",
+      "keywords": [
+        "新年"
+      ],
+      "id": "1f9e7",
+      "unicode": "1F9E7",
+      "shortcode": ":red_envelope:",
+      "sourcePackagePath": "package/assets/1f9e7.webp",
+      "sourceSha256": "32d59d4a6299c6964432a3f94be3fdef603e6c34b7dd1222bac617d86d2b3cc3",
+      "originalBytes": 3540,
+      "upstreamReferencePath": "assets/Red envelope/3D/red_envelope_3d.png"
+    },
+    {
+      "glyph": "🏮",
+      "label": "灯笼",
+      "name": "Red paper lantern",
+      "category": "节日",
+      "keywords": [
+        "新年"
+      ],
+      "id": "1f3ee",
+      "unicode": "1F3EE",
+      "shortcode": ":red_paper_lantern:",
+      "sourcePackagePath": "package/assets/1f3ee.webp",
+      "sourceSha256": "be568aa809e83be7516b9740a685ea04d34c209bf2826e2dd5523288a97ce8fc",
+      "originalBytes": 3938,
+      "upstreamReferencePath": "assets/Red paper lantern/3D/red_paper_lantern_3d.png"
+    },
+    {
+      "glyph": "🍀",
+      "label": "幸运草",
+      "name": "Four leaf clover",
+      "category": "节日",
+      "keywords": [
+        "好运"
+      ],
+      "id": "1f340",
+      "unicode": "1F340",
+      "shortcode": ":four_leaf_clover:",
+      "sourcePackagePath": "package/assets/1f340.webp",
+      "sourceSha256": "185da95105da9aeb47f9fa12b2274d5f5ad1508b44b8ceef0ea3c5aef305571b",
+      "originalBytes": 5068,
+      "upstreamReferencePath": "assets/Four leaf clover/3D/four_leaf_clover_3d.png"
+    }
+  ]
+}

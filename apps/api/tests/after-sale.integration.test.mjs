@@ -2,10 +2,12 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
+import { OrderJobProcessor, FinanceLedgerEngine } from "@xiongzai/application";
 import { issueAccessToken } from "@xiongzai/auth";
-import { createDatabaseClient } from "@xiongzai/database";
+import { createDatabaseClient, orders } from "@xiongzai/database";
 import { JsonLogger } from "@xiongzai/observability";
 import pg from "pg";
+import { eq } from "drizzle-orm";
 import { createApiApp, loadApiConfig, MockPaymentProvider } from "../dist/index.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -40,11 +42,14 @@ const config = loadApiConfig({
 before(async () => {
   if (!enabled) return;
   migrationClient = new pg.Client({ connectionString: databaseUrl }); await migrationClient.connect(); await migrationClient.query(`CREATE SCHEMA "${schemaName}"`); await migrationClient.query(`SET search_path TO "${schemaName}", public`);
-  await runMigration("0000_initial_schema.sql"); await runMigration("0001_core_invariants.sql"); await runMigration("0004_payment_channels_voice_constraints.sql"); await runMigration("0005_policy_acceptance_context.sql"); await runMigration("0006_policy_version_bindings.sql"); await runMigration("0007_user_lifecycle_requests.sql"); await runMigration("0008_user_lifecycle_invariants.sql"); await runMigration("0009_clear_rhodey.sql");
+  await runMigration("0000_initial_schema.sql"); await runMigration("0001_core_invariants.sql"); await runMigration("0004_payment_channels_voice_constraints.sql"); await runMigration("0005_policy_acceptance_context.sql"); await runMigration("0006_policy_version_bindings.sql"); await runMigration("0007_user_lifecycle_requests.sql"); await runMigration("0008_user_lifecycle_invariants.sql"); await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_version.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-after-sale-test", options: `-c search_path=${schemaName},public`, max: 12 });
   paymentProvider = new TrackingPaymentProvider(webhookSecret);
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, paymentProvider, logger: new JsonLogger("after-sale-test", () => {}) });
   buyer = await seedUser("buyer"); seller = await seedUser("seller"); admin = await seedAdmin("after-sale", ["refund.read", "refund.manage", "complaint.read", "complaint.manage", "review.read", "review.manage"]); await seedCatalog();
+  for (const [key, value] of [["order.payment_timeout_seconds", 300], ["order.accept_timeout_seconds", 300], ["order.auto_confirm_seconds", 300], ["finance.commission_rate_bps", 1000], ["finance.settlement_delay_seconds", 0]]) {
+    await migrationClient.query("INSERT INTO platform_configs (id,config_key,value_json,version_no,status,effective_at,created_by_admin_id) VALUES ($1,$2,$3,1,'ACTIVE',now(),$4)", [randomUUID(), key, { value }, admin.id]);
+  }
 });
 
 after(async () => { if (!enabled) return; await app?.close(); await migrationClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`); await migrationClient.end(); });
@@ -55,7 +60,7 @@ test("two historical partial refunds update cumulative amounts atomically and a 
   const approved = await userRequest(seller, "POST", `/api/v1/seller/refunds/${first.id}/decision`, { version: first.version, decision: "APPROVE", reason: "同意退还未履约部分" });
   assert.equal(approved.statusCode, 201, approved.body); assert.equal(approved.json().status, "REFUND_PROCESSING");
   const callback = refundCallback(approved.json(), 3_000n); const callbackFirst = await callbackRequest(callback); const callbackReplay = await callbackRequest(callback);
-  assert.equal(callbackFirst.statusCode, 201, callbackFirst.body); assert.equal(callbackFirst.json().refund.status, "REFUNDED"); assert.equal(callbackReplay.json().duplicate, true);
+  assert.equal(callbackFirst.statusCode, 201, callbackFirst.body); const newEventReplay = await callbackRequest({...callback,event_id:randomUUID()}); assert.equal(newEventReplay.statusCode,201,newEventReplay.body); assert.equal(newEventReplay.json().duplicate,true); assert.equal(callbackFirst.json().refund.status, "REFUNDED"); assert.equal(callbackReplay.json().duplicate, true);
 
   const second = await createRefund(firstOrder.orderId, 2_000n, "第二次部分退款");
   const rejected = await userRequest(seller, "POST", `/api/v1/seller/refunds/${second.id}/decision`, { version: second.version, decision: "REJECT", reason: "需要平台核验" });
@@ -198,6 +203,50 @@ test("buyer after-sale lists use scoped signed cursors and order detail exposes 
   const orderDetail = await userRequest(buyer, "GET", `/api/v1/orders/${first.orderId}`); assert.equal(orderDetail.statusCode, 200, orderDetail.body); assert.ok(orderDetail.json().available_actions.includes("VIEW_REFUND")); assert.ok(orderDetail.json().available_actions.includes("VIEW_REVIEW")); assert.equal(orderDetail.json().available_actions.includes("CREATE_REVIEW"), false);
 });
 
+test("active after-sale blocks seller completion, buyer confirmation and auto-confirm settlement", { skip: !enabled }, async () => {
+  const {orderId} = await seedCompletedOrder(6000n);
+  await migrationClient.query("UPDATE orders SET status='IN_SERVICE',completed_at=NULL WHERE id=$1", [orderId]);
+  await createRefund(orderId, 1000n, "服务未完成");
+  const blocked = await userRequest(seller,"POST",`/api/v1/seller/orders/${orderId}/complete`,{version:1});
+  assert.equal(blocked.statusCode,409,blocked.body);
+  await migrationClient.query("UPDATE orders SET status='PENDING_BUYER_CONFIRM',auto_confirm_at=now()-interval '1 second' WHERE id=$1",[orderId]);
+  const confirm = await userRequest(buyer,"POST",`/api/v1/orders/${orderId}/confirm`,{version:1});
+  assert.equal(confirm.statusCode,409,confirm.body);
+  const processor = new OrderJobProcessor(database.db);
+  assert.equal(await processor.process('ORDER_AUTO_CONFIRM',orderId,'blocked-confirm'),false);
+  const result = await migrationClient.query("SELECT status,(SELECT count(*)::int FROM seller_incomes WHERE order_id=$1) AS income FROM orders WHERE id=$1",[orderId]);
+  assert.equal(result.rows[0].status,'PENDING_BUYER_CONFIRM');assert.equal(result.rows[0].income,0);
+});
+test("automatic confirmation waits on the order lock and rechecks a committed after-sale", { skip: !enabled }, async () => {
+  const {orderId}=await seedCompletedOrder(6000n);
+  await migrationClient.query("UPDATE orders SET status='PENDING_BUYER_CONFIRM',completed_at=NULL,auto_confirm_at=now()-interval '1 second' WHERE id=$1",[orderId]);
+  await migrationClient.query('BEGIN');
+  try {
+    await migrationClient.query("SELECT id FROM orders WHERE id=$1 FOR UPDATE",[orderId]);
+    const pending=new OrderJobProcessor(database.db).process('ORDER_AUTO_CONFIRM',orderId,'race-confirm');
+    await migrationClient.query("UPDATE orders SET after_sale_status='IN_PROGRESS',version=version+1 WHERE id=$1",[orderId]);
+    await migrationClient.query('COMMIT');
+    assert.equal(await pending,false);
+    const facts=await migrationClient.query("SELECT count(*)::int AS count FROM seller_incomes WHERE order_id=$1",[orderId]);assert.equal(facts.rows[0].count,0);
+  } catch(error) { await migrationClient.query('ROLLBACK');throw error; }
+});
+
+test("pending settlement cannot release during after-sale and only the unreversed remainder becomes available", { skip: !enabled }, async () => {
+  const {orderId}=await seedCompletedOrder(6000n);
+  const engine = new FinanceLedgerEngine(database.db);
+  const income = await database.db.transaction(async tx => { const [order] = await tx.select().from(orders).where(eq(orders.id,orderId)).for("update"); return engine.recordOrderCompleted(tx,order,"test-pending-income"); });
+  let refund=await createRefund(orderId,1000n,"待结算退款");
+  assert.equal(await engine.makeIncomeAvailable(income.id),false);
+  const approved=await userRequest(seller,"POST",`/api/v1/seller/refunds/${refund.id}/decision`,{version:refund.version,decision:"APPROVE",reason:"同意申请"});
+  assert.equal(approved.statusCode,201,approved.body);refund=approved.json();
+  const result=await callbackRequest(refundCallback(refund,1000n));assert.equal(result.statusCode,201,result.body);
+  assert.equal(await engine.makeIncomeAvailable(income.id),true);
+  assert.equal(await engine.makeIncomeAvailable(income.id),false);
+  const facts=await migrationClient.query("SELECT available_amount_cent::text,reversed_amount_cent::text FROM seller_incomes WHERE id=$1",[income.id]);
+  // These are legacy orders: preserve their snapshotted proportional fee policy.
+  assert.deepEqual(facts.rows[0],{available_amount_cent:"4500",reversed_amount_cent:"900"});
+});
+
 async function createRefund(orderId, amount, reason) { const response = await userRequest(buyer, "POST", "/api/v1/refunds", refundPayload(orderId, amount, reason), { "idempotency-key": `refund-${randomUUID()}` }); assert.equal(response.statusCode, 201, response.body); return response.json(); }
 function refundPayload(orderId, amount, reason) { return { order_id: orderId, amount_cent: amount.toString(), reason_code: "SERVICE_ISSUE", reason_text: reason, description: "集成测试退款申请" }; }
 function refundCallback(refund, amount) { return { event_id: randomUUID(), event_type: "REFUND_SUCCEEDED", refund_no: refund.refund_no, provider_refund_no: refund.provider_refund_no, amount_cent: amount.toString() }; }
@@ -219,3 +268,28 @@ function userRequest(account, method, url, payload, extraHeaders = {}) { return 
 function adminRequest(account, method, url, payload) { return app.inject({ method, url, headers: { authorization: `Bearer ${account.token}` }, ...(payload === undefined ? {} : { payload }) }); }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(fileName) { let source = await readFile(new URL(`../../../packages/database/migrations/${fileName}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }
+
+test('V3.1 successful partial refund terminates service, settles the remainder and expires review after seven days',{skip:!enabled},async()=>{
+  const order=await seedCompletedOrder(10000n);
+  await migrationClient.query("UPDATE orders SET rule_version='V3.1',status='IN_SERVICE',completed_at=NULL WHERE id=$1",[order.orderId]);
+  const created=await userRequest(buyer,'POST','/api/v1/refunds',{order_id:order.orderId,amount_cent:'2000',reason_code:'PARTIAL',reason_text:'部分服务未交付'},{'idempotency-key':`v31-${randomUUID()}`});
+  assert.equal(created.statusCode,201,created.body);
+  const approved=await userRequest(seller,'POST',`/api/v1/seller/refunds/${created.json().id}/decision`,{version:created.json().version,decision:'APPROVE',reason:'认可已交付部分并终止剩余义务'});
+  assert.equal(approved.statusCode,201,approved.body);
+  const completed=await callbackRequest(refundCallback(approved.json(),2000n));
+  assert.equal(completed.statusCode,201,completed.body);
+  const facts=await migrationClient.query("SELECT status,completed_at FROM orders WHERE id=$1",[order.orderId]);
+  assert.equal(facts.rows[0].status,'COMPLETED');assert(facts.rows[0].completed_at);
+  const income=await migrationClient.query("SELECT platform_fee_cent::text fee,seller_amount_cent::text gross,reversed_amount_cent::text refunded FROM seller_incomes WHERE order_id=$1",[order.orderId]);
+  assert.deepEqual(income.rows,[{fee:'0',gross:'10000',refunded:'2000'}]);
+  const incomeId=(await migrationClient.query('SELECT id FROM seller_incomes WHERE order_id=$1',[order.orderId])).rows[0].id;
+  const engine=new FinanceLedgerEngine(database.db);
+  assert.equal(await engine.makeIncomeAvailable(incomeId),true);
+  assert.equal(await engine.makeIncomeAvailable(incomeId),false);
+  assert.equal((await migrationClient.query('SELECT available_amount_cent::text amount FROM seller_incomes WHERE id=$1',[incomeId])).rows[0].amount,'8000');
+  await migrationClient.query("UPDATE orders SET completed_at=now()-interval '8 days' WHERE id=$1",[order.orderId]);
+  const review=await userRequest(buyer,'POST','/api/v1/reviews',{order_id:order.orderId,rating:5,content:'已超期',anonymous:false});
+  assert.equal(review.statusCode,409);assert.equal(review.json().code,'REVIEW_WINDOW_EXPIRED');
+  const reapply=await userRequest(buyer,'POST','/api/v1/refunds',{order_id:order.orderId,amount_cent:'1000',reason_code:'PARTIAL',reason_text:'交易已终结'},{'idempotency-key':`v31-reapply-${randomUUID()}`});
+  assert.equal(reapply.statusCode,409);assert.equal(reapply.json().code,'REFUND_REQUIRES_SUPPORT_CASE');
+});

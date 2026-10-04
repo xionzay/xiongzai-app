@@ -66,7 +66,7 @@
 .phone-shell .seller-nav { grid-template-columns: repeat(4,minmax(0,1fr)); }
 .phone-shell.user-theme .mine-profile { padding-block: 16px; }
 .phone-shell.user-theme .commerce-my-orders .section-title { margin-bottom: 4px; }
-.commerce-order-entries { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 4px; }
+.commerce-order-entries { display: grid; grid-template-columns: repeat(6,minmax(0,1fr)); gap: 4px; }
 .commerce-order-entries button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 76px; border: 0; background: transparent; color: inherit; }
 .commerce-order-entries .nav-symbol { width: 28px; height: 28px; }
 .commerce-order-entries span { white-space: nowrap; font-size: 12px; }
@@ -171,35 +171,21 @@
 .phone-shell.user-theme[data-page-palette="seller"] :is(.paper-panel,.form-panel,.seller-buyer-order-card,.seller-service-list article,.account-list) {
   background:var(--seller-surface);
 }
-.phone-shell.user-theme[data-page-palette="seller"] .bottom-nav {
-  background:#f7f9fef2;
-  border-top-color:#dce4f180;
-  box-shadow:0 -4px 16px #68799b06;
-}
 
 
 /* Inbox canvases reuse the same buyer/seller backgrounds as the other pages. */
 .phone-shell:is(.page-messages,.page-emptyMessages) {
   --xiongzai-page-gradient:var(--buyer-page-background);
   --line:#dce7ef;
-  --inbox-nav-background:linear-gradient(105deg,#f4f9fd,#f9fbfc 70%,#fdfaf2);
   --inbox-divider:#d5e1eab3;
 }
 .phone-shell:is(.page-messages,.page-emptyMessages)[data-page-palette="seller"] {
   --xiongzai-page-gradient:var(--seller-page-background);
   --line:#e0e5f0;
-  --inbox-nav-background:linear-gradient(105deg,#f4f8fd,#f8f9fd 70%,#f9f6fd);
   --inbox-divider:#dcdfeab3;
 }
 .phone-shell .messages-screen :is(.message-list,.message-list > button,.message-list > button.unread,.system-notice-entry,.platform-support-entry) {
   background:transparent;
-}
-.phone-shell.user-motion:is(.page-messages,.page-emptyMessages)[data-ui-refinement] .bottom-nav {
-  background:var(--inbox-nav-background);
-  border-top-color:var(--line);
-  box-shadow:0 -4px 16px #68799b06;
-  backdrop-filter:none;
-  -webkit-backdrop-filter:none;
 }
 .phone-shell:is(.page-messages,.page-emptyMessages) .bottom-nav button { background:transparent; }
 
@@ -245,3 +231,53 @@
   box-shadow:none;
   color:#68798a;
 }
+
+/* Product browsing stays on the detail page until the purchase sheet opens. */
+.phone-shell.user-theme .app-screen.product-page { padding: 0 0 calc(88px + env(safe-area-inset-bottom)); background: var(--buyer-canvas, #fff); --product-ink: #20242a; --product-muted: #6b7078; --product-line: var(--buyer-line, #ededee); color: var(--product-ink); }
+.phone-shell.user-theme .product-page .product-hero { position: relative; width: 100%; height: auto; margin: 0; border-radius: 0; box-shadow: none; }
+.phone-shell.user-theme .product-hero :is(.preview-service-cover, .service-main-image) { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; margin: 0; border-radius: 0; }
+.product-back-button { position: absolute; top: 14px; left: 12px; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid #ffffff80; border-radius: 50%; background: #17345188; color: white; cursor: pointer; }
+.product-back-button svg { width: 24px; height: 24px; }
+.phone-shell.user-theme .product-description-card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 650; }
+.product-description-card dl { margin: 0; }
+.product-description-card dl > div { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 10px 0; font-size: 14px; line-height: 1.6; }
+.product-description-card dl > div + div { border-top: 1px solid var(--product-line); }
+.product-description-card dt { color: var(--product-muted); }
+.product-description-card dd { margin: 0; overflow-wrap: anywhere; }
+.phone-shell.user-theme .product-purchase-actions { position: absolute; bottom: 0; left: 0; right: 0; z-index: 55; display: grid; grid-template-columns: repeat(3, 44px) minmax(0, 1fr); align-items: center; gap: 8px; padding: 8px 12px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--product-line); background: var(--buyer-dock, #fff); }
+.product-small-action { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 52px; padding: 0; border: 0; background: transparent; color: #53575d; cursor: pointer; }
+.product-small-action svg { width: 25px; height: 25px; }
+.product-small-action span { font-size: 12px; line-height: 1.4; }
+.product-save-action[aria-pressed="true"] { color: var(--brand); }
+.phone-shell.user-theme .product-buy-action { min-height: 48px; border: 0; border-radius: 12px; font-size: 16px; font-weight: 700; cursor: pointer; }
+.product-buy-action:disabled { opacity: .5; cursor: not-allowed; }
+.product-purchase-actions button:focus-visible, .product-back-button:focus-visible { outline: 3px solid #378fe8; outline-offset: 2px; }
+
+/* Full-width product sections; keep the surrounding app theme unchanged. */
+.phone-shell.user-theme .app-screen.product-page > :is(.paper-panel, .service-title-card, .service-store-card) {
+  width: 100%;
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--buyer-line, #f5f5f5);
+  border-radius: 0;
+  background: var(--buyer-content, #fff);
+  box-shadow: none;
+}
+.phone-shell.user-theme .app-screen.product-page > .preview-seller-entry { border-radius: 0; }
+.phone-shell.user-theme .product-page .product-buy-action { border-radius: var(--buyer-radius, 4px); box-shadow: none; }
+
+.phone-shell.user-theme .product-page :is(.preview-product-heading, .service-title-card) > strong { display: block; margin: 0 0 8px; color: var(--brand); font-size: 32px; font-weight: 750; line-height: 1.15; letter-spacing: -.6px; }
+.phone-shell.user-theme .product-page :is(.preview-product-heading, .service-title-card) > strong small { margin-left: 4px; font-size: 12px; font-weight: 400; letter-spacing: 0; }
+.phone-shell.user-theme .product-page :is(.preview-product-heading, .service-title-card) h2 { margin: 0 0 6px; font-size: 19px; line-height: 1.45; font-weight: 650; color: var(--product-ink); }
+.phone-shell.user-theme .product-page :is(.preview-product-heading, .service-title-card) p { margin: 0 0 10px; font-size: 13px; line-height: 1.5; color: var(--product-muted); }
+.phone-shell.user-theme .product-page .preview-tags { gap: 8px; margin: 0; }
+.phone-shell.user-theme .product-page .preview-tags span { padding: 3px 6px; border: 1px solid #e3e9ef; border-radius: 3px; background: var(--buyer-input, #f7fafc); color: #526576; font-size: 11px; }
+.phone-shell.user-theme .product-page :is(.preview-seller-entry, .service-store-card) { min-height: 80px; gap: 12px; }
+.phone-shell.user-theme .product-page .preview-seller-entry img { width: 44px; height: 44px; border-radius: 4px; }
+.phone-shell.user-theme .product-page .preview-seller-entry b { color: var(--product-ink); font-size: 15px; font-weight: 650; }
+.phone-shell.user-theme .product-page .preview-seller-entry small { margin-top: 5px; font-size: 12px; color: var(--product-muted); }
+.phone-shell.user-theme .product-page .preview-section-title { margin: 0 0 8px; color: var(--product-ink); font-size: 16px; font-weight: 650; }
+.phone-shell.user-theme .product-page > .paper-panel > p { margin: 0; color: var(--product-muted); font-size: 13px; line-height: 1.65; }
+.phone-shell.user-theme .product-page .product-buy-action { background: var(--brand); font-size: 17px; font-weight: 650; }
+.product-small-action:active { background: #f5f5f5; }

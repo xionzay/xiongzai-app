@@ -1,0 +1,149 @@
+/* Buyer surface system. Canvas and chat artwork remain owned by their existing themes.
+   Keep the palette boundary here: shared trade components are also used by sellers.
+   Home retains its previously approved appearance from home-commerce.css. */
+.phone-shell[data-page-palette="buyer"]:not(.page-home) {
+  --buyer-canvas: var(--buyer-page-background);
+  --buyer-content: transparent;
+  --buyer-input: #cceaff99;
+  --buyer-summary: #b9ddfa55;
+  --buyer-dialog: #dceffc;
+  --buyer-dock: var(--app-dock-background);
+  --buyer-line: #668aab30;
+  --buyer-control-line: #628fba80;
+  --buyer-hover: #9fcdf438;
+  --buyer-radius: 10px;
+}
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) {
+  --paper: transparent;
+  --brand-soft: var(--buyer-input);
+  --line: var(--buyer-line);
+  --muted: #52697e;
+  --radius-card: var(--buyer-radius);
+  --radius-control: var(--buyer-radius);
+  --soft-shadow: none;
+  --surface-shadow: none;
+}
+/* Flat content rows share one continuous page canvas. */
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.home-section,.paper-panel,.form-panel,.service-title-card,.service-store-card,.order-seller-card,.buyer-order-card,.buyer-contact-card,.review-card,.rating-panel,.spec-panel,.commerce-spec-panel,.account-list,.mine-menu,.mine-profile,.store-stats,.public-home-preview,.shop-card,.product-card,.settings-group,.notice-list article) {
+  background: transparent; border: 0; border-bottom: 1px solid var(--buyer-line);
+  border-radius: 0; box-shadow: none; backdrop-filter: none;
+}
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.section-title,.panel-title) button { min-height: 44px; font-size: 13px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.icon-button,.hot-search > div:last-child button,.result-search) { background: var(--buyer-input); border-color: var(--buyer-line); box-shadow: none; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.search-scope-menu,.search-scope-menu button) { background: var(--buyer-dialog); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .shop-copy > :is(small,strong),
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .shop-copy > span > i { font-size: 12px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.full-primary,.auth-submit,.pay-button,.primary-action,.book-button,.order-button) { background: var(--brand); box-shadow: none; min-height: 44px; border-radius: var(--buyer-radius); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.secondary-full,.secondary-button,.buyer-order-actions button,.sticky-actions button:not(.primary):not(.primary-action)) { background: transparent; border: 1px solid var(--buyer-control-line); min-height: 44px; border-radius: var(--buyer-radius); font-size: 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.form-panel,.account-sheet,.security-verify-form,.settings-group,.search-screen) :is(input,textarea,select),
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.seller-search-area,.v31-field) :is(input,textarea,select),
+.phone-shell[data-page-palette="buyer"]:not(.page-home) .conversation-search-form input {
+  background: var(--buyer-input); border: 1px solid var(--buyer-control-line); color: #243b53;
+  border-radius: var(--buyer-radius); min-height: 44px; font-size: 16px; max-width: 100%;
+}
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.flow-dialog,.account-sheet,.guard-sheet,.demo-sheet,.v31-dialog,.purchase-spec-sheet) { background:var(--toon-panel); border: 1px solid var(--buyer-line); border-radius:22px; box-shadow: none; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.sticky-actions,.booking-confirm,.order-detail-actions,.preview-bottom,.service-sticky-actions) {
+  background: var(--buyer-dock); border-top: 1px solid var(--buyer-line); box-shadow: none; backdrop-filter: none;
+}
+.phone-shell[data-page-palette="buyer"]:not(.page-home) .bottom-nav { --orange: #087bf5; }
+.phone-shell[data-page-palette="buyer"]:not(.page-home) .bottom-nav .nav-symbol { mix-blend-mode: multiply; }
+.phone-shell[data-page-palette="buyer"]:not(.page-home) .bottom-nav em { background: #ef633c; color: white; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .seller-search-area button,
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .seller-search-summary button { color: var(--brand-strong); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .seller-search-trigger { min-width: 44px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-order-search { margin-inline: 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-refresh { display: block; margin-left: auto; min-height: 44px; border: 0; background: transparent; color: var(--brand-strong); font-size: 13px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .big-order-filter { background: transparent; border: 0; border-bottom: 1px solid var(--buyer-line); border-radius: 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .big-order-filter button { min-height: 44px; white-space: nowrap; font-size: 15px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .big-order-filter button.active { background: transparent; color: var(--brand-strong); border-radius: 0; box-shadow: inset 0 -3px var(--brand); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.auth-tabs,.browse-tabs,.favorite-tabs,.notice-tabs,.state-tabs,.global-tabs,.review-state-tabs) { background: transparent; border: 0; border-bottom: 1px solid var(--buyer-line); border-radius: 0; overflow-x: auto; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.auth-tabs,.browse-tabs,.favorite-tabs,.notice-tabs,.state-tabs,.global-tabs,.review-state-tabs) button { white-space: nowrap; min-height: 44px; flex-shrink: 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.auth-tabs,.browse-tabs,.favorite-tabs,.notice-tabs,.state-tabs,.global-tabs,.review-state-tabs) button.active { background: transparent; border-radius: 0; box-shadow: inset 0 -3px var(--brand); }
+
+/* Profile: compact identity and aligned shortcut rows. */
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-mine .page-titlebar { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; min-height: 60px; padding: 4px 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-mine .page-titlebar h1 { margin: 0; text-align: center; font-size: 19px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-profile-edit { grid-template-columns: 64px minmax(0,1fr) 24px; gap: 12px; padding: 12px 0 20px; margin-bottom: 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-profile-edit .avatar { width: 64px; height: 64px; border-radius: 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-profile-copy > b { font-size: 18px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-profile-copy > span { margin-top: 5px; font-size: 13px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .commerce-my-orders { margin: 0 14px; padding: 4px 0 12px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .commerce-order-entries button { min-height: 72px; font-size: 13px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .commerce-order-entries .app-icon { mix-blend-mode: normal; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-assets { margin: 0 14px; gap: 0; border-bottom: 1px solid var(--buyer-line); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-assets button { display: grid; grid-template-columns: 40px minmax(0,1fr); grid-template-rows: auto auto; align-content: center; align-items: center; column-gap: 10px; min-height: 88px; padding: 12px 6px; text-align: left; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-assets button + button { border-left: 1px solid var(--buyer-line); padding-left: 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-assets .mine-asset-icon { width: 38px; height: 38px; grid-row: 1 / 3; margin: 0; background: transparent; }
+.phone-shell .buyer-mine .mine-asset-icon img { width: 42px; height: 42px; max-width: none; object-fit: contain; transform: translate(-2px,-2px); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-assets b { margin: 0; font-size: 15px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-assets button > span:last-child { margin-top: 4px; font-size: 12px; color: var(--muted); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-menu { margin: 0 14px; padding: 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-menu button { min-height: 72px; padding: 12px 0; background: transparent; border-bottom-color: var(--buyer-line); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-menu button b { font-size: 15px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-menu button small { font-size: 12px; color: var(--muted); }
+
+
+.phone-shell .buyer-mine .mine-menu button > .menu-symbol,
+.phone-shell[data-page-palette="buyer"] .buyer-settings-identity .menu-symbol { border: 0; background: transparent; box-shadow: none; border-radius: 0; }
+.phone-shell .buyer-mine .mine-menu button > span { min-width: 0; overflow-wrap: anywhere; }
+.phone-shell .buyer-mine .mine-menu { border-bottom: 0; }
+.phone-shell .buyer-mine .mine-profile-copy { min-width: 0; overflow-wrap: anywhere; }
+.phone-shell .buyer-mine .mine-profile-copy > b { display: block; white-space: normal; }
+.phone-shell .buyer-mine .commerce-order-entries .app-icon { mix-blend-mode: normal; }
+.phone-shell .buyer-identity-header { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 8px 14px; }
+.phone-shell .buyer-identity-header h1 { font-size: 19px; text-align: center; }
+.phone-shell .buyer-identity-header button { min-height: 44px; border: 0; background: transparent; }
+.phone-shell .buyer-identity-content { padding: 16px; color: var(--ink); overflow-wrap: anywhere; }
+.phone-shell .buyer-identity-content h2 { font-size: 18px; }
+.phone-shell .buyer-identity-content p { font-size: 14px; line-height: 1.6; }
+.phone-shell .buyer-identity-content button { min-height: 44px; margin: 8px 8px 0 0; padding: 8px 14px; border: 1px solid var(--buyer-control-line); border-radius: 10px; background: var(--buyer-input); color: var(--brand); }
+
+/* Orders and after-sales share the same type scale and surfaces. */
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-screen { --trade-surface: var(--buyer-input); --trade-secondary: var(--muted); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-header { grid-template-columns: 44px minmax(0,1fr) 44px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-content { padding: 0 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.v31-order-card,.v31-panel) { background: transparent; border: 0; border-bottom: 1px solid var(--buyer-line); border-radius: 0; padding: 14px 0; margin: 0; box-shadow: none; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-order-card > header { border: 0; padding: 0; margin-bottom: 12px; font-size: 14px; align-items: baseline; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-order-card > header b { flex: none; font-size: 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-buyer-card footer.v31-card-actions { border: 0; margin-top: 10px; padding-top: 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-product b { font-size: 15px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-product small { font-size: 13px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-product > div > span { display: flex; align-items: baseline; justify-content: flex-end; gap: 4px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-product > div > span small { margin-left: 8px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-tabs { gap: 20px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-tabs button { font-size: 15px; white-space: nowrap; transition: color 140ms, border-color 140ms; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.v31-note,.v31-card-note,.v31-facts,.v31-status p) { font-size: 13px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.v31-actions button,.v31-card-actions button,.v31-content > button) { background: transparent; color: #385d7f; font-weight: 500; border-color: var(--buyer-control-line); border-radius: var(--buyer-radius); font-size: 14px; padding: 8px 12px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-status { padding: 16px 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-status h2 { font-size: 24px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .sw-case-progress span { font-size: 12px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .sw-case-progress .active { color: var(--brand-strong); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .sw-case-progress .active i { background: var(--brand); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.v31-money-grid > div,.v31-warning,.v31-ruling-summary) { background: var(--buyer-summary); border-color: var(--buyer-line); box-shadow: none; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-dialog-layer .v31-actions { display: flex; gap: 10px; margin-top: 20px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-dialog-layer button { flex: 1; min-height: 44px; padding: 10px 14px; border: 1px solid var(--buyer-control-line); border-radius: var(--buyer-radius); background: transparent; color: var(--brand-strong); font: inherit; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-dialog-layer button.v31-primary { background: var(--brand); color: white; border-color: var(--brand); }
+
+/* Catalog and purchase sheet: original artwork, tinted controls, stable fixed dock. */
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .local-catalog-preview:not(.product-page) .paper-panel { padding: 14px 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .preview-product-grid > button { background: transparent; border: 0; padding: 0 0 12px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .preview-product-grid > button > b { font-size: 15px; line-height: 1.5; text-wrap: balance; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.preview-sku-list button,.preview-quantity button,.preview-spec-entry,.purchase-spec-options button,.purchase-spec-quantity button) { background: var(--buyer-input); border-color: var(--buyer-control-line); border-radius: var(--buyer-radius); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .preview-profile { gap: 12px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.preview-profile p,.paper-panel p) { font-size: 14px; line-height: 1.65; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .purchase-spec-sheet { border-radius:22px 22px 0 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.purchase-spec-summary,.purchase-spec-footer) { background: transparent; border-color: var(--buyer-line); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .purchase-spec-footer > button { border-radius: var(--buyer-radius); }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .purchase-spec-options button[aria-pressed="true"] { background: #afd8fc80; border-color: var(--brand); box-shadow: none; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .purchase-spec-quantity button { border-radius: 0; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) :is(.mine-profile-edit,.mine-menu button,.shop-card,.product-card,.v31-product-link,.conversation-inbox-row):active { background-color: var(--buyer-hover); }
+.phone-shell.user-motion[data-page-palette="buyer"]:not(.page-home) :is(.shop-card,.product-card,.home-hot-sale-item,.mine-profile-edit,.mine-menu button,.v31-product-link,.conversation-inbox-row) { --press-button: 1; --press-card: 1; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .home-hot-sale-item > b { text-wrap: balance; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .home-hot-sale-item > small { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; color: var(--muted); text-align: left; }
+.phone-shell[data-page-palette="buyer"]:not(.page-home) .conversation-inbox .seller-search-summary { padding-inline: 16px; }
+.phone-shell[data-page-palette="buyer"]:not(.page-home) .conversation-inbox .seller-search-summary button { color: #0864ce; }
+.phone-shell[data-page-palette="buyer"]:not(.page-home) .chat-screen [data-search-match="true"] > span > p { outline: 2px solid #4388c6; outline-offset: 3px; }
+.phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .v31-notice { position: absolute; bottom: 100px; left: 16px; right: 16px; z-index: 170; padding: 12px; border-radius: 10px; background: #243b53f5; color: white; box-shadow: none; }
+@media (prefers-reduced-motion: reduce) {
+  .phone-shell[data-page-palette="buyer"]:not(.page-home) .v31-tabs button { transition: none; }
+}

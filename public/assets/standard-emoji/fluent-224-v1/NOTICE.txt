@@ -1,0 +1,17 @@
+标准表情 224 枚 · V1
+
+原始设计：Microsoft Fluent Emoji（3D）
+来源：https://github.com/microsoft/fluentui-emoji
+Copyright (c) Microsoft Corporation.
+授权：MIT，完整文本见 LICENSE-Microsoft.txt。
+
+素材分发：@lobehub/fluent-emoji-3d 1.1.0
+来源：https://github.com/lobehub/fluent-emoji
+Copyright (c) 2023 LobeHub
+授权：MIT，完整文本见 LICENSE-LobeHub.txt。
+固定版本下载地址和完整校验值见 sources/provenance.json。
+
+本交付整理了 224 枚日常聊天常用表情，添加中文名称、分类、关键词、
+Unicode 映射，并导出透明底 PNG 和 WebP。
+使用于产品、修改和再分发时，请随素材保留两份授权文件与本说明。
+

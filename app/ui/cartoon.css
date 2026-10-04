@@ -1,0 +1,86 @@
+/* Shared buyer/seller illustration and control language. Never applies to admin. */
+.phone-shell {
+  --toon-ink:#31527d; --toon-fill:#a9d9fa; --toon-accent:#69b9ef; --toon-detail:#fff0a5;
+  --toon-panel:#d5eafb; --toon-line:#799dc4; --toon-soft:rgba(91,158,217,.13);
+  --toon-action:#187ee3; --toon-radius:16px; --toon-enter:180ms; --toon-exit:140ms;
+  --toon-ease:cubic-bezier(.2,.7,.2,1);
+}
+.phone-shell[data-page-palette="seller"] { --toon-fill:#b5c8f6; --toon-accent:#8f9bec; --toon-detail:#d6eaff; --toon-panel:#dce2fa; --toon-action:#536cda; }
+.phone-shell .toon-icon { display:inline-block; width:28px; height:28px; flex-shrink:0; color:var(--toon-ink); vertical-align:middle; overflow:visible; }
+.phone-shell .toon-illustration { overflow:hidden; }
+.phone-shell .app-cartoon-icon { display:inline-grid; place-items:center; width:38px; height:38px; flex-shrink:0; font-style:normal; }
+.phone-shell .app-cartoon-icon>.toon-icon { width:36px; height:36px; }
+.phone-shell .bottom-nav .app-cartoon-icon { width:36px; height:36px; margin:0 auto; background:transparent; border:0; box-shadow:none; transform:none; }
+.phone-shell .bottom-nav .toon-icon { width:36px; height:36px; --toon-fill:transparent; --toon-accent:rgba(112,166,216,.3); }
+.phone-shell .bottom-nav button.active .toon-icon { --toon-fill:#96cef5; --toon-accent:#4ba5e8; stroke-width:2.8; }
+.phone-shell[data-page-palette="seller"] .bottom-nav button.active .toon-icon { --toon-fill:#b5c8f6; --toon-accent:#8f9bec; }
+.phone-shell .bottom-nav button span { color:#466286; font-size:13px; margin-top:3px; }
+.phone-shell .bottom-nav button.active span { color:var(--toon-action); font-weight:850; }
+.phone-shell .bottom-nav .toon-illustration { opacity:.78; transition:opacity 160ms ease; }
+.phone-shell .bottom-nav button.active .toon-illustration { opacity:1; }
+.phone-shell .bottom-nav button.active::after { content:""; position:absolute; width:12px; height:3px; border-radius:3px; background:var(--toon-action); left:calc(50% - 6px); bottom:0; }
+.phone-shell .bottom-nav button>em { top:2px; right:calc(50% - 29px); background:#e75c40; border-color:var(--toon-panel); }
+.phone-shell .icon-button .app-cartoon-icon, .phone-shell .icon-button .toon-icon { width:26px; height:26px; }
+.phone-shell .sw-tool-icon { width:36px; height:36px; }
+.phone-shell :is(.icon-button,.product-back-button,.sf-header button,.seller-search-toggle) { min-width:44px; min-height:44px; }
+.phone-shell .sf-header button .toon-icon { width:26px; height:26px; }
+.phone-shell .product-small-action .toon-icon { width:28px; height:28px; }
+.phone-shell .toon-select { display:inline-flex; position:relative; min-width:0; max-width:100%; vertical-align:middle; }
+.phone-shell .toon-select>select { position:absolute; width:1px; height:1px; min-height:0; padding:0; border:0; opacity:0; pointer-events:none; clip-path:inset(50%); }
+.phone-shell .toon-select .toon-select-trigger { display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:44px; width:100%; padding:8px 12px; border:1.5px solid var(--toon-line); border-radius:12px; background:var(--toon-soft); color:var(--toon-ink); font:inherit; font-size:15px; text-align:left; }
+.phone-shell .toon-select-trigger>span { overflow-wrap:anywhere; }
+.phone-shell .toon-select-trigger .toon-icon { width:20px; height:20px; }
+.phone-shell .toon-picker { width:min(360px,calc(100vw - 28px)); max-height:85dvh; padding:18px; background:var(--toon-panel); color:var(--toon-ink); border:1.5px solid var(--toon-line); border-radius:22px; box-shadow:0 8px 24px #25426522; overflow:auto; }
+.phone-shell .toon-picker::backdrop { background:#172d5059; }
+.phone-shell .toon-picker header { display:flex; align-items:center; gap:8px; }
+.phone-shell .toon-picker header h2 { flex:1; margin:0; font-size:19px; }
+.phone-shell .toon-picker button { min-height:44px; min-width:44px; border-radius:12px; border:1px solid var(--toon-line); background:transparent; color:var(--toon-ink); font:inherit; }
+.phone-shell .toon-picker header button { border:0; }
+.phone-shell .toon-picker-options { display:grid; gap:6px; margin:14px 0; max-height:48dvh; overflow:auto; }
+.phone-shell .toon-picker-options label { display:flex; align-items:center; gap:10px; min-height:48px; padding:10px; border:1.5px solid transparent; border-radius:12px; cursor:pointer; font-size:15px; }
+.phone-shell .toon-picker-options label:has(:checked) { background:var(--toon-soft); border-color:var(--toon-action); font-weight:750; }
+.phone-shell .toon-picker-options label:has(:disabled) { opacity:.5; cursor:default; }
+.phone-shell .toon-picker-options input { width:18px; height:18px; min-height:0; accent-color:var(--toon-action); flex-shrink:0; }
+.phone-shell .toon-picker-options span { flex:1; }
+.phone-shell .toon-picker footer { display:flex; gap:10px; padding-top:10px; }
+.phone-shell .toon-picker footer button { flex:1; }
+.phone-shell .toon-picker button.toon-confirm { background:var(--toon-action); color:#fff; border-color:var(--toon-action); }
+.phone-shell .toon-picker :focus-visible { outline:3px solid var(--toon-action); outline-offset:2px; }
+.phone-shell .toon-picker[open] { animation:toon-panel-in var(--toon-enter) var(--toon-ease); }
+.phone-shell .toon-picker.is-closing { animation:toon-panel-out var(--toon-exit) ease-in forwards; pointer-events:none; }
+.phone-shell .toon-picker.is-closing::backdrop { animation:ui-fade-out var(--toon-exit) ease-in forwards; }
+.phone-shell :is(.sheet-backdrop,.demo-overlay,.flow-overlay,.v31-overlay) { backdrop-filter:none; -webkit-backdrop-filter:none; }
+/* Existing panel layouts retain their actions, scrolling and validation. */
+.phone-shell :is(.flow-dialog,.account-sheet,.guard-sheet,.demo-sheet,.v31-dialog,.purchase-spec-sheet,.sf-dialog) {
+  background:var(--toon-panel); border:1.5px solid var(--toon-line); border-radius:22px; box-shadow:0 6px 20px #25426518;
+}
+.phone-shell :is(.flow-dialog,.account-sheet,.guard-sheet,.demo-sheet,.v31-dialog,.sf-dialog) { max-height:85dvh; overflow-y:auto; }
+.phone-shell :is(.sheet-backdrop,.v31-more-overlay,.purchase-spec-overlay) :is(.demo-sheet,.account-sheet,.v31-dialog,.purchase-spec-sheet) { border-radius:22px 22px 0 0; }
+.phone-shell :is(.flow-dialog,.demo-sheet,.v31-dialog,.sf-dialog,.purchase-spec-sheet) :is(input,textarea) { border-radius:12px; }
+.phone-shell .purchase-spec-sheet { animation:toon-panel-in var(--toon-enter) var(--toon-ease); }
+.phone-shell .purchase-spec-options button { border-radius:14px; background:var(--toon-soft); border:1.5px solid var(--toon-line); }
+.phone-shell .purchase-spec-options button[aria-pressed="true"] { border-color:var(--toon-action); background:rgba(92,158,224,.22); }
+.phone-shell .purchase-spec-footer { background:var(--toon-panel); }
+@keyframes toon-panel-in { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes toon-panel-out { to { opacity:0; transform:translateY(10px); } }
+.phone-shell .purchase-spec-overlay.is-closing { pointer-events:none; }
+.phone-shell .purchase-spec-overlay.is-closing .purchase-spec-sheet { animation:toon-panel-out var(--toon-exit) ease-in forwards; }
+.phone-shell .purchase-spec-overlay.is-closing .purchase-spec-scrim { opacity:0; transition:opacity var(--toon-exit); }
+.phone-shell .sw-order-switcher summary .toon-icon { width:18px; height:18px; transition:transform var(--toon-enter); }
+.phone-shell .sw-order-switcher[open] summary .toon-icon { transform:rotate(180deg); }
+.phone-shell .v31-panel details, .phone-shell .sf-policy details { border:1px solid var(--toon-line); border-radius:14px; padding:0 12px; margin:8px 0; background:var(--toon-soft); }
+.phone-shell .v31-panel summary { min-height:44px; padding:10px 0; cursor:pointer; }
+/* Unified feedback: rows highlight, primary actions gently press, dragging cancels both. */
+.phone-shell button[data-pressed="true"] { background-color:var(--toon-soft); }
+.phone-shell :is(.primary-action,.sf-primary,.toon-confirm,.product-buy-action)[data-pressed="true"] { scale:.985; }
+.phone-shell .flow-overlay.is-closing { pointer-events:none; animation:ui-fade-out var(--toon-exit) ease-in forwards; }
+.phone-shell .flow-overlay.is-closing .flow-dialog { animation:toon-panel-out var(--toon-exit) ease-in forwards; }
+.phone-shell .purchase-spec-options i .toon-icon { width:16px; height:16px; color:inherit; }
+.phone-shell .purchase-spec-quantity button { background:var(--toon-soft); }
+.phone-shell .purchase-spec-quantity button .toon-icon { width:24px; height:24px; }
+.phone-shell .purchase-spec-footer>button { border-radius:14px; }
+.phone-shell :is(.sw-field,.v31-field)>.toon-select { display:flex; width:100%; }
+@keyframes ui-fade-out { to { opacity:0; } }
+@media(prefers-reduced-motion:reduce) { .phone-shell :is(.toon-picker,.purchase-spec-sheet,.flow-overlay,.flow-dialog) { animation:none; transition:none; } }
+
+@media(prefers-reduced-motion:reduce) { .phone-shell button[data-pressed="true"] { scale:1; } }

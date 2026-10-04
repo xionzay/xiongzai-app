@@ -1,0 +1,37 @@
+/* Shared emoji rendering is scoped to chat text; theme, avatars and wallpaper stay owned by the chat. */
+.phone-shell .standard-emoji-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.phone-shell .standard-emoji-text picture { display: inline; }
+.phone-shell .standard-emoji-text img.standard-emoji-inline { display: inline-block; width: 24px; height: 24px; max-width: none; padding: 0; margin: 0 1px; border: 0; border-radius: 0; vertical-align: -.3em; object-fit: contain; background: transparent; }
+.phone-shell .chat-emoji-tray { display: flex; flex-direction: column; height: min(360px,44dvh); min-height: 240px; margin-top: 8px; padding-bottom: env(safe-area-inset-bottom,0px); overflow: hidden; border: 1px solid var(--toon-line,#c8dcf0); border-radius: 18px; background: var(--toon-panel,#e3f1ff); color: var(--ink,#294b65); }
+.phone-shell .chat-compose-dock:has(.chat-emoji-tray) { flex-shrink: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.phone-shell .chat-emoji-tabs { display: flex; align-items: center; flex: none; border-bottom: 1px solid #759acb33; padding: 0 8px; }
+.phone-shell .chat-emoji-tabs button { min-height: 44px; padding: 0 10px; background: transparent; border: 0; color: inherit; font-size: 13px; }
+.phone-shell .chat-emoji-tabs button[aria-selected="true"] { font-weight: 700; color: var(--brand,#087bf5); box-shadow: inset 0 -3px var(--brand,#087bf5); }
+.phone-shell .chat-emoji-tabs button:last-child { margin-left: auto; }
+.phone-shell .chat-emoji-tray .sticker-panel { height: auto; flex: 1; min-height: 0; margin: 0; border: 0; border-radius: 0; background: transparent; }
+.phone-shell .standard-emoji-panel { display: flex; flex: 1; flex-direction: column; min-height: 0; padding: 4px 8px 0; }
+.phone-shell .standard-emoji-search { display: flex; flex: none; align-items: center; min-height: 44px; gap: 4px; }
+.phone-shell .standard-emoji-search input { min-width: 0; width: 100%; height: 40px; padding: 8px 10px; font-size: 14px; color: inherit; border: 1px solid #759acb55; border-radius: 12px; background: #cde6ff66; }
+.phone-shell .standard-emoji-panel button { min-height: 44px; min-width: 44px; border: 0; background: transparent; color: inherit; border-radius: 10px; font-size: 13px; }
+.phone-shell .standard-emoji-categories { display: flex; flex: none; overflow-x: auto; scrollbar-width: none; gap: 2px; }
+.phone-shell .standard-emoji-categories::-webkit-scrollbar { display: none; }
+.phone-shell .standard-emoji-categories button { flex: none; white-space: nowrap; padding-inline: 6px; }
+.phone-shell .standard-emoji-categories button[aria-pressed="true"] { background: #87bfff33; color: var(--brand,#087bf5); font-weight: 700; }
+.phone-shell .standard-emoji-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(44px,1fr)); grid-auto-rows: 44px; gap: 4px; align-content: start; flex: 1; min-height: 0; padding: 4px 0; overflow-y: auto; overscroll-behavior: contain; }
+.phone-shell .standard-emoji-pick { display: grid; place-items: center; padding: 0; touch-action: pan-y; }
+.phone-shell .standard-emoji-pick picture { display: flex; }
+.phone-shell img.standard-emoji-art { width: 32px; height: 32px; max-width: none; margin: 0; padding: 0; border-radius: 0; object-fit: contain; pointer-events: none; }
+.phone-shell .standard-emoji-pick:active { background: #87bfff33; }
+.phone-shell .standard-emoji-panel :is(button,input):focus-visible, .phone-shell .chat-emoji-tabs button:focus-visible { outline: 2px solid var(--brand,#087bf5); outline-offset: -2px; }
+.phone-shell .standard-emoji-empty { grid-column: 1/-1; grid-row: span 3; text-align: center; padding: 12px; font-size: 13px; }
+.phone-shell .standard-emoji-empty p { margin: 0; }
+.phone-shell .standard-emoji-panel footer { display: flex; flex: none; min-height: 44px; align-items: center; border-top: 1px solid #759acb33; }
+.phone-shell .standard-emoji-panel footer > span { flex: 1; min-width: 0; font-size: 12px; }
+.standard-emoji-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* A software keyboard can shorten the viewport while searching. Keep the composer
+   and picker available; auxiliary summaries return as soon as the panel closes. */
+@media (max-height: 650px) {
+  .phone-shell .chat-emoji-tray { min-height: 228px; }
+  .phone-shell:has(.chat-emoji-tray) :is(.chat-product,.customer-transfer) { display: none; }
+  .phone-shell:has(.chat-emoji-tray) .chat-scroll-content { padding-block: 0; }
+}

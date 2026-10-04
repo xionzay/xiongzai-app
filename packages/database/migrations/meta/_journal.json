@@ -71,6 +71,20 @@
       "when": 1787944472115,
       "tag": "0009_clear_rhodey",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790923691900,
+      "tag": "0010_order_rule_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791102517727,
+      "tag": "0011_bear_sticker_messages",
+      "breakpoints": true
     }
   ]
 }

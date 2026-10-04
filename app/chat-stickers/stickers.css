@@ -14,7 +14,7 @@
 .phone-shell .sticker-retry { min-height: 36px; width: 100%; padding: 5px; margin-top: 4px; border: 1px solid #eedace; border-radius: 10px; background: #fff8f4; color: #a65437; font-size: .75rem; }
 .phone-shell .sticker-fallback-note { display: block; padding-top: 3px; color: #5e788e; font-size: .625rem; line-height: 1.4; }
 .phone-shell .sticker-unavailable { width: 144px; max-width: 100%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 18px; padding: 12px; background: #fff; color: #70889a; font-size: .75rem; text-align: center; }
-.phone-shell .chat-screen .chat-input.has-stickers,
+.phone-shell .chat-screen .chat-input.has-stickers { grid-template-columns: minmax(0,1fr) 44px 44px 48px; gap: 6px; }
 .phone-shell .customer-service-screen .customer-chat-input.has-stickers { grid-template-columns: minmax(0,1fr) 44px 48px; gap: 6px; }
 .phone-shell .chat-screen .chat-input .sticker-toggle,
 .phone-shell .customer-service-screen .customer-chat-input .sticker-toggle { width: 44px; height: 44px; background: #fff; color: #5b83a4; }

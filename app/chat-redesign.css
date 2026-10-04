@@ -189,15 +189,15 @@
 .phone-shell .chat-screen .chat-product button { height: 38px; border: 0; border-radius: 11px; padding: 0 12px; background: #e8f3fb; color: #477b9e; font-size: 14px; font-weight: 600; }
 .phone-shell .chat-screen .chat-input,
 .phone-shell .customer-service-screen .customer-chat-input { display: grid; grid-template-columns: minmax(0,1fr) 48px; align-items: center; height: auto; gap: 8px; border: 0; padding: 0 !important; background: transparent; box-shadow: none; }
-.phone-shell .chat-screen .chat-input input,
+.phone-shell .chat-screen .chat-input > input,
 .phone-shell .customer-service-screen .customer-chat-input input { width: 100%; min-width: 0; height: 48px; border: 1px solid rgba(255,255,255,.95); border-radius: 26px; padding: 0 17px; background: rgba(255,255,255,.96); color: #29495f; font-size: 16px; line-height: normal; box-shadow: 0 2px 8px rgba(58,99,140,.06); }
-.phone-shell .chat-screen .chat-input input::placeholder,
+.phone-shell .chat-screen .chat-input > input::placeholder,
 .phone-shell .customer-service-screen .customer-chat-input input::placeholder { color: #8396a3; opacity: 1; }
-.phone-shell .chat-screen .chat-input button,
+.phone-shell .chat-screen .chat-input > button,
 .phone-shell .customer-service-screen .customer-chat-input button { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(255,255,255,.85); border-radius: 50%; padding: 0; background: #6faee3; color: #fff; font-size: 14px; font-weight: 650; box-shadow: 0 2px 8px rgba(58,99,140,.12); }
 .phone-shell .chat-screen .chat-send-symbol,
 .phone-shell .customer-service-screen .chat-send-symbol { width: 23px; height: 23px; }
-.phone-shell .chat-screen .chat-input button:disabled,
+.phone-shell .chat-screen .chat-input > button:disabled,
 .phone-shell .customer-service-screen .customer-chat-input button:disabled { background: rgba(255,255,255,.9); color: #8da6bb; opacity: 1; box-shadow: none; }
 .phone-shell .chat-screen button:disabled,
 .phone-shell .customer-service-screen button:disabled { opacity: .48; cursor: default; }

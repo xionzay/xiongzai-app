@@ -11,7 +11,7 @@ import {
   uuidv7,
   type Database,
   type DatabaseTransaction,
-  type orders,
+  orders,
   type refunds,
 } from "@xiongzai/database";
 
@@ -29,6 +29,7 @@ export class FinanceLedgerEngine {
   constructor(private readonly database: Database) {}
 
   async recordOrderCompleted(executor: DatabaseTransaction, order: OrderRow, traceId?: string): Promise<typeof sellerIncomes.$inferSelect> {
+    if (order.afterSaleStatus === "IN_PROGRESS" || order.paymentStatus === "REFUNDING") throw new Error("Active after-sale blocks normal settlement");
     const existing = await executor.select().from(sellerIncomes).where(eq(sellerIncomes.orderId, order.id)).limit(1);
     if (existing[0]) return existing[0];
     const settlementSeconds = await configInteger(executor, "finance.settlement_delay_seconds");
@@ -59,23 +60,55 @@ export class FinanceLedgerEngine {
 
   async makeIncomeAvailable(incomeId: string, traceId?: string): Promise<boolean> {
     return this.database.transaction(async (tx) => {
+      // Use the same order -> income lock ordering as refund execution.
+      const [lookup] = await tx.select({ orderId: sellerIncomes.orderId }).from(sellerIncomes).where(eq(sellerIncomes.id, incomeId)).limit(1);
+      if (!lookup) return false;
+      const [order] = await tx.select().from(orders).where(eq(orders.id, lookup.orderId)).limit(1).for("update");
+      if (!order || order.afterSaleStatus === "IN_PROGRESS" || order.paymentStatus === "REFUNDING") return false;
       const [income] = await tx.select().from(sellerIncomes).where(eq(sellerIncomes.id, incomeId)).limit(1).for("update");
       if (!income || income.status !== "PENDING_SETTLEMENT" || income.settlementAvailableAt > new Date()) return false;
+      const remaining = income.sellerAmountCent - income.reversedAmountCent - income.availableAmountCent - income.lockedAmountCent - income.withdrawnAmountCent;
+      if (remaining <= 0n) return false;
       const pending = await ensureSellerAccount(tx, income.sellerId, "SELLER_PENDING");
       const available = await ensureSellerAccount(tx, income.sellerId, "SELLER_AVAILABLE");
-      await post(tx, { transactionType:"INCOME_AVAILABLE", sourceType:"ORDER", sourceId:income.orderId, idempotencyKey:`finance:income-available:${income.id}`, description:"待结算收益转为可提现", traceId, entries:[{accountId:pending.id,side:"DEBIT",amountCent:income.sellerAmountCent,memo:"减少待结算"},{accountId:available.id,side:"CREDIT",amountCent:income.sellerAmountCent,memo:"增加可提现"}] });
-      await tx.update(sellerIncomes).set({ status:"AVAILABLE", availableAmountCent:income.sellerAmountCent, availableAt:new Date(), version:sql`${sellerIncomes.version} + 1`, updatedAt:new Date() }).where(and(eq(sellerIncomes.id,income.id),eq(sellerIncomes.version,income.version)));
+      await post(tx, { transactionType:"INCOME_AVAILABLE", sourceType:"ORDER", sourceId:income.orderId, idempotencyKey:`finance:income-available:${income.id}`, description:"待结算收益转为可提现", traceId, entries:[{accountId:pending.id,side:"DEBIT",amountCent:remaining,memo:"减少待结算"},{accountId:available.id,side:"CREDIT",amountCent:remaining,memo:"增加可提现"}] });
+      await tx.update(sellerIncomes).set({ status:"AVAILABLE", availableAmountCent:income.availableAmountCent + remaining, availableAt:new Date(), version:sql`${sellerIncomes.version} + 1`, updatedAt:new Date() }).where(and(eq(sellerIncomes.id,income.id),eq(sellerIncomes.version,income.version)));
       await this.offsetLiabilitiesTx(tx, income.id, traceId);
       return true;
     });
   }
 
+  async resumePendingIncome(executor: DatabaseTransaction, orderId: string, resolutionKey: string) {
+    const [income] = await executor.select().from(sellerIncomes).where(eq(sellerIncomes.orderId, orderId)).limit(1).for("update");
+    if (!income || income.status !== "PENDING_SETTLEMENT") return;
+    await executor.insert(scheduledJobs).values({ id: uuidv7(), jobKey: `finance:income-resume:${income.id}:${resolutionKey}`, jobType: FINANCE_JOB_TYPES.INCOME_AVAILABLE, targetType: "ORDER", targetId: orderId, payloadJson: { income_id: income.id }, runAt: new Date(Math.max(Date.now(), income.settlementAvailableAt.getTime())), maxAttempts: 8 }).onConflictDoNothing();
+  }
+
   async recordRefund(executor: DatabaseTransaction, refund: RefundRow, order: OrderRow, amountCent: bigint, previousOrderRefundedCent: bigint, traceId?: string): Promise<{ liabilityCent: bigint }> {
-    const [income] = await executor.select().from(sellerIncomes).where(eq(sellerIncomes.orderId, order.id)).limit(1).for("update");
+    if (refund.status !== "REFUNDED" || !refund.completedAt || refund.orderId !== order.id || amountCent !== (refund.approvedAmountCent ?? refund.requestedAmountCent)) throw new Error("Only a confirmed order refund can adjust the ledger");
+    await executor.select({id:orders.id}).from(orders).where(eq(orders.id,order.id)).for("update");
+    const [postedRefund] = await executor.select({id:ledgerTransactions.id}).from(ledgerTransactions).where(and(eq(ledgerTransactions.sourceId,refund.id),inArray(ledgerTransactions.idempotencyKey,[`finance:refund:${refund.id}`,`finance:liability:${refund.id}`]))).limit(1);
+    if (postedRefund) {
+      const [liability] = await executor.select().from(sellerLiabilities).where(eq(sellerLiabilities.refundId,refund.id)).limit(1);
+      return {liabilityCent:liability?.originalAmountCent ?? 0n};
+    }
+    let [income] = await executor.select().from(sellerIncomes).where(eq(sellerIncomes.orderId, order.id)).limit(1).for("update");
+    // A V3.1 refund terminates the remaining obligation, including refunds before first settlement.
+    // Post the original gross split and explicit adjustments in this same transaction; never rewrite ledger entries.
+    if (!income && order.ruleVersion === "V3.1") income = await this.recordOrderCompleted(executor, {...order,afterSaleStatus:"RESOLVED",paymentStatus:"PAID",completedAt:order.completedAt ?? refund.completedAt},traceId);
     if (!income) return { liabilityCent: 0n };
+    const v31 = order.ruleVersion === "V3.1";
+    if (v31 && income.platformFeeCent > 0n) {
+      const fee = income.platformFeeCent;
+      const commission = await ensureSystemAccount(executor,"platform-commission","PLATFORM_COMMISSION","PLATFORM");
+      const wasAvailable = income.availableAt !== null;
+      const seller = await ensureSellerAccount(executor,income.sellerId,wasAvailable ? "SELLER_AVAILABLE" : "SELLER_PENDING");
+      await post(executor,{transactionType:"ADJUSTMENT",sourceType:"REFUND",sourceId:refund.id,idempotencyKey:`finance:fee-waiver:${order.id}`,description:"V3.1 真实订单退款：整单佣金冲正",traceId,entries:[{accountId:commission.id,side:"DEBIT",amountCent:fee,memo:"冲回整单佣金"},{accountId:seller.id,side:"CREDIT",amountCent:fee,memo:"返还商家原佣金"}]});
+      [income] = await executor.update(sellerIncomes).set({status:wasAvailable ? "AVAILABLE" : income.status,platformFeeCent:0n,sellerAmountCent:income.sellerAmountCent+fee,availableAmountCent:income.availableAmountCent+(wasAvailable?fee:0n),version:sql`${sellerIncomes.version} + 1`,updatedAt:new Date()}).where(eq(sellerIncomes.id,income.id)).returning();
+    }
     const cumulativeSellerRefund = (previousOrderRefundedCent + amountCent) * order.sellerIncomeCent / order.paidAmountCent;
     const priorSellerRefund = previousOrderRefundedCent * order.sellerIncomeCent / order.paidAmountCent;
-    let sellerRefund = cumulativeSellerRefund - priorSellerRefund;
+    let sellerRefund = v31 ? amountCent : cumulativeSellerRefund - priorSellerRefund;
     const platformRefund = amountCent - sellerRefund;
     const clearing = await ensureSystemAccount(executor, "refund-clearing", "REFUND_CLEARING", "CLEARING");
     const debitEntries: LedgerTemplateEntry[] = [];

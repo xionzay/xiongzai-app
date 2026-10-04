@@ -1,0 +1,24 @@
+.phone-shell .conversation-inbox { color: #24344d; font-size: 14px; }
+.phone-shell .conversation-inbox-header { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px; align-items: center; gap: 12px; min-height: 68px; padding: 4px 16px 8px; border-bottom: 1px solid #768ca51c; }
+.conversation-inbox-header::before { content: ""; }
+.phone-shell .conversation-inbox-header h1 { margin: 0; min-width: 0; text-align: center; white-space: nowrap; font-size: 19px; font-weight: 650; }
+.phone-shell .conversation-search-trigger { display: flex; flex: none; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 48px; min-height: 48px; border: 0; padding: 0; background: transparent; color: #2a3c50; font-size: 11px; }
+.conversation-search-trigger svg { width: 24px; height: 24px; }
+.phone-shell .conversation-search-form { display: flex; gap: 6px; align-items: center; padding: 0 12px 10px; }
+.phone-shell .conversation-search-form input { flex: 1; width: 100%; min-width: 0; height: 44px; border: 1px solid #cddceb; border-radius: 22px; background: #ffffffe6; padding: 0 13px; font-size: 14px; color: #24344d; }
+.phone-shell .conversation-search-form button { flex: none; min-width: 44px; min-height: 44px; border: 0; background: transparent; padding: 0 4px; color: #365e91; font-size: 14px; }
+.conversation-inbox-caption { padding: 10px 16px 12px; border-bottom: 1px solid #768ca51c; font-weight: 600; font-size: 14px; }
+.phone-shell .conversation-inbox-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 82px; border: 0; border-bottom: 1px solid #768ca51c; border-radius: 0; padding: 12px 16px; background: transparent; text-align: left; color: inherit; }
+.conversation-inbox-avatar { position: relative; flex: none; width: 48px; height: 48px; }
+.conversation-inbox-avatar img { width: 48px; height: 48px; object-fit: cover; border-radius: 10px; }
+.conversation-inbox-avatar em { position: absolute; right: -5px; top: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 10px; background: #ee5b62; color: white; text-align: center; font-size: 10px; line-height: 18px; font-style: normal; }
+.conversation-inbox-copy { flex: 1; min-width: 0; }
+.conversation-inbox-copy > span { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.conversation-inbox-copy b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; font-weight: 600; }
+.conversation-inbox-copy time { flex: none; color: #6b7b8e; font-size: 11px; font-variant-numeric: tabular-nums; }
+.conversation-inbox-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 6px; color: #64758a; font-size: 13px; line-height: 1.5; }
+.conversation-inbox-copy i { display: block; margin-top: 3px; color: #486696; font-size: 11px; font-style: normal; }
+.conversation-search-state { margin: 0; padding: 24px 16px; color: #536a84; text-align: center; font-size: 13px; line-height: 1.7; }
+.conversation-inbox :focus-visible { outline: 2px solid #5381c4; outline-offset: -2px; }
+.phone-shell .sw-view-messages .sw-content { padding: 0; }
+.phone-shell .conversation-inbox-row:active { background: #ffffff45; }

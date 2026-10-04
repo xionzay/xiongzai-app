@@ -197,6 +197,13 @@ test("seller application snapshots are immutable and admin review is permission-
   const afterReject = (await userRequest("GET", "/api/v1/seller/profile")).json();
   assert.equal(afterReject.seller_nickname, "改名后的陪玩");
   assert.equal(afterReject.status, "APPROVED");
+  assert.equal(afterReject.pending_profile_revision.status, "REJECTED");
+  assert.equal(afterReject.pending_profile_revision.snapshot.seller_nickname, "不应公开的名字");
+  const publicAfterReject = (await app.inject({ method: "GET", url: `/api/v1/companions/${seller.json().id}` })).json();
+  assert.equal(publicAfterReject.seller_nickname, "改名后的陪玩");
+  assert.equal("pending_profile_revision" in publicAfterReject, false);
+  assert.equal("voice_authorization_policy_version_id" in publicAfterReject, false);
+  assert.equal("suspended_reason" in publicAfterReject, false);
 
   const snapshots = await migrationClient.query("SELECT snapshot_json, count(*) over()::integer AS count FROM seller_applications WHERE seller_id = $1 ORDER BY created_at ASC", [seller.json().id]);
   assert.equal(snapshots.rows[0].count, 3);
@@ -299,8 +306,17 @@ test("product versions, bigint cents, SKU state and off-sale discovery rules wor
   assert.equal(publicDetail.statusCode, 200, publicDetail.body);
   assert.equal(publicDetail.json().skus[0].price_cent, "2500");
   assert.deepEqual(publicDetail.json().images.map((item) => [item.file_id, item.sort_order, item.is_cover]), [[firstImageId, 0, true], [secondImageId, 1, false]]);
+  const storefront = await app.inject({ method: "GET", url: `/api/v1/companions/${created.json().seller_id}` });
+  assert.equal(storefront.statusCode, 200, storefront.body);
+  const publicProduct = storefront.json().services.find(item => item.id === productId);
+  assert.equal(publicProduct.skus[0].id, sku.json().id);
+  assert.equal(publicProduct.skus[0].price_cent, "2500");
+  assert.equal(publicProduct.seller.id, created.json().seller_id);
+  assert.equal("voice_authorization_policy_version_id" in publicProduct.seller, false);
   const offSale = await userRequest("POST", `/api/v1/seller/services/${productId}/off-sale`, { version: approved.json().version });
   assert.equal(offSale.statusCode, 201, offSale.body);
+  const offSaleStorefront = await app.inject({ method: "GET", url: `/api/v1/companions/${created.json().seller_id}` });
+  assert.equal(offSaleStorefront.json().services.some(item => item.id === productId), false);
   const unavailable = await app.inject({ method: "GET", url: `/api/v1/services/${productId}` });
   assert.equal(unavailable.statusCode, 409); assert.equal(unavailable.json().code, "PRODUCT_OFF_SALE");
 

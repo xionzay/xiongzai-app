@@ -147,16 +147,16 @@ test("demo reducer is session-only, deduplicates taps and retries in place with 
   assert.equal(stickerDemoReducer(first, { ...action, scope: "chat-b", localId: "local-2" }).messages.length, 1);
   assert.equal(stickerDemoReducer(first, { type: "clear", scope: "chat-a" }).messages.length, 0);
 });
-test("normal and support chat reuse separate demo extension; real text sends are not sticker transports", () => {
+test("normal and support chat separate V3 transport from legacy demo and keep text input", () => {
   const page = read("app/page.tsx");
   const normal = page.slice(page.indexOf("function ChatScreen"), page.indexOf("function CustomerServiceScreen"));
   const support = page.slice(page.indexOf("function CustomerServiceScreen"), page.indexOf("function FavoritesScreen"));
   for (const source of [normal, support]) {
-    assert.match(source, /<StickerToggle control=\{stickers\}/); assert.match(source, /<StickerDemoMessages control=\{stickers\}/);
+    assert.match(source, /<StickerToggle control=\{stickers\}/); assert.match(source, /<PendingBearStickers sender=\{bear\}/); assert.doesNotMatch(source, /<StickerDemoMessages/); assert.match(source, /message_type: "STICKER"/);
     assert.match(source, /onFocus=\{stickers.closePanel\}/); assert.match(source, /value=\{text\}/);
     assert.doesNotMatch(source, /JSON.stringify\([^\n]*stickerId/);
   }
-  for (const file of readdirSync(path.join(root, "app/chat-stickers")).filter(x => /\.tsx?$/.test(x))) {
+  for (const file of readdirSync(path.join(root, "app/chat-stickers")).filter(x => /\.tsx?$/.test(x) && !["StandardEmoji.tsx", "standard-emoji.ts", "useEmojiComposer.ts"].includes(x))) {
     assert.doesNotMatch(read(`app/chat-stickers/${file}`), /\b(fetch|apiRequest|localStorage|sessionStorage|indexedDB|WebSocket)\b|onComplete|onDelivered|setUnreadCount/, file);
   }
   const { StickerPanel } = load("app/chat-stickers/StickerPanel.tsx");

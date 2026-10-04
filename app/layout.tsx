@@ -1,12 +1,22 @@
+import "./product-decisions.css";
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import "./chat-redesign.css";
 import "./chat-stickers/stickers.css";
+import "./chat-stickers/standard-emoji.css";
+import "./chat-stickers/bear-v3.css";
 import "./user-theme.css";
 import "./commerce-layout.css";
+import "./home-commerce.css";
 import "./trade-v31/trade.css";
+import "./conversation-list.css";
+import "./seller-workbench/seller-workbench.css"; // Merchant workbench theme
 import "./purchase-spec-sheet.css";
+import "./buyer-surfaces.css"; // Buyer-only surfaces; seller and chat canvases stay unchanged
+
+import "./storefront/storefront.css";
+import "./ui/cartoon.css";
 
 export const viewport: Viewport = {
   width: "device-width",

@@ -1,0 +1,4 @@
+Generated 2026-10-03 for buyer Mine waiting-for-service entry.
+Reference: existing approved public/assets/cartoon-icons-v1.png.
+Single glossy rounded blue clock, cream yellow face, blue hands, thick rounded contours, cyan highlights. Transparent background, square canvas, no words, numerals, mascot or cast shadow. Matches the approved 2.5D family; only used by the new mine-wait icon kind.
+Generated through the built-in imagegen tool. Original image retained outside the project; this PNG is the project copy.

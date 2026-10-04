@@ -31,31 +31,31 @@ test('whole-order freeze, refund cap, modifications and original remaining recei
 });
 test('remedial fulfillment stays in same case with one shared extension',()=>{
  let o=samples()[4],caseId=o.sale.id;
- o=t(o,a('acceptProposal'),now);assert.equal(o.sale.status,'remedy');assert.equal(o.sale.id,caseId);assert(settlement(o).frozen>0);
+ o=t(o,a('acceptProposal','buyer',{proposalId:o.sale.proposal.id,proposalVersion:o.sale.proposal.version}),now);assert.equal(o.sale.status,'remedy');assert.equal(o.sale.id,caseId);assert(settlement(o).frozen>0);
  o=t(o,a('complete','seller',{evidence:sampleEvidence}),now);assert.equal(o.sale.status,'remedyReceipt');
  o=t(o,a('extend'),now);assert.equal(o.confirmAt,now+96*HOUR);assert.throws(()=>t(o,a('extend')),/每个订单/);
  o=t(o,a('confirm'),now);assert.equal(settlement(o).fee,600);assert.equal(o.stage,'review');
 });
 test('two failed proposals escalate, silence is not acceptance',()=>{
  let o=samples()[3];const proposal={kind:'partial',amount:2000,content:'退未完成部分',hours:24};
- o=t(o,a('propose','seller',{proposal}),now);o=t(o,a('rejectProposal'),now);assert.equal(o.sale.status,'second');
- o=t(o,a('propose','seller',{proposal}),now);o=t(o,a('rejectProposal'),now);assert.equal(o.sale.status,'platform');assert.equal(o.refunded,0);
+ o=t(o,a('propose','seller',{proposal}),now);o=t(o,a('rejectProposal','buyer',{proposalId:o.sale.proposal.id,proposalVersion:o.sale.proposal.version}),now);assert.equal(o.sale.status,'second');
+ o=t(o,a('propose','seller',{proposal}),now);o=t(o,a('rejectProposal','buyer',{proposalId:o.sale.proposal.id,proposalVersion:o.sale.proposal.version}),now);assert.equal(o.sale.status,'platform');assert.equal(o.refunded,0);
 });
 test('single party cannot execute a ruling, partial refunds remove whole commission',()=>{
  let o=samples()[8];o=t(o,a('acceptRuling'),now);assert.equal(o.sale.status,'ruling');
- o=t(o,a('acceptRuling','seller'),now);assert.equal(o.sale.status,'processing');assert.equal(o.refunded,0);
+ o=t(o,a('acceptRuling','seller'),now);assert.equal(o.sale.status,'refundPending');assert.equal(o.refunded,0);
  const refunded=samples()[10];assert.equal(settlement(refunded).fee,0);assert.equal(settlement(refunded).net,4000);
 });
 test('second appeal requires new evidence and rejects after the deadline',()=>{
  let o=samples()[8];o.sale.status='final';o.sale.appealLevel=1;
  assert.throws(()=>t(o,a('appeal','buyer',{reason:'异议',evidence:[]}),now),/新证据/);
- assert.throws(()=>t(o,a('appeal','buyer',{reason:'异议',evidence:[{id:'new',kind:'image'}]}),now+25*HOUR),/窗口/);
- o=t(o,a('appeal','buyer',{reason:'异议',evidence:[{id:'new',kind:'image'}]}),now);assert.equal(o.sale.appealLevel,2);
+ assert.throws(()=>t(o,a('appeal','buyer',{reason:'异议',evidence:[{id:'new',kind:'image',digest:'verified-new-file-hash'}]}),now+25*HOUR),/窗口/);
+ o=t(o,a('appeal','buyer',{reason:'异议',evidence:[{id:'new',kind:'image',digest:'verified-new-file-hash'}]}),now);assert.equal(o.sale.appealLevel,2);
 });
 test('platform proposals keep deadline and append evidence never resets it',()=>{
  let o=samples()[5],deadline=o.sale.deadline;
  o=t(o,a('propose','seller',{proposal:{kind:'remedy',amount:0,content:'补发',hours:24}}),now);assert.equal(o.sale.deadline,deadline);
- o=t(o,a('append','buyer',{evidence:[{id:'new',kind:'image'}]}),now);assert.equal(o.sale.deadline,deadline);
+ o=t(o,a('append','buyer',{evidence:[{id:'new',kind:'image',digest:'verified-new-file-hash'}]}),now);assert.equal(o.sale.deadline,deadline);
 });
 test('no-refund ruling after remedial dispute restores remedial acceptance and freeze',()=>{
  let o=samples()[12];o=t(o,a('intervene','buyer',{reason:'补充内容仍有问题',evidence:[]}),now);

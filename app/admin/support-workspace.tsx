@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminApiError, adminApiRequest, adminFailure } from "./admin-api";
+import { BearStickerImage } from "../chat-stickers/BearStickers";
 import styles from "./admin.module.css";
 import { useSafeUrlChoice } from "./url-state";
 
@@ -33,6 +34,8 @@ type SupportCase = {
 };
 
 type SupportMessage = {
+  message_type?: "TEXT" | "SYSTEM" | "STICKER";
+  sticker?: { id: string };
   id: string;
   sender_role: "USER" | "ADMIN" | "SYSTEM" | "BUYER" | "SELLER";
   content: string;
@@ -243,7 +246,7 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
           <div className={styles.supportMessages} aria-live="polite">
             {messageState === "loading" ? <div className={styles.supportEmpty}>正在读取真实聊天记录…</div> : messageState === "error" || messageState === "offline" ? <div className={styles.supportEmpty}>{messageError}<br /><button type="button" onClick={() => setMessageRevision((value) => value + 1)}>重新加载</button></div> : !assignedToCurrentAdmin ? <div className={styles.supportEmpty}>为了保护用户会话，只有当前接入客服可以查看消息。</div> : messageState === "empty" ? <div className={styles.supportEmpty}>当前工单还没有消息。</div> : messages.map((message) => message.sender_role === "SYSTEM" ? <div className={styles.supportSystemMessage} key={message.id}><span>{message.content}</span><time>{formatMessageTime(message.created_at)}</time></div> : <div className={`${styles.supportMessage} ${message.sender_role === "ADMIN" ? styles.supportAgentMessage : ""}`} key={message.id}>
               {message.sender_role !== "ADMIN" ? <span className={styles.avatarFallback}>{requesterName.slice(0, 1)}</span> : null}
-              <span><b>{message.sender_role === "ADMIN" ? "平台客服" : requesterName}</b><p>{message.content}</p><small>{formatMessageTime(message.created_at)} · {messageStatusLabel(message.send_status)}</small></span>
+              <span><b>{message.sender_role === "ADMIN" ? "平台客服" : requesterName}</b><p>{message.message_type === "STICKER" ? <BearStickerImage id={message.sticker?.id}/> : message.content}</p><small>{formatMessageTime(message.created_at)} · {messageStatusLabel(message.send_status)}</small></span>
               {message.sender_role === "ADMIN" ? <i>客</i> : null}
             </div>)}
             <div ref={messageEndRef} />

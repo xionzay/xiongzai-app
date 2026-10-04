@@ -1,6 +1,17 @@
 .phone-shell {
+  --app-dock-background: linear-gradient(105deg, #bceaff 0%, #d5eff1 55%, #fff0bc 100%);
+  --app-nav-background: var(--buyer-page-background);
+  --app-dock-tint: #ffe7a8a6;
+  --app-dock-line: #76a7c64d;
   --buyer-page-background: radial-gradient(ellipse at 100% 38%, #fff9da 0%, #fffbe47a 24%, transparent 58%), linear-gradient(125deg, #bceaff 0%, #d9f3ff 62%, #edfaff 100%);
-  --seller-page-background: radial-gradient(ellipse at 100% 38%, #eae2fa 0%, #eee8fb70 28%, transparent 65%), linear-gradient(125deg, #e0f0fc 0%, #eaf0fc 55%, #f1ecfb 100%);
+  /* Match the buyer canvas's blue depth and gradient stops, with lilac replacing yellow. */
+  --seller-page-background: radial-gradient(ellipse at 100% 38%, #ead9ff 0%, #efe4ff7a 24%, transparent 58%), linear-gradient(125deg, #bceaff 0%, #d9f3ff 62%, #edfaff 100%);
+}
+.phone-shell[data-page-palette="seller"] {
+  --app-dock-background: linear-gradient(105deg, #bceaff 0%, #ceddf7 55%, #dfc9fa 100%);
+  --app-nav-background: var(--seller-page-background);
+  --app-dock-tint: #d2b5f9a6;
+  --app-dock-line: #8490bc4d;
 }
 /* User app design system · blue/yellow playfulness, readable business surfaces.
    Scoped to the user shell: admin, standalone websites and APIs are unaffected. */
@@ -218,7 +229,10 @@
 .phone-shell.user-theme :is(.order-status-hero,.seller-order-status,.rules-hero,.policy-center-hero,.security-hero,.data-export-hero) p { color: inherit; opacity: .9; }
 
 /* Keep the user's original image icons, navigation metrics and back controls. */
-.phone-shell.user-theme .bottom-nav { --orange: #ff5a1f; }
+.phone-shell .bottom-nav { --orange: var(--toon-action); isolation:isolate; background:var(--app-nav-background); background-size:100% var(--app-canvas-height,100svh); background-position:left bottom; background-repeat:no-repeat; background-origin:border-box; border-top-color:var(--app-dock-line); box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
+/* The canvas ends in shared blue. Fade the role accent in only below the seam,
+   keeping the top edge continuous and the two docks visibly distinguishable. */
+.phone-shell .bottom-nav::before { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; background:linear-gradient(90deg,transparent 25%,var(--app-dock-tint)); mask-image:linear-gradient(transparent,#000); }
 .phone-shell.user-theme .icon-button { color: #171a21; }
 .phone-shell.user-theme :is(.sticky-actions,.booking-confirm) { background: #fffffff7; border-color: var(--line); box-shadow: 0 -3px 12px #598bb00a; backdrop-filter: none; }
 
@@ -347,7 +361,7 @@
 /* Page canvases share the home palette. Chat never opts into user-theme. */
 .phone-shell.user-theme[data-page-palette="seller"] {
   --xiongzai-page-gradient: var(--seller-page-background);
-  --paper: #f8faff;
-  --line: #dce4f1;
-  --seller-surface: linear-gradient(120deg, #f8fcffdf, #faf8ffdf);
+  --paper: var(--sw-input);
+  --line: var(--sw-line);
+  --seller-surface: transparent;
 }

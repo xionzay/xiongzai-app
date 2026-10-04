@@ -711,6 +711,8 @@ export const orders = pgTable(
     skuId: uuid("sku_id").notNull().references(() => productSkus.id, { onDelete: "restrict" }),
     transactionPolicyVersionId: uuid("transaction_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
     refundPolicyVersionId: uuid("refund_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
+    // Explicit business version; historical orders remain legacy, never inferred from dates or titles.
+    ruleVersion: varchar("rule_version", { length: 32 }).default("legacy").notNull(),
     productTitleSnapshot: varchar("product_title_snapshot", { length: 120 }).notNull(),
     productImageSnapshot: text("product_image_snapshot").notNull(),
     productDescriptionSnapshot: text("product_description_snapshot").notNull(),

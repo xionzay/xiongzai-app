@@ -1,0 +1,16 @@
+/* V3 assets already include their lettering. Never add captions or bubble fill. */
+.phone-shell .bear-v3-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0 8px; }
+.phone-shell .bear-v3-panel-hint, .phone-shell .bear-v3-panel-status { flex: none; margin: 0; padding: 6px 4px; font-size: 12px; color: var(--muted,#53748b); }
+.phone-shell .bear-v3-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); grid-auto-rows: max-content; gap: 4px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; align-content: start; }
+.phone-shell .bear-v3-grid > button { width: 100%; height: auto; min-width: 44px; min-height: 44px; padding: 2px; aspect-ratio: 1; border: 0; border-radius: 12px; background: transparent; touch-action: pan-y; color: inherit; }
+.phone-shell .bear-v3-grid > button:active { background: #87bfff33; }
+.phone-shell .bear-v3-grid > button:focus-visible { outline: 2px solid var(--brand,#087bf5); outline-offset: -2px; }
+.phone-shell .bear-v3-grid > button:disabled { opacity: .55; cursor: default; }
+.phone-shell img.bear-v3-panel-art { display: block; width: 100%; height: auto; max-width: none; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; object-fit: contain; pointer-events: none; }
+.phone-shell .chat-screen { --bear-message-clearance: 56px; }
+img.bear-v3-message-art { display: block; width: clamp(88px,calc(var(--chat-visible-height,240px) - var(--bear-message-clearance,32px)),172px); height: clamp(88px,calc(var(--chat-visible-height,240px) - var(--bear-message-clearance,32px)),172px); max-width: 100%; object-fit: contain; border: 0; border-radius: 0; padding: 0; margin: 0; background: transparent; }
+.phone-shell .chat-screen .chat-messages .message.bear-v3-message > span > p, .phone-shell .customer-service-screen .customer-message.bear-v3-message > p { padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.phone-shell .chat-screen .chat-messages .message.bear-v3-message > span > p::before, .phone-shell .customer-service-screen .customer-message.bear-v3-message > p::before { display: none; }
+.phone-shell .bear-v3-pending { display: flex; flex-direction: column; align-items: flex-end; margin: 8px 0; }
+.phone-shell .bear-v3-pending small { max-width: 230px; font-size: 12px; }
+.phone-shell .bear-v3-pending button, .bear-v3-load-retry { min-height: 44px; padding: 8px 12px; color: var(--brand,#087bf5); background: #a5cdff33; border: 1px solid #759acb55; border-radius: 12px; }

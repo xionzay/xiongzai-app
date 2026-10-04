@@ -10,7 +10,7 @@ export function useHomeModeMotion(root: RefObject<HTMLElement | null>, mode: str
     const style = getComputedStyle(node);
     const duration = parseFloat(style.getPropertyValue("--motion-content")) || 200;
     const distance = style.getPropertyValue("--motion-distance-small").trim() || "4px";
-    const animations = Array.from(node.querySelectorAll<HTMLElement>(":scope > .home-section")).map((section, index) => section.animate([{ opacity: .65, translate: `0 ${distance}` }, { opacity: 1, translate: "0 0" }], { duration, delay: Math.min(index, 2) * (parseFloat(style.getPropertyValue("--motion-stagger")) || 30), easing: "ease-out" }));
+    const animations = Array.from(node.querySelectorAll<HTMLElement>(":scope > .home-section")).map((section) => section.animate([{ opacity: .65, translate: `0 ${distance}` }, { opacity: 1, translate: "0 0" }], { duration, delay: 0, easing: "ease-out" }));
     const stop = () => animations.forEach(animation => animation.cancel());
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     media.addEventListener("change", stop);
@@ -24,11 +24,15 @@ export function useHomeModeMotion(root: RefObject<HTMLElement | null>, mode: str
 export function useUserUiMotion(root: RefObject<HTMLElement | null>, page: string) {
   const visitedHome = useRef(false);
   const previousPage = useRef(page);
+  const trail = useRef<string[]>([page]);
   useLayoutEffect(() => {
     const node = root.current;
     const screen = node?.querySelector<HTMLElement>(".app-screen:not(.home-screen), .home-retained:not([hidden]) .home-screen");
     const returningHome = page === "home" && visitedHome.current;
     const navigated = previousPage.current !== page;
+    const previousIndex = trail.current.lastIndexOf(page);
+    const backward = previousIndex >= 0;
+    if (navigated) trail.current = backward ? trail.current.slice(0, previousIndex + 1) : [...trail.current, page];
     previousPage.current = page;
     if (page === "home") visitedHome.current = true;
     if (!node || !screen || document.hidden || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -37,10 +41,17 @@ export function useUserUiMotion(root: RefObject<HTMLElement | null>, page: strin
     const easing = style.getPropertyValue("--motion-ease").trim() || "ease-out";
     const animations: Animation[] = [];
     // Opacity only: transformed screens would change fixed navigation positioning.
-    if (!returningHome) animations.push(screen.animate([{ opacity: .65 }, { opacity: 1 }], { duration, easing }));
+    if (!returningHome) {
+      const surface = node.dataset.pagePalette === 'seller' ? screen.querySelector<HTMLElement>('.sw-content, .v31-content') ?? screen : screen;
+      const roots = ['home','orders','messages','mine','seller','sellerOrders','sellerMessages','sellerMine'];
+      const detail = navigated && !roots.includes(page) && node.dataset.pagePalette !== 'seller';
+      const pieces = detail ? Array.from(surface.querySelectorAll?.<HTMLElement>(':scope > :not(nav):not(.sticky-actions):not(.preview-bottom):not(.sf-footer):not(.sf-save-bar):not(.product-purchase-actions):not(.sheet-backdrop):not(.flow-overlay)') ?? []) : [];
+      if (pieces.length) pieces.forEach(piece => animations.push(piece.animate([{ opacity:.75, transform:`translateX(${backward ? -8 : 8}px)` }, { opacity:1, transform:'translateX(0)' }], { duration:180, easing })));
+      else animations.push(surface.animate([{ opacity: .75 }, { opacity: 1 }], { duration, easing }));
+    }
     if (navigated && node.dataset.uiRefinement === "on" && (page === "home" || page === "messages")) {
       const icon = screen.querySelector<HTMLElement>(".bottom-nav button.active i");
-      if (icon) animations.push(icon.animate([{ scale: 1 }, { scale: parseFloat(style.getPropertyValue("--motion-nav-scale")) || 1.06, offset: .4 }, { scale: 1 }], { duration, easing }));
+      if (icon) animations.push(icon.animate([{ scale: 1 }, { scale: parseFloat(style.getPropertyValue("--motion-nav-scale")) || 1.025, offset: .4 }, { scale: 1 }], { duration, easing }));
     }
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const stop = () => animations.forEach(animation => animation.cancel());
@@ -99,7 +110,7 @@ export function useSheetAccessibility(root: RefObject<HTMLElement | null>) {
     let dialog: HTMLElement | null = null;
     let release: (() => void) | undefined;
     const sync = () => {
-      const next = node.querySelector<HTMLElement>(".sheet-backdrop, .demo-overlay, .flow-overlay");
+      const next = node.querySelector<HTMLElement>(".sheet-backdrop:not([inert]), .demo-overlay:not([inert]), .flow-overlay:not([inert])");
       if (next === dialog) return;
       release?.(); release = undefined; dialog = next;
       if (!next) return;
@@ -122,7 +133,7 @@ export function useSheetAccessibility(root: RefObject<HTMLElement | null>) {
       release = () => { document.removeEventListener("keydown", trap); if (screen) screen.style.overflowY = overflow; if (previous?.isConnected) previous.focus({ preventScroll: true }); };
     };
     const observer = new MutationObserver(sync);
-    observer.observe(node, { childList: true, subtree: true }); sync();
+    observer.observe(node, { childList: true, subtree: true, attributes: true, attributeFilter: ["inert"] }); sync();
     return () => { observer.disconnect(); release?.(); };
   }, [root]);
 }

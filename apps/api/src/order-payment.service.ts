@@ -310,6 +310,7 @@ export class OrderPaymentService {
     return this.database.db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
       if (!order || (role === "BUYER" ? order.buyerId !== userId : order.sellerUserId !== userId)) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+      if (order.afterSaleStatus === "IN_PROGRESS" || order.paymentStatus === "REFUNDING") throw conflict("ORDER_AFTER_SALE_ACTIVE", "售后处理中，正常履约与收货操作已暂停");
       if (order.status !== expected) throw invalidState(`订单状态 ${order.status} 不能执行 ${action}`);
       if (order.version !== version) throw versionConflict();
       const [updated] = await tx.update(orders).set({ ...fields, status: next, version: sql`${orders.version} + 1`, updatedAt: new Date() })
@@ -338,13 +339,15 @@ export class OrderPaymentService {
     if (cursor && cursor.scope !== scope) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "分页游标与当前订单筛选不匹配", statusCode: 400 });
     const rows = await this.database.db.select().from(orders).where(and(role === "BUYER" ? eq(orders.buyerId, actorId) : eq(orders.sellerId, actorId), role === "SELLER" ? ne(orders.status, "PENDING_PAYMENT") : undefined, input.status ? eq(orders.status, input.status) : undefined, input.after_sale_status ? eq(orders.afterSaleStatus, input.after_sale_status) : undefined, cursor ? or(lt(orders.createdAt, new Date(cursor.sort_value)), and(eq(orders.createdAt, new Date(cursor.sort_value)), lt(orders.id, cursor.id))) : undefined)).orderBy(desc(orders.createdAt), desc(orders.id)).limit(limit + 1);
     const page = rows.slice(0, limit); const last = page.at(-1);
-    const [reviewRows, buyerRows] = await Promise.all([
+    const [reviewRows, buyerRows, refundRows] = await Promise.all([
       page.length ? this.database.db.select({ orderId: reviews.orderId }).from(reviews).where(inArray(reviews.orderId, page.map((row) => row.id))) : [],
       role === "SELLER" && page.length ? this.database.db.select({ user_id: userProfiles.userId, nickname: userProfiles.nickname, avatar_file_id: userProfiles.avatarFileId }).from(userProfiles).where(inArray(userProfiles.userId, page.map((row) => row.buyerId))) : [],
+      page.length ? this.database.db.select({ orderId: refunds.orderId }).from(refunds).where(inArray(refunds.orderId, page.map(row => row.id))) : [],
     ]);
     const reviewed = new Set(reviewRows.map((row) => row.orderId));
+    const refunded = new Set(refundRows.map(row => row.orderId));
     const buyers = new Map(buyerRows.map((row) => [row.user_id, row]));
-    return { items: page.map((row) => ({ ...orderView(row), reviewed: reviewed.has(row.id), ...(role === "SELLER" ? { seller_available_actions: sellerActions(row), buyer: buyers.get(row.buyerId) ?? { nickname: "买家", avatar_file_id: null } } : {}) })), next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.createdAt.toISOString(), id: last.id, scope }, this.config.cursorSigningSecret) : null };
+    return { items: page.map((row) => ({ ...orderView(row), reviewed: reviewed.has(row.id), available_actions: role === "BUYER" ? buyerActions(row, refunded.has(row.id), reviewed.has(row.id), row.paidAmountCent - row.refundedAmountCent) : [], ...(role === "SELLER" ? { seller_available_actions: sellerActions(row), buyer: buyers.get(row.buyerId) ?? { nickname: "买家", avatar_file_id: null } } : {}) })), next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.createdAt.toISOString(), id: last.id, scope }, this.config.cursorSigningSecret) : null };
   }
 
   private async requirePaymentForUser(userId: string, paymentId: string) {
@@ -385,23 +388,23 @@ function previewView(context: PurchaseContext, policy: Policy, quantity: number,
   return { product_id: context.product.id, product_title: context.product.title, product_image_file_id: context.imageFileId, seller_id: context.seller.id, seller_name: context.seller.sellerNickname, sku_id: context.sku.id, sku_name: context.sku.skuName, sku_price_cent: context.sku.priceCent, sku_duration_minutes: context.sku.durationMinutes, quantity, total_amount_cent: total, discount_cent: 0n, payable_amount_cent: total, commission_rate_bps: policy.commissionRateBps, platform_fee_cent: platformFee, seller_income_cent: total - platformFee, service_starts_at: serviceStartsAt, service_ends_at: serviceEndsAt };
 }
 
-function orderView(row: typeof orders.$inferSelect) { return { id: row.id, order_no: row.orderNo, buyer_id: row.buyerId, seller_user_id: row.sellerUserId, seller_id: row.sellerId, product_id: row.productId, sku_id: row.skuId, transaction_policy_version_id: row.transactionPolicyVersionId, refund_policy_version_id: row.refundPolicyVersionId, product_title: row.productTitleSnapshot, product_image: row.productImageSnapshot, product_description: row.productDescriptionSnapshot, seller_name: row.sellerNameSnapshot, seller_avatar: row.sellerAvatarSnapshot, sku_name: row.skuNameSnapshot, sku_description: row.skuDescriptionSnapshot, sku_price_cent: row.skuPriceCentSnapshot, sku_duration_minutes: row.skuDurationMinutesSnapshot, quantity: row.quantity, total_amount_cent: row.totalAmountCent, discount_cent: row.discountCent, payable_amount_cent: row.payableAmountCent, paid_amount_cent: row.paidAmountCent, refunded_amount_cent: row.refundedAmountCent, commission_rate_bps: row.commissionRateBpsSnapshot, platform_fee_cent: row.platformFeeCent, seller_income_cent: row.sellerIncomeCent, service_starts_at: row.serviceStartsAt, service_ends_at: row.serviceEndsAt, buyer_note: row.buyerNote, status: row.status, payment_status: row.paymentStatus, after_sale_status: row.afterSaleStatus, expires_at: row.expiresAt, auto_confirm_at: row.autoConfirmAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
+function orderView(row: typeof orders.$inferSelect) { return { id: row.id, order_no: row.orderNo, buyer_id: row.buyerId, seller_user_id: row.sellerUserId, seller_id: row.sellerId, product_id: row.productId, sku_id: row.skuId, transaction_policy_version_id: row.transactionPolicyVersionId, refund_policy_version_id: row.refundPolicyVersionId, rule_version: row.ruleVersion, review_deadline_at: row.ruleVersion === "V3.1" && row.completedAt ? new Date(row.completedAt.getTime() + 7 * 24 * 3600000) : null, product_title: row.productTitleSnapshot, product_image: row.productImageSnapshot, product_description: row.productDescriptionSnapshot, seller_name: row.sellerNameSnapshot, seller_avatar: row.sellerAvatarSnapshot, sku_name: row.skuNameSnapshot, sku_description: row.skuDescriptionSnapshot, sku_price_cent: row.skuPriceCentSnapshot, sku_duration_minutes: row.skuDurationMinutesSnapshot, quantity: row.quantity, total_amount_cent: row.totalAmountCent, discount_cent: row.discountCent, payable_amount_cent: row.payableAmountCent, paid_amount_cent: row.paidAmountCent, refunded_amount_cent: row.refundedAmountCent, commission_rate_bps: row.commissionRateBpsSnapshot, platform_fee_cent: row.platformFeeCent, seller_income_cent: row.sellerIncomeCent, service_starts_at: row.serviceStartsAt, service_ends_at: row.serviceEndsAt, buyer_note: row.buyerNote, status: row.status, payment_status: row.paymentStatus, after_sale_status: row.afterSaleStatus, expires_at: row.expiresAt, auto_confirm_at: row.autoConfirmAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
 function paymentView(row: typeof payments.$inferSelect) { return { id: row.id, payment_no: row.paymentNo, order_id: row.orderId, channel: row.channel, amount_cent: row.amountCent, currency: row.currency, status: row.status, provider_transaction_id: row.providerTransactionId, paid_at: row.paidAt, closed_at: row.closedAt, version: row.version, created_at: row.createdAt }; }
 function replayClientPayload(provider: PaymentProvider, row: typeof payments.$inferSelect) { return { mode: provider.mode, payment_channel: row.channel, payment_no: row.paymentNo }; }
 function reservationView(row: typeof orderSlotReservations.$inferSelect) { return { id: row.id, slot_id: row.slotId, starts_at: row.startsAt, ends_at: row.endsAt, status: row.status, expires_at: row.expiresAt, released_at: row.releasedAt, version: row.version }; }
 function buyerActions(order: typeof orders.$inferSelect, hasRefund: boolean, hasReview: boolean, refundableAmount: bigint): BuyerOrderAction[] {
   const actions: BuyerOrderAction[] = ["VIEW_SERVICE"];
   if (order.status === "PENDING_PAYMENT" && order.expiresAt > new Date() && ["CREATED", "FAILED"].includes(order.paymentStatus)) actions.push("PAY", "CANCEL");
-  if (order.status === "PENDING_BUYER_CONFIRM") actions.push("CONFIRM_COMPLETE");
+  if (order.status === "PENDING_BUYER_CONFIRM" && order.afterSaleStatus !== "IN_PROGRESS" && order.paymentStatus !== "REFUNDING") actions.push("CONFIRM_COMPLETE");
   const paidServiceState = ["PENDING_ACCEPT", "ACCEPTED", "IN_SERVICE", "PENDING_BUYER_CONFIRM", "COMPLETED", "SELLER_REJECTED", "CLOSED"].includes(order.status);
-  if (hasRefund) actions.push("VIEW_REFUND"); else if (paidServiceState && refundableAmount > 0n && order.afterSaleStatus !== "IN_PROGRESS") actions.push("REQUEST_REFUND");
+  if (hasRefund) actions.push("VIEW_REFUND"); else if (paidServiceState && !(order.ruleVersion === "V3.1" && order.completedAt) && refundableAmount > 0n && order.afterSaleStatus !== "IN_PROGRESS") actions.push("REQUEST_REFUND");
   if (paidServiceState) actions.push("CREATE_COMPLAINT");
-  if (order.status === "COMPLETED") actions.push(hasReview ? "VIEW_REVIEW" : "CREATE_REVIEW");
+  if (order.status === "COMPLETED" && (hasReview || order.ruleVersion !== "V3.1" || order.completedAt && Date.now() < order.completedAt.getTime() + 7 * 24 * 3600000)) actions.push(hasReview ? "VIEW_REVIEW" : "CREATE_REVIEW");
   return actions;
 }
 function sellerActions(order: typeof orders.$inferSelect) {
   const actions: ("ACCEPT" | "REJECT" | "START" | "COMPLETE" | "PROCESS_REFUND" | "CONTACT_BUYER")[] = ["CONTACT_BUYER"];
-  if (order.afterSaleStatus === "IN_PROGRESS") actions.push("PROCESS_REFUND");
+  if (order.afterSaleStatus === "IN_PROGRESS" || order.paymentStatus === "REFUNDING") { actions.push("PROCESS_REFUND"); return actions; }
   if (order.status === "PENDING_ACCEPT") actions.push("ACCEPT", "REJECT");
   if (order.status === "ACCEPTED" && order.serviceStartsAt <= new Date()) actions.push("START");
   if (order.status === "IN_SERVICE") actions.push("COMPLETE");

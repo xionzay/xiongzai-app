@@ -45,7 +45,7 @@ before(async () => {
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
   await runMigration("0006_policy_version_bindings.sql");
-  await runMigration("0009_clear_rhodey.sql");
+  await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_version.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-order-payment-test", options: `-c search_path=${schemaName},public`, max: 8 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, logger: new JsonLogger("order-payment-test", () => {}) });
   seller = await seedUser("seller");

@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "rule_version" varchar(32) DEFAULT 'legacy' NOT NULL;

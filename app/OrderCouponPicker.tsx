@@ -1,0 +1,11 @@
+'use client';
+import {useEffect,useRef,useState} from 'react';
+export type CouponQuote = {quoteId:string;payableCent:string;discountCent:string;selectedCouponId:string|null;coupons:{id:string;title:string;discountCent:string;eligible:boolean;reason?:string}[]};
+/** Product/SKU/quantity must be bound by the adapter; null explicitly opts out, undefined asks for best eligible coupon. */
+export type CouponQuoteApi = (couponId?:string|null)=>Promise<CouponQuote>;
+export function OrderCouponPicker({quote,onQuote,api}:{quote?:CouponQuote;onQuote?:(quote:CouponQuote)=>void;api?:CouponQuoteApi}){
+ const [open,setOpen]=useState(false),[result,setResult]=useState(quote),[busy,setBusy]=useState(false),[error,setError]=useState('');const lock=useRef(false);
+ const refresh=async(id?:string|null)=>{if(!api||lock.current)return;lock.current=true;setBusy(true);setError('');try{const next=await api(id);setResult(next);onQuote?.(next)}catch(e){setError(e instanceof Error?e.message:'核价失败，请重试；本次选择未生效')}finally{lock.current=false;setBusy(false)}};
+ useEffect(()=>{if(api&&!quote)void Promise.resolve().then(()=>refresh())},[api]);
+ return <section className="order-coupon-picker"><button className="decision-row" aria-expanded={open} onClick={()=>{setOpen(v=>!v);if(!result)void refresh()}}><span>优惠券</span><span>{busy?'正在核价…':result?.selectedCouponId?`已优惠 ¥${(Number(result.discountCent)/100).toFixed(2)}`:'选择优惠券'} ›</span></button>{open&&<div>{!api?<p role="status">优惠券与订单核价接口尚未接通，目前不能领取或抵扣。</p>:<><button disabled={busy} onClick={()=>void refresh()}>使用最优惠的可用券</button><button disabled={busy} aria-pressed={result?.selectedCouponId===null} onClick={()=>void refresh(null)}>不使用优惠券</button>{result?.coupons.map(c=><button key={c.id} disabled={busy||!c.eligible} aria-pressed={result.selectedCouponId===c.id} onClick={()=>void refresh(c.id)}>{c.title} · ¥{(Number(c.discountCent)/100).toFixed(2)}{c.reason&&<small>{c.reason}</small>}</button>)}</>}{error&&<p role="alert">{error}<button disabled={busy} onClick={()=>void refresh(result?.selectedCouponId)}>重试核价</button></p>}<small>每单最多一张，金额及资格由服务端核算，提交时再次校验。</small></div>}</section>;
+}

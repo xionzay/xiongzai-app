@@ -17,9 +17,12 @@ assert.equal(components.length, componentNames.size);
 const compiled = ts.transpileModule(components.map((node) => node.getText(source)).join("\n"), {
   compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
 }).outputText;
+const commerceSource = await readFile(new URL("../app/commerce-model.ts", import.meta.url),"utf8");
+const commerceContext={exports:{}};
+vm.runInNewContext(ts.transpileModule(commerceSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,commerceContext);
 const stub = () => null;
 const { Header, MineScreen } = vm.runInNewContext(`${compiled}\n({ Header, MineScreen });`, {
-  React, buyerOrderEntries: [{ label: "待付款", icon: "wallet" }], StatusBar: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}], DEFAULT_PLAYER_IMAGE: "/assets/placeholders/player.svg",
+  React, BuyerIdentity: stub, apiRequest: stub, mineOrderIcon: {}, buyerOrderEntries: commerceContext.exports.buyerOrderEntries, StatusBar: stub, CartoonIcon: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}], DEFAULT_PLAYER_IMAGE: "/assets/placeholders/player.svg",
 });
 
 function* elements(node) {
@@ -65,7 +68,7 @@ test("the entire avatar, nickname and ID card opens edit profile using a native 
   assert.equal(card.props["aria-label"], "编辑个人资料");
   const markup = renderToStaticMarkup(card);
   assert.match(markup, /测试玩家/);
-  assert.match(markup, /ID：12345/);
+  assert.match(markup, /账号：12345/);
   assert.equal([...elements(card)].filter((element) => element.type === "button").length, 1);
   card.props.onClick();
   assert.deepEqual(destinations, ["editProfile"]);
@@ -79,8 +82,8 @@ function toolbarRule(selector) {
   return matches[0][1];
 }
 
-test("messages and orders explicitly opt into a centered title without restoring other page titles", () => {
-  for (const [componentName, title] of [["MessagesScreen", "聊天"], ["OrdersScreen", "我的订单"]]) {
+test("orders and profile explicitly opt into centered titles; inbox owns its header", () => {
+  for (const [componentName, title] of [["MineScreen", "我的"], ["OrdersScreen", "我的订单"], ["NotificationsScreen", "官方通知"]]) {
     const component = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === componentName);
     assert.ok(component);
     assert.ok(component.getText(source).includes(`<Header variant="centered" title="${title}"`));
@@ -90,7 +93,7 @@ test("messages and orders explicitly opt into a centered title without restoring
     assert.doesNotMatch(markup, /page-toolbar-empty|不展示的说明/);
     assert.deepEqual(React.Children.toArray(header.props.children).map((child) => child.type), ["div", "h1", "div"]);
   }
-  assert.equal((page.match(/<Header variant="centered"/g) || []).length, 2);
+  assert.equal((page.match(/<Header variant="centered"/g) || []).length, 3);
 });
 
 test("centered titles keep their centerline and usable right action without duplicate safe-area padding", () => {
@@ -149,4 +152,54 @@ test("chat and support retain their independently owned safe area outside ordina
   assert.doesNotMatch(chatCss, /page-toolbar/);
   assert.match(chatCss, /\.phone-shell \.chat-screen,\s*\.phone-shell \.customer-service-screen\s*\{[^}]*padding:\s*0 !important;/);
   assert.match(chatCss, /\.phone-shell \.chat-screen \.chat-topbar,\s*\.phone-shell \.customer-service-screen \.chat-topbar\s*\{[^}]*padding:\s*calc\(9px \+ var\(--device-safe-top\)\)/);
+});
+
+
+test("profile shortcuts use current navigation groups including review without rewriting historical statuses", () => {
+  const targets = [];
+  const modern = MineScreen({ go() {}, onOrders: filter => targets.push(filter), viewer: { profile: { public_user_no: "LOCAL-TEST" } }, v31: true });
+  const modernMarkup = renderToStaticMarkup(modern);
+  assert.match(modernMarkup, /待服务/);
+  assert.match(modernMarkup, /待收货/);
+  assert.doesNotMatch(modernMarkup, /LOCAL-TEST|待接单|待确认/);
+  const shortcut = [...elements(modern)].find(element => element.type === "button" && renderToStaticMarkup(element).includes("待收货"));
+  shortcut.props.onClick();
+  assert.deepEqual(targets, ["待收货"]);
+  const legacy = renderToStaticMarkup(MineScreen({ go() {}, onOrders() {}, viewer: null, v31: false }));
+  assert.match(legacy, /待服务/);
+  assert.match(legacy, /待收货/);
+  assert.match(legacy, /待评价/);
+});
+
+
+test("mine consolidates profile/settings while account links and unauthenticated guards remain reachable", () => {
+  const calls = [];
+  const screen = MineScreen({ go: p => calls.push(p), viewer: { id: 'buyer', profile: { nickname: '买家' } }, unreadCount: 7 });
+  const markup = renderToStaticMarkup(screen);
+  assert.doesNotMatch(markup, /文字消息|设置与隐私|陪玩身份申请入口|0 张可用/);
+  assert.match(markup, /前往领券中心/);
+  assert.equal((markup.match(/aria-label="编辑个人资料"/g) ?? []).length, 1);
+  for (const label of ['我的收藏', '优惠券', '消息', '平台规则', '平台客服']) {
+    const row = [...elements(screen)].find(e => e.type === 'button' && renderToStaticMarkup(e).includes(label));
+    row.props.onClick();
+  }
+  assert.deepEqual(calls, ['favorites', 'coupons', 'messages', 'rules', 'customerService']);
+  const signedOut = MineScreen({ go: p => calls.push(p), viewer: null });
+  [...elements(signedOut)].find(e => e.props['aria-label'] === '登录账号').props.onClick();
+  assert.equal(calls.at(-1), 'auth');
+  assert.doesNotMatch(renderToStaticMarkup(signedOut), /10086|熊崽玩家 K|条未读/);
+});
+
+test("mine remembers its own scroll without capturing nested scrollers", () => {
+  const scrollState = { current: 0 };
+  const screen = MineScreen({ go() {}, viewer: null, scrollState });
+  const screenNode = { scrollTop: 140 };
+  screen.props.onScroll({ target: screenNode, currentTarget: screenNode });
+  assert.equal(scrollState.current, 140);
+  screen.props.onScroll({ target: {}, currentTarget: { scrollTop: 0 } });
+  assert.equal(scrollState.current, 140);
+  const remount = MineScreen({ go() {}, viewer: null, scrollState });
+  const restored = { scrollTop: 0 };
+  remount.props.ref(restored);
+  assert.equal(restored.scrollTop, 140);
 });

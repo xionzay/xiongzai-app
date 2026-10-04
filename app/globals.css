@@ -1331,7 +1331,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 /* Search selector follows a single-choice commerce search pattern */
 .search-input-row { position: relative; z-index: 70; height: 48px; gap: 6px; }
 .search-scope-select { position: relative; width: 70px; flex: none; }
-.search-scope-current { position: relative; width: 70px!important; height: 48px!important; border: 1px solid #d6d6d6!important; border-radius: 13px 0 0 13px!important; padding: 0 22px 0 9px!important; background: #f3f3f3!important; color: #272727!important; font-size: 13px!important; font-weight: 900!important; box-shadow: none!important; }
+.search-scope-current { position: relative; width: 70px!important; height: 48px!important; border: 1px solid #d6d6d6!important; border-radius: 13px 0 0 13px!important; padding: 0 22px 0 9px!important; background: var(--buyer-input, #f3f3f3)!important; color: #272727!important; font-size: 13px!important; font-weight: 900!important; box-shadow: none!important; }
 .search-scope-current > i { position: absolute; right: 9px; top: 19px; width: 7px; height: 7px; border-right: 2px solid #626262; border-bottom: 2px solid #626262; transform: rotate(45deg); }
 .search-scope-select.open .search-scope-current > i { top: 22px; transform: rotate(225deg); }
 .search-scope-menu { position: absolute; z-index: 90; left: 0; top: 55px; width: 96px; overflow: hidden; border: 1px solid #e0dcd5; border-radius: 14px; padding: 5px; background: #fff; box-shadow: 0 12px 28px rgba(43,54,66,.18); }
@@ -3524,7 +3524,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   background-attachment: local;
 }
 
-/* 密集卡通 V3：原图另存保留，蓝黄蒙层柔化线稿，装饰不影响消息和输入控件。 */
+/* 密集卡通 V3：买卖双方复用同一图案、蒙层与缩放规则。 */
+.phone-shell .seller-message-wallpaper,
 .phone-shell .chat-screen,
 .phone-shell .customer-service-screen {
   background-color: var(--xiongzai-chat-ivory) !important;
@@ -3617,9 +3618,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   --motion-instant: 100ms;
   --motion-press: 140ms;
   --motion-content: 200ms;
-  --motion-panel: 280ms;
-  --motion-stagger: 30ms;
-  --motion-nav-scale: 1.06;
+  --motion-panel: 180ms;
+  --motion-stagger: 0ms;
+  --motion-nav-scale: 1.025;
   --motion-press-distance: 1px;
   --glass-blur: 12px;
   --glass-fill: rgba(255, 253, 246, .82);
@@ -3631,9 +3632,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   --motion-ease: cubic-bezier(.2,.7,.2,1);
   --motion-distance-small: 4px;
   --motion-distance-panel: 8px;
-  --press-button: .97;
-  --press-card: .99;
-  --press-shortcut: .96;
+  --press-button: 1;
+  --press-card: 1;
+  --press-shortcut: 1;
   --ui-label: #304967;
   --ui-focus: #538dcc;
   --ui-radius-small: 12px;
@@ -3660,7 +3661,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .user-motion .home-shortcut { gap: var(--ui-space-icon); border-radius: var(--ui-radius-small); color: var(--ui-label); }
 .user-motion .home-shortcut > span { font-size: var(--ui-label-size); font-weight: var(--ui-label-weight); }
 .user-motion .bottom-nav button i { transition: scale var(--motion-content) var(--motion-ease); }
-.user-motion .bottom-nav button.active i { scale: 1.04; }
+.user-motion .bottom-nav button.active i { scale: 1; }
 .user-motion .app-toast { z-index: var(--ui-status-layer); pointer-events: none; opacity: 0; visibility: hidden; animation: none; }
 .user-motion .app-toast.is-visible { opacity: 1; visibility: visible; animation: toast-in var(--motion-content) var(--motion-ease); }
 .user-motion :is(.sheet-backdrop,.demo-overlay,.flow-overlay) { animation: ui-fade-in var(--motion-content) var(--motion-ease); }
@@ -3779,11 +3780,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .user-motion:not(.user-theme)[data-ui-refinement="on"].page-home .home-shortcuts {
   background: linear-gradient(110deg,rgba(255,253,244,.36),rgba(244,251,255,.32));
   border-radius: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,.5);
-}
-.user-motion:not(.user-theme)[data-ui-refinement="on"]:is(.page-home,.page-messages) .bottom-nav {
-  background: var(--glass-fill);
-  -webkit-backdrop-filter: blur(var(--glass-blur)); backdrop-filter: blur(var(--glass-blur));
-  box-shadow: inset 0 1px 0 var(--glass-edge), 0 -4px 16px rgba(57,100,139,.045);
 }
 .user-motion:not(.user-theme)[data-ui-refinement="on"]:is(.page-home,.page-messages) .bottom-nav button.active i { scale: 1; }
 .user-motion:not(.user-theme)[data-ui-refinement="on"].page-home .home-companion-list > .shop-card {

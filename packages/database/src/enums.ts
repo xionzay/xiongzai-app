@@ -95,7 +95,7 @@ export const reservationStatusEnum = pgEnum("reservation_status", ["HELD", "CONF
 
 export const conversationTypeEnum = pgEnum("conversation_type", ["CONSULTATION", "ORDER", "SUPPORT"]);
 export const conversationMemberRoleEnum = pgEnum("conversation_member_role", ["BUYER", "SELLER", "USER", "ADMIN", "SYSTEM"]);
-export const messageTypeEnum = pgEnum("message_type", ["TEXT", "SYSTEM"]);
+export const messageTypeEnum = pgEnum("message_type", ["TEXT", "SYSTEM", "STICKER"]);
 export const messageSendStatusEnum = pgEnum("message_send_status", ["SENT", "FAILED", "DELETED"]);
 export const contentModerationStatusEnum = pgEnum("content_moderation_status", [
   "PENDING",

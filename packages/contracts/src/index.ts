@@ -4,6 +4,7 @@ export * from "./mobile-auth.js";
 export * from "./pagination.js";
 export * from "./commerce.js";
 export * from "./messaging.js";
+export * from "./bear-stickers.js";
 export * from "./finance.js";
 export * from "./policies.js";
 export * from "./state-machines.js";

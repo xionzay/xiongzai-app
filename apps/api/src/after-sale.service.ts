@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
-import { FinanceLedgerEngine, IdempotencyService, InboxService, OutboxService } from "@xiongzai/application";
+import { FinanceLedgerEngine, IdempotencyService, InboxService, OutboxService, ScheduledJobService, ORDER_JOB_TYPES } from "@xiongzai/application";
 import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize, toApiJson, type PaymentChannel } from "@xiongzai/contracts";
 import {
   adminOperationLogs,
@@ -10,6 +10,8 @@ import {
   files,
   fileUsages,
   orders,
+  orderStatusLogs,
+  orderSlotReservations,
   payments,
   products,
   ratingAggregates,
@@ -53,6 +55,7 @@ export class AfterSaleService {
         const [order] = await tx.select().from(orders).where(eq(orders.id, input.orderId)).limit(1).for("update");
         if (!order || order.buyerId !== userId) throw notFound("ORDER_NOT_FOUND", "订单不存在");
         if (!["PENDING_ACCEPT", "ACCEPTED", "IN_SERVICE", "PENDING_BUYER_CONFIRM", "COMPLETED", "SELLER_REJECTED", "CLOSED"].includes(order.status)) throw conflict("REFUND_ORDER_STATE_INVALID", "当前订单状态不能申请退款");
+        if (order.ruleVersion === "V3.1" && (order.completedAt || order.status === "COMPLETED")) throw conflict("REFUND_REQUIRES_SUPPORT_CASE", "交易已终结，请通过客服核验特殊售后，普通退款入口已关闭");
         if (input.amountCent <= 0n || input.amountCent > order.paidAmountCent - order.refundedAmountCent) throw conflict("REFUND_AMOUNT_EXCEEDS_REMAINING", "退款金额超过订单剩余可退金额");
         const [payment] = await tx.select().from(payments).where(and(eq(payments.orderId, order.id), or(eq(payments.status, "PAID"), eq(payments.status, "PARTIALLY_REFUNDED")))).orderBy(desc(payments.createdAt)).limit(1).for("update");
         if (!payment) throw conflict("REFUND_PAYMENT_UNAVAILABLE", "订单没有可退款的支付记录");
@@ -146,7 +149,12 @@ export class AfterSaleService {
         const [updated] = await tx.update(refunds).set({ adminDecision: "REJECT", adminReason: input.reason, assignedAdminId: adminId, status: "REJECTED", version: sql`${refunds.version} + 1`, updatedAt: new Date() }).where(and(eq(refunds.id, row.id), eq(refunds.status, row.status), eq(refunds.version, input.version))).returning();
         if (!updated) throw versionConflict("退款申请");
         await this.refundLog(tx, updated, row.status, "REJECTED", "ADMIN", "ADMIN_REFUND_REJECTED", input.reason, metadata, { adminId });
-        await tx.update(orders).set({ afterSaleStatus: "RESOLVED", version: sql`${orders.version} + 1`, updatedAt: new Date() }).where(eq(orders.id, order.id));
+        // Retain the pre-case acceptance remainder. A consumed old job must not strand the order.
+        const resumeAt = order.status === "PENDING_BUYER_CONFIRM" && order.autoConfirmAt
+          ? new Date(Date.now() + Math.max(0, order.autoConfirmAt.getTime() - row.createdAt.getTime())) : undefined;
+        await tx.update(orders).set({ afterSaleStatus: "RESOLVED", ...(resumeAt ? { autoConfirmAt: resumeAt } : {}), version: sql`${orders.version} + 1`, updatedAt: new Date() }).where(eq(orders.id, order.id));
+        if (resumeAt) await new ScheduledJobService().schedule(tx, { jobKey: `order:${order.id}:resume-confirm:${row.id}:${updated.version}`, jobType: ORDER_JOB_TYPES.AUTO_CONFIRM, targetType: "ORDER", targetId: order.id, payload: { order_id: order.id }, runAt: resumeAt });
+        await this.finance.resumePendingIncome(tx, order.id, `rejected:${row.id}:${updated.version}`);
         await this.audit(tx, adminId, "REFUND_REJECT", "REFUND", row.id, input.reason, row, updated, metadata);
         return refundView(updated);
       }
@@ -165,7 +173,7 @@ export class AfterSaleService {
 
   async processRefundCallback(requestedChannel: PaymentChannel | "mock", payload: RefundCallbackPayload, signature: string | undefined, metadata: RequestMetadata) {
     if (requestedChannel === "mock" && !["development", "test"].includes(this.config.environment)) throw notFound("MOCK_REFUND_DISABLED", "Mock 退款回调未启用");
-    const [stored] = await this.database.db.select({ channel: payments.channel }).from(refunds).innerJoin(payments, eq(payments.id, refunds.paymentId)).where(eq(refunds.refundNo, payload.refund_no)).limit(1);
+    const [stored] = await this.database.db.select({ channel: payments.channel, refundId: refunds.id }).from(refunds).innerJoin(payments, eq(payments.id, refunds.paymentId)).where(eq(refunds.refundNo, payload.refund_no)).limit(1);
     if (!stored) throw notFound("REFUND_NOT_FOUND", "退款申请不存在");
     if (requestedChannel !== "mock" && stored.channel !== requestedChannel) throw conflict("REFUND_CHANNEL_MISMATCH", "退款回调渠道与原支付渠道不一致");
     const paymentProvider = this.paymentProviders.get(stored.channel);
@@ -174,12 +182,18 @@ export class AfterSaleService {
     const consumerName = `refund-callback:${stored.channel}`;
     return this.database.db.transaction(async (tx) => {
       const claimed = await this.inbox.claim(tx, { eventId: payload.event_id, consumerName, payload });
-      const [row] = await tx.select().from(refunds).where(eq(refunds.refundNo, payload.refund_no)).limit(1).for("update");
+      const row = await this.lockRefund(tx, stored.refundId);
       if (!row) throw notFound("REFUND_NOT_FOUND", "退款申请不存在");
       if (!claimed) return { refund: refundView(row), duplicate: true };
       if (row.providerRefundNo !== payload.provider_refund_no) throw conflict("REFUND_PROVIDER_NO_MISMATCH", "渠道退款编号不一致");
       const amount = BigInt(payload.amount_cent); const approved = row.approvedAmountCent ?? row.requestedAmountCent;
       if (amount !== approved) throw conflict("REFUND_CALLBACK_AMOUNT_MISMATCH", "退款回调金额与批准金额不一致");
+      // Some channels resend the same successful refund with a new event ID.
+      // Verify the business identity and amount before acknowledging that replay.
+      if (row.status === "REFUNDED" && payload.event_type === "REFUND_SUCCEEDED") {
+        await this.inbox.complete(tx, payload.event_id, consumerName);
+        return { refund: refundView(row), duplicate: true };
+      }
       if (row.status !== "REFUND_PROCESSING") throw invalidRefundState(row.status, "处理渠道退款回调");
       const [order] = await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1).for("update");
       const [payment] = await tx.select().from(payments).where(eq(payments.id, row.paymentId)).limit(1).for("update");
@@ -194,9 +208,14 @@ export class AfterSaleService {
       const orderTotal = order.refundedAmountCent + amount; const paymentTotal = payment.refundedAmountCent + amount;
       if (orderTotal > order.paidAmountCent || paymentTotal > payment.amountCent) throw conflict("REFUND_AMOUNT_EXCEEDS_PAID", "累计退款金额不能超过实付金额");
       const now = new Date(); const [completed] = await tx.update(refunds).set({ status: "REFUNDED", completedAt: now, version: sql`${refunds.version} + 1`, updatedAt: now }).where(and(eq(refunds.id, row.id), eq(refunds.status, "REFUND_PROCESSING"), eq(refunds.version, row.version))).returning();
-      await tx.update(orders).set({ refundedAmountCent: orderTotal, paymentStatus: orderTotal === order.paidAmountCent ? "REFUNDED" : "PARTIALLY_REFUNDED", afterSaleStatus: "RESOLVED", version: sql`${orders.version} + 1`, updatedAt: now }).where(and(eq(orders.id, order.id), eq(orders.version, order.version)));
+      await tx.update(orders).set({ ...(order.ruleVersion === "V3.1" ? { status: "COMPLETED" as const, completedAt: order.completedAt ?? now, autoConfirmAt: null } : {}), refundedAmountCent: orderTotal, paymentStatus: orderTotal === order.paidAmountCent ? "REFUNDED" : "PARTIALLY_REFUNDED", afterSaleStatus: "RESOLVED", version: sql`${orders.version} + 1`, updatedAt: now }).where(and(eq(orders.id, order.id), eq(orders.version, order.version)));
       await tx.update(payments).set({ refundedAmountCent: paymentTotal, status: paymentTotal === payment.amountCent ? "REFUNDED" : "PARTIALLY_REFUNDED", version: sql`${payments.version} + 1`, updatedAt: now }).where(and(eq(payments.id, payment.id), eq(payments.version, payment.version)));
+      if (order.ruleVersion === "V3.1" && order.status !== "COMPLETED") {
+        await tx.insert(orderStatusLogs).values({id:uuidv7(),orderId:order.id,oldStatus:order.status,newStatus:"COMPLETED",operatorRole:"PAYMENT_PROVIDER",action:"REFUND_TERMINATED",remark:"退款成功，终止剩余履约义务；保留首次终结时间及原规则快照",requestId:metadata.requestId});
+        await tx.update(orderSlotReservations).set({status:"RELEASED",releasedAt:now,version:sql`${orderSlotReservations.version} + 1`,updatedAt:now}).where(and(eq(orderSlotReservations.orderId,order.id),inArray(orderSlotReservations.status,["HELD","CONFIRMED"])));
+      }
       await this.finance.recordRefund(tx, completed!, order, amount, order.refundedAmountCent, metadata.traceId);
+      await this.finance.resumePendingIncome(tx, order.id, `refunded:${row.id}:${completed!.version}`);
       await this.refundLog(tx, completed!, "REFUND_PROCESSING", "REFUNDED", "PAYMENT_PROVIDER", "CHANNEL_REFUND_SUCCEEDED", payload.provider_refund_no, metadata);
       await this.outbox.enqueue(tx, { aggregateType: "REFUND", aggregateId: row.id, eventType: "RefundCompleted", payload: { refund_id: row.id, order_id: order.id, amount_cent: amount, cumulative_refunded_cent: orderTotal }, traceId: metadata.traceId });
       await this.inbox.complete(tx, payload.event_id, consumerName);
@@ -273,6 +292,7 @@ export class AfterSaleService {
       return await this.database.db.transaction(async (tx) => {
         const [order] = await tx.select().from(orders).where(eq(orders.id, input.orderId)).limit(1).for("update"); if (!order || order.buyerId !== userId) throw notFound("ORDER_NOT_FOUND", "订单不存在");
         if (order.status !== "COMPLETED") throw conflict("REVIEW_ORDER_STATE_INVALID", "只有已完成订单可以评价");
+        if (order.ruleVersion === "V3.1" && (!order.completedAt || Date.now() >= order.completedAt.getTime() + 7 * 24 * 3600000)) throw conflict("REVIEW_WINDOW_EXPIRED", "首次交易终结后的七天评价期限已结束");
         const [profile] = await tx.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
         const [created] = await tx.insert(reviews).values({ id: uuidv7(), orderId: order.id, productId: order.productId, sellerId: order.sellerId, buyerId: userId, rating: input.rating, content: input.content, anonymous: input.anonymous, status: "PUBLIC", displayNicknameSnapshot: input.anonymous ? "匿名玩家" : profile?.nickname ?? "熊崽玩家", serviceTitleSnapshot: order.productTitleSnapshot, skuNameSnapshot: order.skuNameSnapshot }).returning();
         await this.recomputeRatings(tx, order.sellerId, order.productId);
@@ -367,7 +387,14 @@ export class AfterSaleService {
 
   private async refundForUser(userId: string, refundId: string) { const [row] = await this.database.db.select({ refund: refunds, order: orders }).from(refunds).innerJoin(orders, eq(orders.id, refunds.orderId)).where(and(eq(refunds.id, refundId), or(eq(orders.buyerId, userId), eq(orders.sellerUserId, userId)))).limit(1); if (!row) throw notFound("REFUND_NOT_FOUND", "退款申请不存在"); return row.refund; }
   private async complaintForUser(userId: string, complaintId: string) { const [row] = await this.database.db.select().from(complaints).where(and(eq(complaints.id, complaintId), eq(complaints.reporterId, userId))).limit(1); if (!row) throw notFound("COMPLAINT_NOT_FOUND", "投诉不存在"); return row; }
-  private async lockRefund(tx: DatabaseTransaction, refundId: string) { const [row] = await tx.select().from(refunds).where(eq(refunds.id, refundId)).limit(1).for("update"); if (!row) throw notFound("REFUND_NOT_FOUND", "退款申请不存在"); return row; }
+  private async lockRefund(tx: DatabaseTransaction, refundId: string) {
+    const [lookup] = await tx.select({ orderId: refunds.orderId }).from(refunds).where(eq(refunds.id, refundId)).limit(1);
+    if (!lookup) throw notFound("REFUND_NOT_FOUND", "退款申请不存在");
+    await tx.select({ id: orders.id }).from(orders).where(eq(orders.id, lookup.orderId)).limit(1).for("update");
+    const [row] = await tx.select().from(refunds).where(eq(refunds.id, refundId)).limit(1).for("update");
+    if (!row) throw notFound("REFUND_NOT_FOUND", "退款申请不存在");
+    return row;
+  }
   private async lockComplaint(tx: DatabaseTransaction, complaintId: string) { const [row] = await tx.select().from(complaints).where(eq(complaints.id, complaintId)).limit(1).for("update"); if (!row) throw notFound("COMPLAINT_NOT_FOUND", "投诉不存在"); return row; }
   private async refundDetail(row: typeof refunds.$inferSelect) { const logs = await this.database.db.select().from(refundLogs).where(eq(refundLogs.refundId, row.id)).orderBy(refundLogs.createdAt); return { ...refundView(row), available_actions: ["SELLER_REJECTED", "NEGOTIATING"].includes(row.status) ? ["ESCALATE", "CREATE_COMPLAINT"] : ["CREATE_COMPLAINT"], logs: logs.map(refundLogView) }; }
   private async complaintDetail(row: typeof complaints.$inferSelect) { const [logs, evidences] = await Promise.all([this.database.db.select().from(complaintLogs).where(eq(complaintLogs.complaintId, row.id)).orderBy(complaintLogs.createdAt), this.database.db.select().from(complaintEvidences).where(eq(complaintEvidences.complaintId, row.id)).orderBy(complaintEvidences.createdAt)]); return { ...complaintView(row), logs: logs.map(complaintLogView), evidences: evidences.map(evidenceView) }; }
