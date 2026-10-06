@@ -179,15 +179,8 @@
 .phone-shell.user-theme .shop-copy > strong { color: #5f7c97; font-weight: 500; font-size: 11px; margin-top: 6px; }
 .phone-shell.user-theme .shop-card.wide .shop-arrow { display: block; font-size: 0; padding: 0; color: #5c7ea6; }
 .phone-shell.user-theme .shop-card.wide .shop-arrow::after { content: none; }
-.phone-shell.user-theme .home-companion-list .home-summary-card { position: relative; width: 100%; grid-template-columns: 76px minmax(0,1fr); gap: 10px; min-height: 94px; border-radius: 12px; border: 1.5px solid #9bd7fa; padding: 8px; background: linear-gradient(115deg,#ffffffed,#e7f5ffcc); box-shadow: inset 0 1px 0 #ffffff, 0 3px 8px #5d9cc210; backdrop-filter: none; -webkit-backdrop-filter: none; }
-.phone-shell.user-theme .home-companion-list .shop-card.home-summary-card .shop-photo { width: 76px; height: 76px; aspect-ratio: 1 / 1; border-radius: 10px; }
-.phone-shell.user-theme .home-summary-card + .home-summary-card::before { content: none; }
-.phone-shell.user-theme .home-summary-card .shop-copy > b { font-size: 15px; font-weight: 700; color: #243b50; }
-.phone-shell.user-theme .home-summary-card .shop-copy > strong { font-size: 11px; color: #8290a0; margin-top: 4px; }
 .phone-shell.user-theme .home-screen :is(.home-hot-sale,.home-companion-section) .section-title > button { color: #75899d; font-weight: 500; font-size: 11px; }
-.phone-shell.user-theme .home-summary-card .shop-copy { text-align: left; overflow-wrap: anywhere; }
 .phone-shell.user-theme .home-companion-intro { margin: 3px 0 0; color: #63768a; font-size: 12px; line-height: 1.6; }
-.phone-shell.user-theme .home-companion-end { color: #95a2b0; margin: 0; padding: 8px 0 2px; font-size: 11px; }
 .phone-shell.user-theme .listing-section { margin-top: 12px; border-color: var(--line); background: #f6fbffb0; }
 .phone-shell.user-theme .product-card { border-color: var(--line); border-radius: 16px; background: white; box-shadow: var(--soft-shadow); }
 .phone-shell.user-theme .product-copy > span:not(.product-seller) i { color: #23639d; background: #e6f3ff; }
@@ -289,11 +282,8 @@
 .phone-shell.user-theme .commerce-spec-card > em small { margin-left: 0; font-size: 10px; }
 
 /* Compact names and warm, rounded rating badges. */
-.phone-shell.user-theme .home-summary-card .shop-copy > .home-companion-heading { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.home-companion-heading > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .companion-rating { display: inline-flex; align-items: center; flex: none; gap: 3px; padding: 2px 5px; border: 1px solid #f5d5b9; border-radius: 5px; background: #fff7ed; color: #ba5a10; font-size: 11px; font-weight: 600; line-height: 15px; vertical-align: middle; }
 .companion-rating svg { width: 12px; height: 12px; color: #f29635; }
-.home-companion-heading .companion-rating { background: transparent; }
 .companion-rating-stars { display: inline-flex; align-items: center; gap: 1px; }
 .companion-rating-five .companion-rating-stars svg { width: 10px; height: 10px; }
 .companion-gender { flex: none; font-size: 15px; font-weight: 600; line-height: 20px; }

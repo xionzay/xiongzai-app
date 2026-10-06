@@ -1,5 +1,5 @@
 /* Homepage commerce treatment: existing brand art, simpler browsing surfaces. */
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen { --home-gutter: 12px; --home-text: #22262b; --home-muted: #6b7078; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen { --home-gutter: 12px; --home-text: #22262b; --home-muted: #6b7078; overflow-anchor: none; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-command-bar { padding-inline: var(--home-gutter); }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-search-field { height: 44px; border: 1.5px solid var(--brand); border-radius: 5px; background: #fff; color: var(--home-muted); }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-search-field > span { font-size: 14px; }
@@ -23,23 +23,34 @@
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-hot-sale-item > b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 34px; font-size: 12px; font-weight: 500; line-height: 17px; color: var(--home-text); }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-hot-sale-item > strong { font-size: 19px; font-weight: 700; line-height: 24px; letter-spacing: -.3px; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-hot-sale-item > strong > small { font-size: 12px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen :is(.home-companion-list,.listing-section .shop-list) { gap: 8px; margin: 0; padding: 0; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .shop-card.wide { grid-template-columns: 80px minmax(0,1fr) 16px; gap: 12px; padding: 10px; min-height: 102px; border: 1px solid #bddfee; border-radius: 14px; background: linear-gradient(115deg,#eef9ffeb 0%,#e9f6ffe6 62%,#fff9e5db 100%); box-shadow: 0 2px 5px #3f86ad09; backdrop-filter: none; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-companion-list .shop-card.home-summary-card { grid-template-columns: 72px minmax(0,1fr); min-height: 96px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .shop-card.wide .shop-photo { width: 80px; height: 80px; border-radius: 10px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-companion-list .shop-card.home-summary-card .shop-photo { width: 72px; height: 72px; border-radius: 10px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .shop-copy > b { color: var(--home-text); font-size: 16px; font-weight: 650; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-companion-intro { margin-top: 4px; color: #60666e; font-size: 13px; line-height: 1.5; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .shop-copy > strong { color: var(--home-muted); font-size: 12px; margin-top: 5px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .shop-copy > span > i { border-radius: 3px; padding: 2px 5px; font-size: 11px; font-weight: 400; background: #f2f6f9; color: #526576; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-companion-end { font-size: 12px; color: var(--home-muted); padding-block: 14px 2px; text-align: center; }
+/* Only homepage shop rows use this transparent treatment. Other catalog cards keep their styles. */
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-companion-list { gap: 0; margin: 0; padding: 0; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-card { display: grid; grid-template-columns: 92px minmax(0,1fr); align-items: center; gap: 12px; width: 100%; min-height: 100px; padding: 12px 0; border: 0; border-bottom: 1px solid #4084b322; border-radius: 0; background: transparent; box-shadow: none; color: var(--home-text); text-align: left; cursor: pointer; transform: none; scale: 1; transition: background-color 140ms ease; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-avatar { display: block; width: 92px; height: 92px; border-radius: 10px; object-fit: cover; object-position: center; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-content { display: grid; min-width: 0; gap: 4px; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-heading { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 12px; min-height: 22px; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 16px; line-height: 22px; font-weight: 700; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-rating { color: var(--home-muted); font-size: 13px; line-height: 20px; font-weight: 400; white-space: nowrap; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-rating.has-rating { color: #866124; font-weight: 500; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-intro { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; color: #505b66; font-size: 15px; line-height: 21px; font-weight: 400; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-games { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-games > span { padding: 1px 5px; border-radius: 5px; background: #2585bf0d; color: #3e687e; font-size: 13px; line-height: 18px; font-weight: 400; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-stats { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--home-muted); font-size: 13px; line-height: 19px; font-weight: 400; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-card:active,
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-card[data-pressed="true"] { background-color: #3085be0e; transform: none; scale: 1; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-load-more { display: block; min-height: 44px; margin: 8px auto 0; padding: 8px 16px; border: 1px solid #4084b333; border-radius: 10px; background: transparent; color: var(--brand); font-size: 14px; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-load-error { margin: 12px 0 0; color: #a5392e; font-size: 14px; line-height: 21px; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-companion-end { margin: 0; font-size: 13px; color: var(--home-muted); padding-block: 14px 2px; text-align: center; }
+@media (prefers-reduced-motion: reduce) {
+  .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-card { transition: none; }
+}
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .sort-bar { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 0; padding: 0 12px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .sort-bar button { min-width: 0; min-height: 44px; font-size: 14px; font-weight: 500; border-radius: 0; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .sort-bar button.active { background: transparent; color: var(--brand); font-weight: 650; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .listing-section:has(.product-grid) { padding: 0 8px 12px; background: transparent; border-top: 0; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .listing-section:has(.product-grid) > .section-title { padding-inline: 4px; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .product-grid { gap: 8px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .product-card { border: 0; border-radius: 4px; background: #fff; box-shadow: none; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .product-card { border: 1px solid #4084b322; border-radius: 4px; background: transparent; box-shadow: none; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .product-cover { border-radius: 0; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .product-cover > i { border-radius: 3px; background: #fff9e8; box-shadow: none; color: #75623b; font-size: 10px; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .product-copy { padding: 9px; }

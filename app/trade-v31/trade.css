@@ -71,13 +71,13 @@
 .v31-segment button { min-height: 44px; flex: 1; border: 1px solid var(--line); background: var(--paper); color: var(--trade-secondary); border-radius: 10px; font-size: 13px; }
 .v31-segment button[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-strong); font-weight: 700; }
 .v31-files > p { font-size: 12px; }
-.v31-upload { display: grid; gap: 8px; border: 1px dashed var(--brand); padding: 12px; border-radius: 10px; color: var(--brand-strong); font-size: 13px; }
-.v31-upload input { max-width: 100%; font-size: 12px; min-height: 30px; }
 .v31-file-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 12px 0; }
 .v31-file-grid > div { position: relative; border: 1px solid var(--line); border-radius: 8px; padding: 5px; min-width: 0; }
-.v31-file-grid img, .v31-file-grid span { width: 100%; height: 65px; object-fit: cover; display: grid; place-content: center; background: var(--brand-soft); border-radius: 5px; font-size: 12px; }
-.v31-file-grid small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 10px; }
-.v31-file-grid button { position: absolute; right: -4px; top: -8px; min-width: 32px; min-height: 32px; border-radius: 50%; background: var(--paper); border: 1px solid var(--line); }
+.v31-file-grid img, .v31-file-grid video { width: 100%; height: 90px; object-fit: contain; display: block; background: var(--brand-soft); border-radius: 5px; }
+.v31-file-grid small { display: block; overflow-wrap: anywhere; font-size: 12px; }
+.v31-file-grid .v31-remove-file { position: relative; display: grid; place-items: center; margin-left: auto; min-width: 44px; min-height: 44px; border-radius: 10px; background: transparent; border: 1px solid var(--line); color: var(--brand-strong); }
+.v31-file-grid .toon-action { margin-top: 6px; width: 100%; }
+.v31-buyer-card > header > b { flex-shrink: 0; }
 .v31-evidence-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .v31-evidence-list > div { background: var(--brand-soft); padding: 10px; border-radius: 8px; overflow-wrap: anywhere; }
 .v31-evidence-list b, .v31-evidence-list small { display: block; font-size: 12px; }

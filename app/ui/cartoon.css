@@ -25,6 +25,41 @@
 .phone-shell :is(.icon-button,.product-back-button,.sf-header button,.seller-search-toggle) { min-width:44px; min-height:44px; }
 .phone-shell .sf-header button .toon-icon { width:26px; height:26px; }
 .phone-shell .product-small-action .toon-icon { width:28px; height:28px; }
+/* Explicit opt-in controls for secondary actions, nested links and file selection. */
+.phone-shell .toon-action {
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  min-height:44px; min-width:44px; max-width:100%; padding:10px 12px;
+  border:1px solid var(--toon-line); border-radius:12px; background:var(--toon-soft);
+  color:var(--toon-ink); font:inherit; line-height:1.4; text-align:center;
+  overflow-wrap:anywhere; cursor:pointer; transition:background-color 140ms ease;
+}
+.phone-shell .toon-action-primary { background:var(--toon-action); border-color:var(--toon-action); color:#fff; font-weight:700; }
+.phone-shell .toon-action[aria-pressed="true"] { border-color:var(--toon-action); border-width:2px; font-weight:700; }
+.phone-shell .toon-action:disabled { opacity:.55; cursor:default; }
+.phone-shell .toon-action small { display:block; font-size:13px; font-weight:400; }
+.phone-shell .toon-link {
+  display:inline-flex; align-items:center; gap:5px; min-height:44px; min-width:44px;
+  max-width:100%; padding:6px 0; border:0; border-radius:6px; background:transparent;
+  color:var(--toon-ink); font:inherit; text-align:left; cursor:pointer;
+}
+.phone-shell .toon-link-label { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.phone-shell .toon-link .toon-link-arrow { width:16px; height:16px; transform:rotate(180deg); }
+.phone-shell .toon-file-picker {
+  position:relative; display:flex; align-items:center; justify-content:center; gap:10px;
+  min-height:48px; width:100%; padding:10px 12px; box-sizing:border-box;
+  border:1px dashed var(--toon-line); border-radius:12px; background:var(--toon-soft);
+  color:var(--toon-ink); font:inherit; cursor:pointer; overflow-wrap:anywhere;
+}
+.phone-shell .toon-file-picker .toon-icon { width:28px; height:28px; }
+.phone-shell .toon-file-picker input[type="file"] {
+  position:absolute; inset:0; width:100%; height:100%; min-height:44px;
+  margin:0; padding:0; opacity:0; cursor:pointer;
+}
+.phone-shell .toon-file-picker:has(input:disabled) { opacity:.55; cursor:default; }
+.phone-shell .toon-file-picker input:disabled { cursor:default; }
+.phone-shell :is(.toon-action,.toon-link):focus-visible,
+.phone-shell .toon-file-picker:focus-within { outline:3px solid var(--toon-action); outline-offset:3px; }
+@media(prefers-reduced-motion:reduce) { .phone-shell .toon-action { transition:none; } }
 .phone-shell .toon-select { display:inline-flex; position:relative; min-width:0; max-width:100%; vertical-align:middle; }
 .phone-shell .toon-select>select { position:absolute; width:1px; height:1px; min-height:0; padding:0; border:0; opacity:0; pointer-events:none; clip-path:inset(50%); }
 .phone-shell .toon-select .toon-select-trigger { display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:44px; width:100%; padding:8px 12px; border:1.5px solid var(--toon-line); border-radius:12px; background:var(--toon-soft); color:var(--toon-ink); font:inherit; font-size:15px; text-align:left; }

@@ -3742,21 +3742,6 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .user-motion .home-companion-section { padding: 16px 12px 8px; }
 .user-motion .home-companion-section > .section-title { padding-inline: 2px; }
 .user-motion .home-companion-list { display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
-.user-motion .home-companion-list > .shop-card.wide {
-  display: grid; grid-template-columns: 88px minmax(0,1fr); gap: 12px;
-  align-items: center; width: 100%; min-width: 0; min-height: 114px;
-  padding: 12px; border: 1px solid var(--line); border-radius: 15px;
-  background: var(--paper); box-shadow: var(--soft-shadow); text-align: left;
-}
-.user-motion .home-companion-list .shop-photo {
-  display: block; width: 88px; height: 88px; border-radius: 12px;
-  overflow: hidden; background: #edf5fb;
-}
-.user-motion .home-companion-list .shop-photo img { object-fit: cover; object-position: center; }
-.user-motion .home-companion-list .shop-copy { min-width: 0; padding: 0; }
-.user-motion .home-companion-list .shop-arrow { display: none; }
-.user-motion .home-companion-end { margin: 16px 0 12px; color: #8b98a4; font-size: 10px; text-align: center; }
-
 /* One pinned support inbox; all support conversations keep their history. */
 .user-motion .messages-screen .platform-support-entry { position: relative; grid-template-columns: 48px minmax(0,1fr); }
 .user-motion .support-inbox-copy { min-width: 0; }

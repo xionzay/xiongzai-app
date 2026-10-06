@@ -1,4 +1,5 @@
 'use client';
+import { ThemedFilePicker } from '../ui/ThemedFilePicker';
 import { CartoonIcon } from "../ui/CartoonIcon";
 import { CartoonSelect } from "../ui/CartoonSelect";
 import { OrderCouponPicker } from '../OrderCouponPicker';
@@ -52,12 +53,12 @@ function Product({ order }: { order: TradeOrder }) { return <div className="v31-
 function Note({ children }: { children: ReactNode }) { return <p className="v31-note">{children}</p>; }
 function EvidenceMedia({ file }: { file: Evidence }) {
   const media = usePreviewFile(file.digest, file.url);
-  return <div>{media.error ? <p role="alert">{media.error}<button type="button" onClick={media.retry}>重试</button></p> : media.url ? file.kind === 'video' ? <video controls preload="metadata" src={media.url} aria-label={file.name} style={{ width: '100%' }} /> : <a href={media.url} target="_blank" rel="noreferrer" aria-label={`放大查看 ${file.name}`}><img src={media.url} alt={file.name} style={{ width: '100%', maxHeight: 260, objectFit: 'contain' }} /></a> : <small>{file.sample ? '示例占位，无原始文件' : '正在读取附件…'}</small>}</div>;
+  return <div>{media.error ? <p role="alert">{media.error}<button className="toon-action" type="button" onClick={media.retry}>重试</button></p> : media.url ? file.kind === 'video' ? <video controls preload="metadata" src={media.url} aria-label={file.name} style={{ width: '100%' }} /> : <a href={media.url} target="_blank" rel="noreferrer" aria-label={`放大查看 ${file.name}`}><img src={media.url} alt={file.name} style={{ width: '100%', maxHeight: 260, objectFit: 'contain' }} /></a> : <small>{file.sample ? '示例占位，无原始文件' : '正在读取附件…'}</small>}</div>;
 }
 function Files({ value, onChange, required = false, video = false, mandatory = false, imagesOnly = false }: { imagesOnly?: boolean; value: Evidence[]; onChange: (value: Evidence[]) => void; required?: boolean; video?: boolean; mandatory?: boolean }) {
   const [error, setError] = useState(''), [busy, setBusy] = useState(false);
   const latest = useRef(value); latest.current = value;
-  return <div className="v31-files"><p>{required ? `至少 5 张有效截图${video ? '，另需连续录屏' : ''}` : mandatory ? '相关图片或视频（必填）' : imagesOnly ? '评价图片（选填）' : '补充图片或视频（选填）'}</p><label className="v31-upload">{busy ? '正在保存本地附件…' : imagesOnly ? '＋ 选择图片' : '＋ 选择图片 / 视频'}<input disabled={busy} aria-label="选择证据文件" type="file" accept={imagesOnly ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,video/mp4,video/webm"} multiple onChange={async event => {
+  return <div className="v31-files"><p>{required ? `至少 5 张有效截图${video ? '，另需连续录屏' : ''}` : mandatory ? '相关图片或视频（必填）' : imagesOnly ? '评价图片（选填）' : '补充图片或视频（选填）'}</p><ThemedFilePicker disabled={busy} aria-label="选择证据文件" accept={imagesOnly ? "image/jpeg,image/png,image/webp" : "image/jpeg,image/png,image/webp,video/mp4,video/webm"} multiple onChange={async event => {
     const files = Array.from(event.target.files ?? []); event.target.value = ''; setBusy(true); setError('');
     const additions: Evidence[] = [], failures: string[] = [];
     for (const file of files) {
@@ -66,8 +67,8 @@ function Files({ value, onChange, required = false, video = false, mandatory = f
       catch { failures.push(`${file.name}：保存失败，请重新选择重试`); }
     }
     onChange([...latest.current, ...additions]); setError(failures.join('；')); setBusy(false);
-  }} /></label>{error && <p role="alert" className="v31-error">{error}</p>}
-  <div className="v31-file-grid">{value.map(file => <div key={file.id}><EvidenceMedia file={file} /><small>{file.name}</small><button disabled={busy} type="button" aria-label={`移除${file.name}`} onClick={() => onChange(value.filter(v => v.id !== file.id))}><CartoonIcon kind="close" /></button></div>)}</div>
+  }}>{busy ? '正在保存本地附件…' : imagesOnly ? '选择图片' : '选择图片 / 视频'}</ThemedFilePicker>{error && <p role="alert" className="v31-error">{error}</p>}
+  <div className="v31-file-grid">{value.map(file => <div key={file.id}><EvidenceMedia file={file} /><small>{file.name}</small><button className="v31-remove-file" disabled={busy} type="button" aria-label={`移除${file.name}`} onClick={() => onChange(value.filter(v => v.id !== file.id))}><CartoonIcon kind="close" /></button></div>)}</div>
   <small>附件保存在此浏览器的本地预览中，不上传服务器；清除浏览器数据会删除附件。</small></div>;
 }
 function EvidenceList({ files }: { files: Evidence[] }) {
@@ -200,7 +201,7 @@ export function TradeWorkspace({ role, store, entry = 'orders', suffix, initialF
         const actions = buyerCardActions(o);
         const note = o.sale && activeCase(o) ? o.sale.status === 'remedyReceipt' ? `补充履约待验收 · 剩余 ${remaining(o.confirmAt)}` : caseLabel(o.sale, role) : o.stage === 'receipt' ? `卖家已提交凭证 · 验收剩余 ${remaining(o.confirmAt)}` : o.stage === 'unpaid' ? '付款后开始计算完成时限' : o.stage === 'review' && buyerListLabel(o) === '待评价' ? `评价截止 ${date((o.terminatedAt ?? 0) + 7 * 24 * HOUR)}` : ['review', 'done'].includes(o.stage) ? o.reviewed ? '交易已完成 · 已评价' : '交易已完成 · 未评价' : o.stage === 'closed' ? '订单已取消，未付款' : `承诺完成 ${date(o.promiseAt)}`;
         return <article className="v31-order-card v31-buyer-card" data-order-id={o.id} key={o.id} role="link" tabIndex={0} aria-label={`打开订单 ${o.id}`} onKeyDown={event=>{if(event.target===event.currentTarget&&event.key==='Enter'){store.setSelected(o.id);open('detail')}}} onClick={event => { if (!(event.target as HTMLElement).closest('button,a,input,select')) { store.setSelected(o.id); open('detail'); } }}>
-          <header><button type="button" onClick={() => { if(o.sellerId && onShop) { rememberList(); onShop(o.sellerId); } else setNotice("此历史示例没有关联店铺 ID，不能跳转真实店铺。"); }}>{o.seller}的店铺 ›</button><b>{buyerListLabel(o)}</b></header>
+          <header><button className="toon-link" type="button" onClick={() => { if(o.sellerId && onShop) { rememberList(); onShop(o.sellerId); } else setNotice("此历史示例没有关联店铺 ID，不能跳转真实店铺。"); }}><span className="toon-link-label">{o.seller}的店铺</span><CartoonIcon kind="back" className="toon-link-arrow" /></button><b>{buyerListLabel(o)}</b></header>
           <button type="button" className="v31-product-link v31-card-open" aria-label={`打开订单 ${o.id}：${o.title}`} onClick={() => { store.setSelected(o.id); open('detail'); }}><Product order={o} /></button>
           {o.refunded > 0 && <div className="v31-card-refund">累计已退 ¥{money(o.refunded)}</div>}
           <div className="v31-card-note">{note}</div>
@@ -215,7 +216,7 @@ export function TradeWorkspace({ role, store, entry = 'orders', suffix, initialF
       <div className="v31-steps">{['待服务', '服务中', '待收货', '待评价', '已完成'].map((s, i) => <span className={['waiting','serving','receipt','review','done'].indexOf(order.stage) >= i ? 'active' : ''} key={s}><i>{i + 1}</i>{s}</span>)}</div>
       <Panel><Product order={order} /><Facts rows={[[role === 'buyer' ? '卖家' : '买家', role === 'buyer' ? order.seller : order.buyer], ['承诺完成', `${date(order.promiseAt)}${caseActive ? '（售后暂停，恢复后顺延）' : ''}`], ['服务规格', order.spec], ['买家留言', order.note || '未填写'], ['交易规则', <button key="rules" onClick={() => open('rules')}>V3.1 · 查看快照 ›</button>]]} /></Panel>
       {role === 'seller' && <Panel title="商家备注" aside={<button onClick={() => { setNotesOrder(order.id); setNoteDraft(store.sellerNotes[order.id] ?? ''); }}>编辑 ›</button>}><Note>{store.sellerNotes[order.id] || '暂无备注'} · 仅商家可见</Note></Panel>}
-      <Panel><details><summary>履约凭证 · {order.evidence.length} 份</summary><EvidenceList files={order.evidence}/><button onClick={()=>open('evidence')}>凭证管理 ›</button><Note>{order.evidence.length ? `已提交 ${order.evidence.length} 份凭证。${!activeCase(order) && canAppendEvidence(order, role) ? '追加不会重置验收倒计时。' : '此处可查看已提交的交付记录。'}` : '卖家提交完成时须提供有效凭证，开始服务不代表已经交付。'}</Note></details></Panel>
+      <Panel><details><summary>履约凭证 · {order.evidence.length} 份</summary><EvidenceList files={order.evidence}/><button className="toon-link" type="button" onClick={()=>open('evidence')}><span>凭证管理</span><CartoonIcon kind="back" className="toon-link-arrow" /></button><Note>{order.evidence.length ? `已提交 ${order.evidence.length} 份凭证。${!activeCase(order) && canAppendEvidence(order, role) ? '追加不会重置验收倒计时。' : '此处可查看已提交的交付记录。'}` : '卖家提交完成时须提供有效凭证，开始服务不代表已经交付。'}</Note></details></Panel>
       {canReceipt && <Panel title={sale?.status === 'remedyReceipt' ? '补充履约验收' : '收货确认'}><Facts rows={[["剩余验收时间", remaining(order.confirmAt)], ['延长机会', order.extensionUsed ? '已使用 +24 小时' : '本单剩余 1 次 · +24 小时']]} /><Note>普通售后暂停验收计时；确认收货后结算，评价不影响结算。</Note></Panel>}
       <Panel title="订单信息"><Facts rows={[["支付时间", order.stage === "unpaid" || order.stage === "closed" ? "未支付" : date(order.paidAt)], ['实付金额', `¥${money(order.stage === 'unpaid' || order.stage === 'closed' ? 0 : order.amount)}`], ['累计退款', `¥${money(order.refunded)}`], ['资金状态', funds.frozen ? '售后冻结中' : funds.available ? '已结算' : '待结算']]} /><button className="v31-link" onClick={() => open('funds')}>查看费用与资金明细 ›</button></Panel>
       <Panel><details><summary>售后记录</summary>{[...(order.caseHistory??[]),...(order.sale?[order.sale]:[])].map(c=><article key={c.id}><b>{caseLabel(c,role)}</b><p>{c.reason}</p></article>)}</details></Panel><Panel><details><summary>时间与处理记录</summary>{timeline}</details></Panel>
