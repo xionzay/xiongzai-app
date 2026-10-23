@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
@@ -21,7 +21,11 @@ function load(file, globals = {}, cache = new Map()) {
   vm.runInNewContext(js, { module: cjs, exports: cjs.exports, ...globals, require: (id) => {
     if (!id.startsWith(".")) return require(id);
     let target = path.posix.normalize(path.posix.join(path.posix.dirname(file), id));
-    if (!path.extname(target)) target += /Sticker/.test(path.basename(target)) ? ".tsx" : ".ts";
+    if (!path.extname(target)) {
+      const extension=[".tsx",".ts"].find(ext=>existsSync(path.join(root,target+ext)));
+      if (!extension) throw new Error("Missing local component: "+target);
+      target+=extension;
+    }
     return load(target, globals, cache);
   } });
   return cjs.exports;
@@ -152,10 +156,14 @@ test("normal and support chat separate V3 transport from legacy demo and keep te
   const normal = page.slice(page.indexOf("function ChatScreen"), page.indexOf("function CustomerServiceScreen"));
   const support = page.slice(page.indexOf("function CustomerServiceScreen"), page.indexOf("function FavoritesScreen"));
   for (const source of [normal, support]) {
-    assert.match(source, /<StickerToggle control=\{stickers\}/); assert.match(source, /<PendingBearStickers sender=\{bear\}/); assert.doesNotMatch(source, /<StickerDemoMessages/); assert.match(source, /message_type: "STICKER"/);
-    assert.match(source, /onFocus=\{stickers.closePanel\}/); assert.match(source, /value=\{text\}/);
+    assert.match(source, /<PendingBearStickers sender=\{bear\}/); assert.doesNotMatch(source, /<StickerDemoMessages/); assert.match(source, /message_type: "STICKER"/);
+    assert.match(source, /<ChatComposer[^\n]*control=\{stickers\}/); assert.match(source, /value=\{text\}/);
     assert.doesNotMatch(source, /JSON.stringify\([^\n]*stickerId/);
   }
+  const composer = read("app/ChatComposer.tsx");
+  assert.match(composer, /<StickerToggle control=\{control\}/);
+  assert.match(composer, /<EmojiDraftInput[^>]+onFocus=\{control\.closePanel\}/);
+  assert.match(composer, /<StickerTray control=\{control\}/);
   for (const file of readdirSync(path.join(root, "app/chat-stickers")).filter(x => /\.tsx?$/.test(x) && !["StandardEmoji.tsx", "standard-emoji.ts", "useEmojiComposer.ts"].includes(x))) {
     assert.doesNotMatch(read(`app/chat-stickers/${file}`), /\b(fetch|apiRequest|localStorage|sessionStorage|indexedDB|WebSocket)\b|onComplete|onDelivered|setUnreadCount/, file);
   }

@@ -2,8 +2,10 @@
 import { useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 import { deleteAtSelection, insertAtSelection, type TextSelection } from './standard-emoji';
 
+import type { EmojiDraftHandle } from './EmojiDraftInput';
+export type ChatTextElement = HTMLInputElement | HTMLTextAreaElement | EmojiDraftHandle;
 export type EmojiDraft = { value: string; onChange: (value: string) => void; disabled?: boolean };
-export function useEmojiComposer(inputRef: RefObject<HTMLInputElement | null>, draft?: EmojiDraft) {
+export function useEmojiComposer(inputRef: RefObject<ChatTextElement | null>, draft?: EmojiDraft) {
   const current = useRef(draft);
   const selection = useRef<TextSelection>({ start: 0, end: 0 });
   const pending = useRef<TextSelection | null>(null);
@@ -35,8 +37,8 @@ export function useEmojiComposer(inputRef: RefObject<HTMLInputElement | null>, d
     const events = ['select', 'keyup', 'pointerup', 'blur', 'input'] as const;
     events.forEach(name => input.addEventListener(name, remember));
     input.addEventListener('compositionstart', begin); input.addEventListener('compositionend', end);
-    input.addEventListener('keydown', key); input.addEventListener('beforeinput', beforeInput);
-    return () => { events.forEach(name => input.removeEventListener(name, remember)); input.removeEventListener('compositionstart', begin); input.removeEventListener('compositionend', end); input.removeEventListener('keydown', key); input.removeEventListener('beforeinput', beforeInput); };
+    input.addEventListener('keydown', key as EventListener); input.addEventListener('beforeinput', beforeInput as EventListener);
+    return () => { events.forEach(name => input.removeEventListener(name, remember)); input.removeEventListener('compositionstart', begin); input.removeEventListener('compositionend', end); input.removeEventListener('keydown', key as EventListener); input.removeEventListener('beforeinput', beforeInput as EventListener); };
     // Native listeners read refs, avoiding reinstalling during IME composition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inputRef, enabled]);

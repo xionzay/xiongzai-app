@@ -281,3 +281,18 @@
 .phone-shell.user-theme .product-page > .paper-panel > p { margin: 0; color: var(--product-muted); font-size: 13px; line-height: 1.65; }
 .phone-shell.user-theme .product-page .product-buy-action { background: var(--brand); font-size: 17px; font-weight: 650; }
 .product-small-action:active { background: #f5f5f5; }
+
+/* Connected product and fulfillment controls reuse the current brand tokens. */
+.phone-shell.user-theme :is(.fulfillment-panel,.connected-files) { overflow-wrap:anywhere; }
+.phone-shell.user-theme :is(.fulfillment-panel,.connected-files) > label,
+.phone-shell.user-theme .fulfillment-panel > div:not(.order-detail-actions):not(.flow-overlay) { display:grid; justify-content:stretch; gap:8px; padding-block:8px; }
+.phone-shell.user-theme :is(.fulfillment-panel,.connected-files) label { display:flex; flex-wrap:wrap; align-items:center; gap:8px; min-height:44px; }
+.phone-shell.user-theme :is(.fulfillment-panel,.connected-files) :is(input[type="file"],img,video) { max-width:100%; min-width:0; }
+.phone-shell.user-theme .fulfillment-panel :is(img,video) { display:block; width:100%; height:auto; border-radius:var(--buyer-radius,12px); }
+.phone-shell.user-theme :is(.fulfillment-panel,.connected-files) button:not(.order-detail-actions button):not(.flow-dialog button) { min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:var(--buyer-radius,12px); background:var(--paper); color:var(--ink); font:inherit; }
+.phone-shell.user-theme :is(.fulfillment-panel,.connected-files,.sw-product-focus) button:disabled { opacity:.5; cursor:not-allowed; }
+.phone-shell.user-theme :is(.fulfillment-panel,.connected-files,.sw-product-focus) :is(button,input,select,textarea):focus-visible { outline:3px solid var(--brand,var(--blue)); outline-offset:3px; }
+.phone-shell.user-theme .fulfillment-panel .order-detail-actions { flex-wrap:wrap; margin-inline:0; }
+.phone-shell.user-theme .fulfillment-panel .fulfillment-confirmation-overlay { position:fixed; display:grid; place-items:center; padding:20px; border:0; }
+.phone-shell.user-theme .fulfillment-confirmation-overlay .flow-dialog { max-width:420px; }
+.phone-shell.user-theme .sw-product-focus fieldset { min-width:0; margin-inline:12px; }

@@ -1,4 +1,5 @@
 "use client";
+import { CartoonIcon } from "./ui/CartoonIcon";
 
 import { useEffect, useRef, useState } from "react";
 
@@ -84,7 +85,7 @@ export function HomeAnnouncementCarousel({ items, active, onOpen }: { items: rea
     </div>
     {items.length > 1 ? <div className="home-announcement-dots" aria-label={`第 ${index + 1} 张，共 ${items.length} 张`}>
       {items.map((item, position) => <button type="button" className={index === position ? "active" : ""} aria-label={`查看第 ${position + 1} 条公告：${item.alt}`} aria-current={index === position ? "true" : undefined} onClick={() => show(position)} key={item.id} />)}
-      <button type="button" className="carousel-pause" aria-label={paused ? "继续自动轮播" : "暂停自动轮播"} aria-pressed={paused} onClick={() => setPaused(value => !value)}><span aria-hidden="true">{paused ? "▷" : "Ⅱ"}</span></button>
+      <button type="button" className="carousel-pause" aria-label={paused ? "继续自动轮播" : "暂停自动轮播"} aria-pressed={paused} onClick={() => setPaused(value => !value)}><CartoonIcon kind={paused ? "play" : "pause"} className="carousel-playback-icon" /></button>
     </div> : null}
   </section>;
 }

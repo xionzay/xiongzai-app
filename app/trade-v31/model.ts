@@ -16,6 +16,7 @@ export type SaleCase = {
 };
 export type TradeOrder = {
   id: string; title: string; cover: string; seller: string; buyer: string; spec: string;
+  sellerAvatar?: string; sellerAvatarFileId?: string | null;
   sellerId?: string; buyerId?: string; productId?: string; skuId?: string; quantity?: number; unitPrice?: number; promiseHours?: number; ruleVersion?: string;
   requiredFields?: RequiredField[]; buyerInfo?: Record<string, string>;
   amount: number; stage: Stage; paidAt: number; promiseAt: number; confirmAt?: number;
@@ -78,6 +79,7 @@ export const sampleEvidence: Evidence[] = Array.from({ length: 5 }, (_, i) => ({
 const seed = (id: string, stage: Stage, index: number, now: number): TradeOrder => ({
   id, title: ['和平精英 · 组队陪练', '王者荣耀 · 双排教学', '三角洲行动 · 战术指导', '英雄联盟 · 对局复盘'][index % 4],
   cover: `/assets/home-hot-sale/cover-0${index % 4 + 1}.jpg`, seller: ['晚风', '小熊软糖', '鹿屿', '星野'][index % 4], buyer: '熊崽玩家',
+  sellerAvatar: index % 4 < 2 ? `/assets/home-companions/avatar-0${index % 4 + 1}.jpg` : undefined,
   spec: ['经典模式 · 3 局', '双排教学 · 2 小时', '战术指导 · 6 局', '对局复盘 · 1 次'][index % 4], amount: index % 4 === 2 ? 22800 : 6000,
   stage, buyerId: 'preview-buyer', quantity: 1, promiseHours: 24, ruleVersion: 'V3.1', paidAt: stage === 'unpaid' ? 0 : now - 6 * HOUR, promiseAt: now + 18 * HOUR, confirmAt: stage === 'receipt' ? now + 68 * HOUR : undefined,
   extensionUsed: false, refunded: 0, caseCount: 0, evidence: ['receipt', 'review', 'done'].includes(stage) ? [...sampleEvidence] : [],
@@ -172,12 +174,13 @@ export function transition(source: TradeOrder, action: TradeAction, now = Date.n
     case 'withdrawCase': buyer(); ensure(c && ['requested', 'proposal', 'second', 'rejected'].includes(c.status), '当前售后阶段不可自助撤销。'); archiveProposal('cancelled'); restore('buyerWithdrawn'); log('买家撤销售后', '恢复原履约状态；已交付订单剩余验收时间至少 24 小时'); break;
     case 'agree': seller(); ensure(c && ['requested', 'second'].includes(c.status), '当前申请不可直接同意。'); refund(c!.requested); break;
     case 'reject': seller(); ensure(c && c.status === 'requested', '当前阶段不可拒绝。'); ensure(action.reason.trim(), '请说明拒绝原因。'); ensure(action.evidence.length, '驳回退款必须提交相关证据。'); c!.status = 'rejected'; c!.rejection = action.reason; c!.evidence.push(...action.evidence); c!.deadline = now + 48 * HOUR; log('卖家拒绝退款', action.reason); break;
-    case 'propose': if (c?.status !== 'platform') seller(); ensure(c && ['requested', 'second', 'platform'].includes(c.status), '当前阶段无法发起协商。'); ensure(c!.status === 'platform' || c!.round < 2, '两轮协商已结束，请平台介入。'); ensure(!c!.proposal || now >= (c!.proposal.expiresAt ?? c!.deadline), '已有待回应方案，请等待对方处理。'); ensure(action.proposal.content.trim(), '请填写具体方案。');
+    case 'propose': { if (c?.status !== 'platform') seller(); ensure(c && ['requested', 'second', 'platform'].includes(c.status), '当前阶段无法发起协商。'); ensure(c!.status === 'platform' || c!.round < 2, '两轮协商已结束，请平台介入。'); ensure(!c!.proposal || now >= (c!.proposal.expiresAt ?? c!.deadline), '已有待回应方案，请等待对方处理。'); ensure(action.proposal.content.trim(), '请填写具体方案。');
       if (action.proposal.kind === 'partial') ensure(Number.isSafeInteger(action.proposal.amount) && action.proposal.amount > 0 && action.proposal.amount <= c!.requested, '协商退款金额须在申请金额范围内。');
       else ensure(Number.isInteger(action.proposal.hours) && action.proposal.hours > 0 && action.proposal.hours <= 168, '补充履约时限须为 1～168 小时。');
       // Platform negotiation is presented independently; its evidence deadline never moves.
       if (c!.status !== 'platform') { c!.round++; c!.status = 'proposal'; c!.deadline = now + 24 * HOUR; }
       archiveProposal('expired'); const version = (c!.proposalHistory?.length ?? 0) + 1; c!.proposal = { ...action.proposal, id: `${c!.id}-P${version}`, version, proposer: action.role, expiresAt: now + 24 * HOUR }; log(`${action.role === 'buyer' ? '买家' : '卖家'}提交协商方案`, action.proposal.content); break;
+    }
     case 'acceptProposal': responseProposal(); archiveProposal('accepted');
       if (c!.proposal!.kind === 'partial') refund(c!.proposal!.amount);
       else { c!.status = 'remedy'; c!.remedyProposal = c!.proposal; c!.deadline = now + c!.proposal!.hours * HOUR; c!.proposal = undefined; log('接收方同意补充履约', '原售后单继续处理并保留资金冻结'); } break;

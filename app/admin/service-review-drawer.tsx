@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { adminApiBlob, adminApiRequest, adminFailure } from "./admin-api";
-import styles from "./admin.module.css";
+import styles from "./admin.module.css"; import { productGameLabels, type ProductGame } from "../../packages/contracts/src/commerce";
 
-type ServiceImage = { id: string; file_id: string; sort_order: number; is_cover: boolean };
+type ServiceImage = { image_kind?: "GALLERY"|"DETAIL"; id: string; file_id: string; sort_order: number; is_cover: boolean };
 type ServiceSku = { id: string; sku_name: string; description: string | null; price_cent: string; duration_minutes: number; status: string; sort_order: number };
 type ReviewLog = { id: string; action: string; old_status: string | null; new_status: string | null; reason: string | null; created_at: string };
 type ServiceDetail = {
-  id: string;
+  game?:ProductGame; pricing_mode?:"SINGLE"|"MULTI"; fulfillment_seconds?:number|null; id: string;
   title: string;
   description: string;
   service_time_description: string | null;
@@ -79,12 +79,12 @@ export function ServiceReviewDrawer({ productId, title, canPreviewMedia, onClose
         {state === "loading" ? <DrawerState title="正在读取服务详情" note="正在从管理 API 读取服务内容、规格和图片。" /> : state === "error" || state === "offline" ? <DrawerState title="服务详情加载失败" note={error} action={() => setRevision((value) => value + 1)} /> : detail ? <>
           <section className={styles.servicePreview}>
             {coverPreview?.url ? <ServiceImagePreview src={coverPreview.url} alt={`${detail.title}主图`} /> : <div className={styles.serviceImagePlaceholder}>{previewLoading ? "正在加载主图…" : coverPreview?.error ?? "该服务没有上传主图"}</div>}
-            <div><span>{serviceStatusLabel(detail.status)} · 第 {detail.current_version_no ?? 1} 版</span><h3>{detail.title}</h3><p>{detail.description || "用户未填写服务说明。"}</p><dl className={styles.serviceSummaryFacts}><div><dt>陪玩</dt><dd>{detail.seller.seller_nickname}</dd></div><div><dt>最低价格</dt><dd>{formatCent(detail.min_price_cent)}</dd></div><div><dt>服务时间说明</dt><dd>{detail.service_time_description || "未填写"}</dd></div><div><dt>提交时间</dt><dd>{formatTime(detail.submitted_at)}</dd></div></dl></div>
+            <div><span>{serviceStatusLabel(detail.status)} · 第 {detail.current_version_no ?? 1} 版</span><h3>{detail.title}</h3><p>{detail.description || "用户未填写服务说明。"}</p><dl className={styles.serviceSummaryFacts}><div><dt>卖家</dt><dd>{detail.seller.seller_nickname}</dd></div><div><dt>游戏</dt><dd>{detail.game ? productGameLabels[detail.game] : "历史商品"}</dd></div><div><dt>定价</dt><dd>{detail.pricing_mode === "MULTI" ? "多规格" : "单价"}</dd></div><div><dt>完成时限</dt><dd>{fulfillmentDurationLabel(detail.fulfillment_seconds)}</dd></div><div><dt>最低价格</dt><dd>{formatCent(detail.min_price_cent)}</dd></div><div><dt>服务时间说明</dt><dd>{detail.service_time_description || "未填写"}</dd></div><div><dt>提交时间</dt><dd>{formatTime(detail.submitted_at)}</dd></div></dl></div>
           </section>
 
-          <section className={styles.detailSection}><h3>用户上传的服务图片</h3>{!canPreviewMedia && sortedImages.length ? <p className={styles.serviceReviewNote}>当前管理员没有文件读取与审核权限，未发出图片预览请求。</p> : previewLoading ? <p className={styles.serviceReviewNote}>正在通过受控管理接口读取图片，请稍候…</p> : sortedImages.length === 0 ? <p className={styles.serviceReviewNote}>当前服务没有绑定任何图片。这是真实空状态，页面没有填充占位业务图片。</p> : <div className={styles.serviceImageGrid}>{sortedImages.map((image, index) => { const preview = previews.find((item) => item.fileId === image.file_id); return <figure key={image.id}>{preview?.url ? <ServiceImagePreview src={preview.url} alt={`${detail.title}服务图片 ${index + 1}`} /> : <div>{preview?.error ?? "图片加载失败"}</div>}<figcaption>{image.is_cover ? "主图" : `详情图 ${index + 1}`} · 排序 {image.sort_order}</figcaption></figure>; })}</div>}</section>
+          <section className={styles.detailSection}><h3>用户上传的服务图片</h3>{!canPreviewMedia && sortedImages.length ? <p className={styles.serviceReviewNote}>当前管理员没有文件读取与审核权限，未发出图片预览请求。</p> : previewLoading ? <p className={styles.serviceReviewNote}>正在通过受控管理接口读取图片，请稍候…</p> : sortedImages.length === 0 ? <p className={styles.serviceReviewNote}>当前服务没有绑定任何图片。这是真实空状态，页面没有填充占位业务图片。</p> : <div className={styles.serviceImageGrid}>{sortedImages.map((image, index) => { const preview = previews.find((item) => item.fileId === image.file_id); return <figure key={image.id}>{preview?.url ? <ServiceImagePreview src={preview.url} alt={`${detail.title}服务图片 ${index + 1}`} /> : <div>{preview?.error ?? "图片加载失败"}</div>}<figcaption>{image.is_cover ? "商品封面" : image.image_kind === "DETAIL" ? `详情图 ${index + 1}` : `商品图 ${index + 1}`} · 排序 {image.sort_order}</figcaption></figure>; })}</div>}</section>
 
-          <section className={styles.detailSection}><h3>服务规格与价格</h3>{detail.skus.length ? <table className={styles.skuTable}><thead><tr><th>规格名称</th><th>说明</th><th>时长</th><th>价格</th><th>状态</th></tr></thead><tbody>{detail.skus.map((sku) => <tr key={sku.id}><td>{sku.sku_name}</td><td>{sku.description || "—"}</td><td>{sku.duration_minutes} 分钟</td><td>{formatCent(sku.price_cent)}</td><td>{skuStatusLabel(sku.status)}</td></tr>)}</tbody></table> : <p className={styles.serviceReviewNote}>当前服务没有可审核的规格。</p>}</section>
+          <section className={styles.detailSection}><h3>服务规格与价格</h3>{detail.skus.length ? <table className={styles.skuTable}><thead><tr><th>规格名称</th><th>说明</th><th>时长</th><th>价格</th><th>状态</th></tr></thead><tbody>{detail.skus.map((sku) => <tr key={sku.id}><td>{sku.sku_name}</td><td>{sku.description || "—"}</td><td>{sku.duration_minutes == null ? "按商品时限" : `${sku.duration_minutes} 分钟`}</td><td>{formatCent(sku.price_cent)}</td><td>{skuStatusLabel(sku.status)}</td></tr>)}</tbody></table> : <p className={styles.serviceReviewNote}>当前服务没有可审核的规格。</p>}</section>
 
           <section className={styles.detailSection}><h3>审核记录</h3>{detail.review_logs.length ? <div className={styles.serviceReviewLogs}>{detail.review_logs.map((log) => <article key={log.id}><b>{reviewActionLabel(log.action)}</b><p>{log.reason || "未填写原因"}</p><small>{serviceStatusLabel(log.old_status)} → {serviceStatusLabel(log.new_status)} · {formatTime(log.created_at)}</small></article>)}</div> : <p className={styles.serviceReviewNote}>当前服务还没有管理员审核记录。</p>}</section>
 
@@ -114,3 +114,4 @@ function formatTime(value: string | null | undefined) { if (!value) return "—"
 function serviceStatusLabel(value: string | null | undefined) { return ({ DRAFT: "草稿", PENDING_REVIEW: "待审核", ON_SALE: "在售", REVIEW_REJECTED: "审核驳回", OFF_SALE: "已下架", ADMIN_OFF_SALE: "平台下架", DELETED: "已软删除", APPROVED: "已通过", REJECTED: "已驳回" } as Record<string, string>)[value ?? ""] ?? (value ? "其他状态" : "无"); }
 function skuStatusLabel(value: string) { return ({ ACTIVE: "启用", INACTIVE: "停用", DELETED: "已删除" } as Record<string, string>)[value] ?? "其他状态"; }
 function reviewActionLabel(value: string) { return ({ SUBMIT: "用户提交审核", APPROVE: "管理员审核通过", REJECT: "管理员审核驳回", ADMIN_OFF_SALE: "平台强制下架", ADMIN_RESTORE: "平台恢复服务", SOFT_DELETE: "软删除违规服务", SELLER_RESTORE: "陪玩重新提交" } as Record<string, string>)[value] ?? "服务审核操作"; }
+import { fulfillmentDurationLabel } from "./commerce-display";

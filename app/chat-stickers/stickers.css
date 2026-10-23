@@ -2,7 +2,7 @@
 .sticker-preview-entry { display: block; margin-top: 10px; padding: 9px; color: #34698e; font-size: 12px; text-align: center; }
 .phone-shell .sticker-demo-label { margin: 10px 0; border-radius: 12px; padding: 6px 10px; background: #fff8e9; color: #80622e; font-size: .75rem; line-height: 1.5; text-align: center; }
 .phone-shell .sticker-demo-messages { margin-top: 14px; }
-.phone-shell .sticker-message { display: flex; align-items: flex-end; gap: 8px; margin: 13px 0; }
+.phone-shell .sticker-message { display: flex; align-items: flex-start; gap: 8px; margin: 13px 0; }
 .phone-shell .sticker-message.mine { justify-content: flex-end; }
 .phone-shell .sticker-avatar { width: 44px; height: 44px; flex: none; }
 .phone-shell .sticker-avatar > img { display: block; width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
@@ -14,12 +14,12 @@
 .phone-shell .sticker-retry { min-height: 36px; width: 100%; padding: 5px; margin-top: 4px; border: 1px solid #eedace; border-radius: 10px; background: #fff8f4; color: #a65437; font-size: .75rem; }
 .phone-shell .sticker-fallback-note { display: block; padding-top: 3px; color: #5e788e; font-size: .625rem; line-height: 1.4; }
 .phone-shell .sticker-unavailable { width: 144px; max-width: 100%; aspect-ratio: 1; display: grid; place-items: center; border-radius: 18px; padding: 12px; background: #fff; color: #70889a; font-size: .75rem; text-align: center; }
-.phone-shell .chat-screen .chat-input.has-stickers { grid-template-columns: minmax(0,1fr) 44px 44px 48px; gap: 6px; }
-.phone-shell .customer-service-screen .customer-chat-input.has-stickers { grid-template-columns: minmax(0,1fr) 44px 48px; gap: 6px; }
+.phone-shell .sticker-demo-chat .chat-input.has-stickers { grid-template-columns: minmax(0,1fr) 44px 48px; gap: 6px; }
+.phone-shell .sticker-demo-chat .customer-chat-input.has-stickers { grid-template-columns: minmax(0,1fr) 44px 48px; gap: 6px; }
 .phone-shell .chat-screen .chat-input .sticker-toggle,
-.phone-shell .customer-service-screen .customer-chat-input .sticker-toggle { width: 44px; height: 44px; background: #fff; color: #5b83a4; }
-.phone-shell .sticker-toggle svg { width: 25px; height: 25px; }
-.phone-shell .sticker-toggle[aria-expanded="true"] { outline: 2px solid #84b5db; outline-offset: -2px; }
+.phone-shell .customer-service-screen .customer-chat-input .sticker-toggle { width: 44px; height: 44px; background: transparent; color: #222; }
+.phone-shell .sticker-toggle svg { width: 28px; height: 28px; }
+.phone-shell .sticker-toggle[aria-expanded="true"] { background: rgba(119,145,133,.12); }
 .phone-shell .sticker-panel { display: flex; flex-direction: column; height: min(260px, 31dvh); min-height: 130px; margin: 9px 0 0; border: 1px solid #e5edf5; border-radius: 18px; overflow: hidden; background: #f7fbff; }
 .phone-shell .sticker-panel header { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 10px 0; flex: none; }
 .phone-shell .sticker-panel header strong { color: #33536c; font-size: .875rem; }

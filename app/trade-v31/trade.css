@@ -88,8 +88,8 @@
 .v31-ledger { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .v31-rating { display: flex; justify-content: center; gap: 8px; margin: 18px 0; }
 .v31-rating button { min-width: 44px; height: 44px; border: none; background: transparent; }
-.v31-rating svg { width: 30px; fill: transparent; stroke: #bf711d; }
-.v31-rating button[aria-pressed="true"] svg { fill: #ffb951; stroke: #e49631; }
+.v31-rating .toon-icon { width: 30px; height: 30px; }
+
 .v31-error, .v31-notice { margin: 8px 12px; padding: 12px; border: 1px solid var(--line); background: var(--paper); color: var(--danger); font-size: 13px; border-radius: 9px; }
 .v31-notice { color: var(--brand-strong); }
 .v31-empty { text-align: center; padding: 30px 0; }

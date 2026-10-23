@@ -19,6 +19,7 @@ function harness({ reduced = false } = {}) {
   root.dataset.uiRefinement = 'on';
   root.querySelector = () => screen;
   screen.querySelector = () => icon;
+  screen.querySelectorAll = selector => { assert.ok(selector.includes(".discovery-search-bar")); return [icon]; };
   const window = new EventTarget(), document = new EventTarget(), media = new EventTarget();
   media.matches = reduced; window.matchMedia = () => media; document.hidden = false;
   const refs = [], effects = [], layouts = [];
@@ -64,4 +65,15 @@ test('navigation cancels obsolete animations and returning home does not replay 
 
 test('reduced motion skips page and navigation animations entirely', () => {
   const h = harness({ reduced: true }); h.render('home'); h.render('messages'); assert.equal(h.animations.length, 0); h.cleanup();
+});
+
+
+test('search transition animates content only and cancels when rapidly switching', () => {
+  const h = harness(); h.render('search');
+  const first = h.animations.at(-1);
+  assert.equal(first.options.duration, 160);
+  assert.equal(first.frames[0].translate, '0 4px');
+  assert.equal(first.frames[0].transform, undefined);
+  h.render('searchResults'); assert.equal(first.cancelled, true);
+  assert.equal(h.animations.at(-1).options.duration,160); h.cleanup();
 });

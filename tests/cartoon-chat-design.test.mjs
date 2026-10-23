@@ -10,6 +10,7 @@ const sourceIndex = JSON.parse(await read("source-index.json"));
 const output = await read("chat-cartoon-pattern.svg");
 const css = await readFile(new URL("../app/chat-redesign.css", import.meta.url), "utf8");
 const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+const icon = await readFile(new URL("../app/ui/CartoonIcon.tsx", import.meta.url), "utf8");
 const paths = (svg) => [...svg.matchAll(/<path\b[^>]*\bd="([^"]+)"/g)].map((m) => m[1]);
 // Each motif is emitted on one line; greedy matching keeps nested source groups.
 const groups = [...output.matchAll(/^<g data-motif="([^"]+)" data-source="([^"]+)"[^>]*>(.*)<\/g>$/gm)];
@@ -68,12 +69,12 @@ test("rotated motifs fit entirely inside the canvas without overlap", () => {
 test("shared chat surfaces keep message scrolling separate from header and composer", () => {
   assert.match(css, /\.chat-scroll-content\s*\{[^}]*flex: 1;[^}]*min-height: 0;[^}]*overflow-y: auto;/);
   assert.match(css, /\.chat-compose-dock\s*\{\s*flex: none;/);
-  assert.match(css, /\.chat-person-avatar\s*\{[^}]*width: 44px;[^}]*height: 44px;/);
+  assert.match(css, /\.chat-person-avatar\s*\{[^}]*width: 40px;[^}]*height: 40px;/);
   assert.match(css, /\.customer-message > p\s*\{[^}]*font-size: 16px;/);
   const chat = page.slice(page.indexOf("function ChatScreen("), page.indexOf("function FavoritesScreen("));
   assert.equal((chat.match(/className="chat-topbar"/g) || []).length, 2);
   assert.equal((chat.match(/className="chat-compose-dock"/g) || []).length, 2);
-  assert.equal((chat.match(/!event.nativeEvent.isComposing/g) || []).length, 2);
+  assert.equal((chat.match(/<ChatComposer /g) || []).length, 2);
   assert.match(chat, /aria-label="聊天记录" aria-busy=\{loading\}/);
   assert.match(chat, /aria-label="客服会话" aria-busy=\{loading\}/);
   assert.match(chat, /登录后开始聊天/);
@@ -86,11 +87,11 @@ test("chat redesign preserves accessible controls with a centered floating heade
   assert.match(css, /grid-template-columns: 44px minmax\(0, 1fr\) 44px/);
   assert.match(css, /\.header-title\s*\{ display: contents;/);
   assert.match(css, /\.header-title \.icon-button\s*\{[^}]*min-width: 44px;/);
-  assert.match(css, /\.customer-chat-input\s*\{[^}]*grid-template-columns: minmax\(0,1fr\) 48px/);
-  assert.match(css, /\.customer-chat-input input\s*\{[^}]*border-radius: 26px/);
-  assert.match(page, /aria-label=\{sending \? "正在发送消息" : "发送消息"\} aria-busy=\{sending\}/);
-  assert.match(page, /aria-label=\{busy \? "正在发送客服问题" : "发送客服问题"\} aria-busy=\{busy\}/);
-  assert.match(page, /className="chat-send-symbol"[^>]*aria-hidden="true"/);
+  assert.match(css, /grid-template-columns: 44px minmax\(0,1fr\) 44px 56px/);
+  assert.match(css, /:is\(textarea,\.chat-draft-input\) \{[^}]*max-height: 118px/);
+  assert.match(page, /<ChatComposer control=\{stickers\}/);
+  assert.match(page, /<ChatComposer[^\n]*support control=\{stickers\}/);
+  assert.match(icon, /aria-hidden=\{label \? undefined : true\}/);
 });
 
 test("chat edge fades stay behind readable content and never intercept input", () => {
@@ -101,17 +102,17 @@ test("chat edge fades stay behind readable content and never intercept input", (
   assert.match(rules[0], /position: absolute;/);
   assert.match(rules[0], /z-index: -1;/);
   assert.match(rules[0], /pointer-events: none;/);
-  assert.match(rules[1], /-webkit-backdrop-filter: blur\(12px\);/);
-  assert.match(rules[1], /backdrop-filter: blur\(12px\);/);
+  assert.match(rules[1], /-webkit-backdrop-filter: blur\(\.5px\);/);
+  assert.match(rules[1], /backdrop-filter: blur\(\.5px\);/);
   assert.match(rules[1], /mask-image: var\(--chat-edge-mask\);/);
   assert.match(css, /\.chat-scroll-content\s*\{[^}]*position: relative;[^}]*z-index: 1;/);
   for (const region of ["chat-topbar", "chat-compose-dock"]) {
     const rule = css.match(new RegExp(`\\.${region}\\s*\\{([^}]+)\\}`))?.[1];
     assert.ok(rule);
     assert.match(rule, /position: relative;/);
-    assert.match(rule, /z-index: 0;/);
+    assert.match(rule, region === "chat-topbar" ? /z-index: 3;/ : /z-index: 0;/);
     assert.match(rule, /isolation: isolate;/);
-    assert.match(rule, /background: transparent;/);
+    assert.match(rule, region === "chat-topbar" ? /background: transparent;/ : /background: rgba\(var\(--chat-edge-bottom-rgb\),\.62\);/);
     assert.doesNotMatch(rule, /(?:^|[;\s])(?:filter|opacity|overflow):/);
   }
 });
@@ -121,10 +122,10 @@ test("edge fades follow dynamic toolbar and composer heights with a transparent 
   const bottom = css.match(/\.customer-service-screen \.chat-compose-dock::before\s*\{([^}]*inset:[^}]+)\}/)?.[1];
   assert.ok(top);
   assert.ok(bottom);
-  assert.match(top, /inset: 0 0 -44px;/);
-  assert.match(top, /calc\(100% - 44px\), rgba\(250,252,255,0\) 100%/);
-  assert.match(bottom, /inset: -44px 0 0;/);
-  assert.match(bottom, /rgba\(245,249,255,0\) 0%, rgba\(245,249,255,\.98\) 44px/);
+  assert.match(top, /inset: 0 0 -24px;/);
+  assert.match(top, /calc\(100% - 24px\), rgba\(var\(--chat-edge-top-rgb\),0\) 100%/);
+  assert.match(bottom, /inset: -24px 0 0;/);
+  assert.match(bottom, /rgba\(var\(--chat-edge-bottom-rgb\),0\) 0%, rgba\(var\(--chat-edge-bottom-rgb\),\.08\) 24px/);
   assert.doesNotMatch(top + bottom, /height:|position: fixed|url\(/);
   assert.match(css, /@supports \(mask-image: linear-gradient\(#000, transparent\)\) or \(-webkit-mask-image:/);
 });

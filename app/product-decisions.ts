@@ -1,5 +1,5 @@
 /** V3.5 display decisions. Does not alter transaction state or historical snapshots. */
-export const PRODUCT_GAMES = ['和平精英', '三角洲行动', '王者荣耀', '无畏契约'] as const;
+import { productGames, productGameLabels } from '../packages/contracts/src/commerce'; export const PRODUCT_GAMES = productGames.map(game=>productGameLabels[game]);
 export function publicGames(text: string) { return PRODUCT_GAMES.filter(game => text.includes(game) || (game === '和平精英' && text.includes('地铁逃生'))); }
 export function offersCompanion(introduction?: string | null) { return !!introduction && /陪玩/.test(introduction) && !/不提供陪玩|不接陪玩|不做陪玩|没有陪玩/.test(introduction); }
 export function noticeGroup(item: {category: string; related_type?: string | null; notification_type?: string}) {

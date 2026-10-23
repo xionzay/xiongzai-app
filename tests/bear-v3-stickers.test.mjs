@@ -13,15 +13,15 @@ const require = createRequire(import.meta.url);
 const read = file => readFileSync(path.join(root, file), "utf8");
 function load(file, globals = {}, cache = new Map()) {
   if (cache.has(file)) return cache.get(file);
-  const module = { exports: {} }; cache.set(file, module.exports);
+  const cjsModule = { exports: {} }; cache.set(file, cjsModule.exports);
   const code = ts.transpileModule(read(file), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, esModuleInterop: true } }).outputText;
-  vm.runInNewContext(code, { module, exports: module.exports, Error, ...globals, require(id) {
+  vm.runInNewContext(code, { module: cjsModule, exports: cjsModule.exports, Error, ...globals, require(id) {
     if (!id.startsWith(".")) return globals.modules?.[id] ?? require(id);
     let target = path.posix.normalize(path.posix.join(path.posix.dirname(file), id)).replace(/\.js$/, ".ts");
     if (!path.extname(target)) target += target.endsWith("BearStickers") ? ".tsx" : ".ts";
     return load(target, globals, cache);
   } });
-  return module.exports;
+  return cjsModule.exports;
 }
 const registry = load("packages/contracts/src/bear-stickers.ts");
 test("70 final V3 GIFs are byte-identical, versioned, transparent-source assets with two complete packs", () => {
@@ -75,15 +75,15 @@ test("real sender blocks rapid repeats, retains failed GIF and retries with the 
   const { useBearStickerSender } = load("app/chat-stickers/BearStickers.tsx", { crypto: { randomUUID }, modules: { react: hooks } });
   const calls = []; let resolve, reject;
   const transport = (id, key) => { calls.push({ id, key }); return new Promise((yes, no) => { resolve = yes; reject = no; }); };
-  const render = (enabled = true, scope = "conversation") => { stateIndex = 0; refIndex = 0; return useBearStickerSender(scope, "buyer", enabled, transport); };
-  let control = render(); control.send("bear-v3/seller/001"); assert.equal(calls.length, 0);
+  const RenderHarness = (enabled = true, scope = "conversation") => { stateIndex = 0; refIndex = 0; return useBearStickerSender(scope, "buyer", enabled, transport); };
+  let control = RenderHarness(); control.send("bear-v3/seller/001"); assert.equal(calls.length, 0);
   control.send("bear-v3/buyer/001"); control.send("bear-v3/buyer/001"); assert.equal(calls.length, 1);
-  assert.equal(render().pending[0].status, "sending");
+  assert.equal(RenderHarness().pending[0].status, "sending");
   reject(new Error("网络暂时不可用")); await new Promise(done => setImmediate(done));
-  control = render(); assert.equal(control.pending[0].status, "failed"); assert.equal(control.pending[0].error, "网络暂时不可用");
+  control = RenderHarness(); assert.equal(control.pending[0].status, "failed"); assert.equal(control.pending[0].error, "网络暂时不可用");
   control.retry(control.pending[0]); assert.equal(calls[1].key, calls[0].key);
-  resolve(); await new Promise(done => setImmediate(done)); assert.equal(render().pending.length, 0);
-  render(false).send("bear-v3/buyer/002"); assert.equal(calls.length, 2);
+  resolve(); await new Promise(done => setImmediate(done)); assert.equal(RenderHarness().pending.length, 0);
+  RenderHarness(false).send("bear-v3/buyer/002"); assert.equal(calls.length, 2);
 });
 test("panel and keyboard resizing keep the latest GIF visible without pulling a history reader to the bottom", () => {
   let effect, resized, onScroll, disconnected = false;
@@ -94,7 +94,7 @@ test("panel and keyboard resizing keep the latest GIF visible without pulling a 
     scrollTo({top}) { this.scrollTop = Math.min(top, this.scrollHeight - this.clientHeight); },
     addEventListener(_name, handler) { onScroll = handler; }, removeEventListener() { onScroll = undefined; }
   };
-  const { useChatViewportAnchor } = load("app/chat-stickers/BearStickers.tsx", { requestAnimationFrame(callback) { const id = ++frameId; frames.set(id,callback); return id; }, cancelAnimationFrame(id) { frames.delete(id); }, ResizeObserver: class { constructor(callback) { resized = callback; } observe() {} disconnect() { disconnected = true; } }, modules: { react: { ...React, useEffect(callback) { effect = callback; } } } });
+  const { useChatViewportAnchor } = load("app/chat-stickers/BearStickers.tsx", { requestAnimationFrame(callback) { const id = ++frameId; frames.set(id,callback); return id; }, cancelAnimationFrame(id) { frames.delete(id); }, ResizeObserver: class { constructor(callback) { resized = callback; } observe() {} disconnect() { disconnected = true; } }, modules: { react: { ...React, useRef(value) { return { current: value }; }, useEffect(callback) { effect = callback; } } } });
   useChatViewportAnchor({current:element}, true); const cleanup = effect();
   element.clientHeight = 260; resized(); assert.equal(element.scrollTop, 740);
   assert.equal(styles.get("--chat-visible-height"), "260px");

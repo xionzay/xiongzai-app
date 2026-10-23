@@ -7,7 +7,7 @@ export class AdminApiError extends Error {
   ) { super(message); this.name = "AdminApiError"; }
 }
 
-type AdminApiEvent = { type: "session-expired" };
+type AdminApiEvent = { type: "session-expired" | "data-changed" };
 type AdminApiListener = (event: AdminApiEvent) => void;
 const listeners = new Set<AdminApiListener>();
 
@@ -35,6 +35,7 @@ export async function adminApiRequest<T>(path: string, init: RequestInit = {}): 
   const response = await adminApiFetch(path, init);
   const body = await response.json().catch(() => ({})) as Record<string, unknown>;
   throwForError(response, body, path);
+  if (init.method && !["GET", "HEAD"].includes(init.method.toUpperCase()) && !path.startsWith("/auth/")) emit({ type: "data-changed" });
   return body as T;
 }
 
@@ -45,6 +46,12 @@ export async function adminApiBlob(path: string, init: RequestInit = {}): Promis
     throwForError(response, body, path);
   }
   return response.blob();
+}
+
+/** Cookie-authenticated media endpoint, not an object-store or signed URL. Browser video uses Range. */
+export function adminFilePreviewUrl(fileId: string): string {
+  if (!/^[0-9a-f-]{36}$/iu.test(fileId)) throw new AdminApiError("文件编号无效", "FILE_ID_INVALID", 400);
+  return `${adminApiBaseUrl()}/files/${encodeURIComponent(fileId)}/preview`;
 }
 
 async function adminApiFetch(path: string, init: RequestInit): Promise<Response> {

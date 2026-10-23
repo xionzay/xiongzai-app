@@ -1009,17 +1009,17 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   background-repeat: no-repeat;
   background-size: contain;
 }
-.nav-home { background-image:url('/assets/icon-home.png'); }
-.nav-order { background-image:url('/assets/icon-order.png'); }
-.nav-message { background-image:url('/assets/icon-message.png'); }
-.nav-mine { background-image:url('/assets/icon-mine.png'); }
-.nav-service,.nav-filter { background-image:url('/assets/icon-service.png'); }
-.nav-favorite { background-image:url('/assets/icon-favorite.png'); }
-.nav-shield { background-image:url('/assets/icon-shield.png'); }
-.nav-setting { background-image:url('/assets/icon-setting.png'); }
-.nav-wallet { background-image:url('/assets/icon-wallet.png'); }
-.nav-coupon { background-image:url('/assets/icon-coupon.png'); }
-.nav-withdraw { background-image:url('/assets/icon-withdraw.png'); }
+.nav-home { background-image:url('/assets/reference-jelly-v5/home.png'); }
+.nav-order { background-image:url('/assets/reference-jelly-v5/order-original-shape.png'); }
+.nav-message { background-image:url('/assets/reference-jelly-v5/message.png'); }
+.nav-mine { background-image:url('/assets/reference-jelly-v5/mine.png'); }
+.nav-service,.nav-filter { background-image:url('/assets/reference-jelly-v5/service.png'); }
+.nav-favorite { background-image:url('/assets/reference-jelly-v5/favorite.png'); }
+.nav-shield { background-image:url('/assets/reference-jelly-v5/shield.png'); }
+.nav-setting { background-image:url('/assets/reference-jelly-v5/setting.png'); }
+.nav-wallet { background-image:url('/assets/reference-jelly-v5/wallet.png'); }
+.nav-coupon { background-image:url('/assets/reference-jelly-v5/coupon.png'); }
+.nav-withdraw { background-image:url('/assets/reference-jelly-v5/wallet.png'); }
 
 /* Direct image rendering: reliable on every card, tile and navigation surface. */
 .nav-symbol {
@@ -1152,6 +1152,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .full-primary,.secondary-full { width: calc(100% - 24px); min-height: 50px; margin: 5px 12px 18px; border: 0; border-radius: 16px; font-size: 14px; font-weight: 900; cursor: pointer; }
 .full-primary { background: linear-gradient(145deg,#ff773d,#ff4d15); color: white; box-shadow: 0 7px 16px rgba(255,79,21,.25); }
 .secondary-full { border: 1px solid #aacce8; background: #edf7ff; color: #2874b7; }
+.seller-apply-form-screen .onboarding-games { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 12px;margin:0;padding:8px 10px;border:1px solid var(--line);border-radius:12px; }
+.seller-apply-form-screen .onboarding-games legend { padding:0 4px;font-size:14px;font-weight:800; }
+.seller-apply-form-screen .onboarding-games label { display:flex;align-items:center;gap:8px;min-width:0;min-height:44px;font-size:14px; }
+.seller-apply-form-screen .onboarding-games input[type="checkbox"] { width:18px;min-width:18px;height:18px;min-height:18px;margin:0;accent-color:var(--blue); }
 .setup-notice,.payment-security,.complaint-notice,.profile-privacy,.apply-agreement,.ledger-note,.withdraw-notice,.seller-action-note,.spec-help { display: flex; align-items: center; gap: 12px; }
 .setup-notice .nav-symbol,.payment-security .nav-symbol,.complaint-notice .nav-symbol,.profile-privacy .nav-symbol,.apply-agreement .nav-symbol,.ledger-note .nav-symbol,.withdraw-notice .nav-symbol,.seller-action-note .nav-symbol,.spec-help .nav-symbol { flex: none; width: 40px; height: 40px; }
 .setup-notice span b,.setup-notice span small,.complaint-notice span b,.complaint-notice span small,.profile-privacy span b,.profile-privacy span small,.apply-agreement span b,.apply-agreement span small,.ledger-note span b,.ledger-note span small,.withdraw-notice span b,.withdraw-notice span small,.seller-action-note span b,.seller-action-note span small,.spec-help span b,.spec-help span small { display: block; }
@@ -3530,13 +3534,13 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .phone-shell .customer-service-screen {
   background-color: var(--xiongzai-chat-ivory) !important;
   background-image:
-    linear-gradient(135deg, rgba(255, 235, 177, .68) 0%, rgba(230, 244, 255, .65) 43%, rgba(230, 244, 255, .65) 63%, rgba(255, 237, 185, .68) 100%),
+    linear-gradient(135deg, rgba(255, 235, 177, .77) 0%, rgba(230, 244, 255, .74) 43%, rgba(230, 244, 255, .74) 63%, rgba(255, 237, 185, .77) 100%),
     url("/assets/wallpapers/chat-dense-blue-v3.png"),
     linear-gradient(135deg, #fff2cf 0%, #edf7ff 43%, #edf7ff 63%, #fff3d5 100%) !important;
   background-position: center, center, center !important;
   background-repeat: no-repeat, no-repeat, no-repeat !important;
-  /* 完整等比显示整张画布，禁止 cover 裁切和 repeat 重复。 */
-  background-size: 100% 100%, contain, 100% 100% !important;
+  /* 等比铺满整个会话容器，让图案延续到标题及输入区，避免 contain 留白。 */
+  background-size: 100% 100%, cover, 100% 100% !important;
   /* 相对可视容器固定尺寸，长会话滚动不会把图案拉大。 */
   background-attachment: scroll !important;
 }
@@ -3592,8 +3596,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
 .phone-shell .context-state-body.bear-state-card { min-height: 0; margin: 12px; padding: 24px 20px; border: 1px solid var(--line); box-shadow: var(--soft-shadow); }
 .phone-shell .context-state-body.bear-state-card h2 { margin-top: 8px; }
 .phone-shell .live-data-state:has(.bear-state-image),
-.phone-shell .policy-document-state:has(.bear-state-image),
-.phone-shell .chat-empty-state:has(.bear-state-image) { background: #fff; border-radius: 20px; }
+.phone-shell .policy-document-state:has(.bear-state-image) { background: #fff; border-radius: 20px; }
 .phone-shell .result-hero.bear-state-card,
 .phone-shell .payment-processing-hero.bear-state-card { margin: 12px 0; padding: 20px 16px; }
 .phone-shell .payment-processing-hero.bear-state-card { margin-left: 12px; margin-right: 12px; }
@@ -3643,6 +3646,12 @@ button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px
   --ui-label-size: 12px;
   --ui-label-weight: 500;
   --ui-status-layer: 100;
+}
+/* Small, immediate feedback only in discovery/chat/navigation; transaction actions keep their rules. */
+.user-motion :is(.home-screen,.search-discovery-screen,.chat-composer,.bottom-nav) {
+  --press-button: .97;
+  --press-card: .99;
+  --press-shortcut: .97;
 }
 .home-retained { height: 100%; }
 .home-retained[hidden] { display: none; }

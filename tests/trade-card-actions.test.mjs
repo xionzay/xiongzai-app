@@ -39,6 +39,6 @@ test('expired reviews, partial and full refunds retain correct status and action
  const o=structuredClone(rows[6]);o.terminatedAt=now-8*24*HOUR;
  assert.equal(label(o,now),'已完成');assert(!ids(o).includes('review'));assert(!matches(o,'待评价',now));assert(matches(o,'已完成',now));
  assert.equal(label(rows[10],now),'待评价');assert(!matches(rows[10],'售后中',now));
- const full=structuredClone(rows[10]);full.refunded=full.amount;assert.equal(label(full,now),'已退款');assert(!matches(full,'已完成',now));assert(ids(full).includes('review'));
+ const full=structuredClone(rows[10]);full.refunded=full.amount;assert.equal(label(full,now),'已退款');assert(matches(full,'已完成',now));assert(ids(full).includes('review'));
  full.reviewed=true;assert.equal(label(full,now),'已退款');assert(actions(full,now).more.some(a=>a.label==='查看评价'));
 });

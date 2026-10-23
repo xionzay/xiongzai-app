@@ -1,0 +1,501 @@
+{
+  "style": "奶油多彩果冻",
+  "version": 1,
+  "icons": [
+    {
+      "kind": "quick-match",
+      "url": "/assets/cream-jelly-v1/quick-match.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "coupon-center",
+      "url": "/assets/cream-jelly-v1/coupon-center.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "app-rules",
+      "url": "/assets/cream-jelly-v1/app-rules.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "feedback",
+      "url": "/assets/cream-jelly-v1/feedback.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "official-notices",
+      "url": "/assets/cream-jelly-v1/official-notices.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "home",
+      "url": "/assets/cream-jelly-v1/home.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "order",
+      "url": "/assets/cream-jelly-v1/order.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "message",
+      "url": "/assets/cream-jelly-v1/message.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "mine",
+      "url": "/assets/cream-jelly-v1/mine.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "search",
+      "url": "/assets/cream-jelly-v1/search.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "flame",
+      "url": "/assets/cream-jelly-v1/flame.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "crown",
+      "url": "/assets/cream-jelly-v1/crown.png",
+      "source": "01-首页图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "product",
+      "url": "/assets/cream-jelly-v1/product.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "wallet",
+      "url": "/assets/cream-jelly-v1/wallet.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 418,
+        "top": 0,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "shield",
+      "url": "/assets/cream-jelly-v1/shield.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 836,
+        "top": 0,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "favorite",
+      "url": "/assets/cream-jelly-v1/favorite.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 418,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "setting",
+      "url": "/assets/cream-jelly-v1/setting.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 418,
+        "top": 418,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "share",
+      "url": "/assets/cream-jelly-v1/share.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 836,
+        "top": 418,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "service",
+      "url": "/assets/cream-jelly-v1/service.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 836,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "data",
+      "url": "/assets/cream-jelly-v1/data.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 418,
+        "top": 836,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "mine-wait",
+      "url": "/assets/cream-jelly-v1/mine-wait.png",
+      "source": "02-功能工具-奶油多彩果冻.png",
+      "cell": {
+        "left": 836,
+        "top": 836,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "coupon",
+      "url": "/assets/cream-jelly-v1/coupon.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "back",
+      "url": "/assets/cream-jelly-v1/back.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "close",
+      "url": "/assets/cream-jelly-v1/close.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "chevron",
+      "url": "/assets/cream-jelly-v1/chevron.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 0,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "check",
+      "url": "/assets/cream-jelly-v1/check.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "plus",
+      "url": "/assets/cream-jelly-v1/plus.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "minus",
+      "url": "/assets/cream-jelly-v1/minus.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "more",
+      "url": "/assets/cream-jelly-v1/more.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 362,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "smile",
+      "url": "/assets/cream-jelly-v1/smile.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "send",
+      "url": "/assets/cream-jelly-v1/send.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "rating-outline",
+      "url": "/assets/cream-jelly-v1/rating-outline.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "message-outline",
+      "url": "/assets/cream-jelly-v1/message-outline.png",
+      "source": "03-轻量控件-奶油多彩果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 724,
+        "width": 362,
+        "height": 362
+      }
+    },
+    {
+      "kind": "rating-filled",
+      "url": "/assets/cream-jelly-v1/rating-filled.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 444,
+        "height": 444
+      }
+    },
+    {
+      "kind": "target",
+      "url": "/assets/cream-jelly-v1/target.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 444,
+        "top": 0,
+        "width": 443,
+        "height": 444
+      }
+    },
+    {
+      "kind": "refresh",
+      "url": "/assets/cream-jelly-v1/refresh.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 887,
+        "top": 0,
+        "width": 444,
+        "height": 444
+      }
+    },
+    {
+      "kind": "image",
+      "url": "/assets/cream-jelly-v1/image.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 1331,
+        "top": 0,
+        "width": 443,
+        "height": 444
+      }
+    },
+    {
+      "kind": "warning",
+      "url": "/assets/cream-jelly-v1/warning.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 444,
+        "width": 444,
+        "height": 443
+      }
+    },
+    {
+      "kind": "hourglass",
+      "url": "/assets/cream-jelly-v1/hourglass.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 444,
+        "top": 444,
+        "width": 443,
+        "height": 443
+      }
+    },
+    {
+      "kind": "male",
+      "url": "/assets/cream-jelly-v1/male.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 887,
+        "top": 444,
+        "width": 444,
+        "height": 443
+      }
+    },
+    {
+      "kind": "female",
+      "url": "/assets/cream-jelly-v1/female.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/补充图标-奶油多彩果冻.png",
+      "cell": {
+        "left": 1331,
+        "top": 444,
+        "width": 443,
+        "height": 443
+      }
+    },
+    {
+      "kind": "play",
+      "url": "/assets/cream-jelly-v1/play.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/播放收藏-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "pause",
+      "url": "/assets/cream-jelly-v1/pause.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/播放收藏-奶油多彩果冻.png",
+      "cell": {
+        "left": 627,
+        "top": 0,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "heart-filled",
+      "url": "/assets/cream-jelly-v1/heart-filled.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/播放收藏-奶油多彩果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 627,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "heart-outline",
+      "url": "/assets/cream-jelly-v1/heart-outline.png",
+      "source": "/Applications/c2c游戏服务软件/docs/cream-jelly-integration-2026-10-10/播放收藏-奶油多彩果冻.png",
+      "cell": {
+        "left": 627,
+        "top": 627,
+        "width": 627,
+        "height": 627
+      }
+    }
+  ]
+}

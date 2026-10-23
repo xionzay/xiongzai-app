@@ -7,7 +7,13 @@
 }
 .phone-shell[data-page-palette="seller"] { --toon-fill:#b5c8f6; --toon-accent:#8f9bec; --toon-detail:#d6eaff; --toon-panel:#dce2fa; --toon-action:#536cda; }
 .phone-shell .toon-icon { display:inline-block; width:28px; height:28px; flex-shrink:0; color:var(--toon-ink); vertical-align:middle; overflow:visible; }
-.phone-shell .toon-illustration { overflow:hidden; }
+.phone-shell .toon-illustration { overflow:hidden; fill:none; stroke:none; filter:none; }
+.phone-shell .carousel-pause .carousel-playback-icon { width:14px; height:14px; }
+.phone-shell .toon-glyph { width:1em; height:1em; min-width:14px; min-height:14px; }
+.phone-shell .toon-glyph-right { rotate:180deg; }
+.phone-shell .toon-glyph-up { rotate:180deg; }
+.phone-shell .rating-star-svg { width:46px; height:46px; }
+.phone-shell .companion-gender .toon-icon { width:14px; height:14px; }
 .phone-shell .app-cartoon-icon { display:inline-grid; place-items:center; width:38px; height:38px; flex-shrink:0; font-style:normal; }
 .phone-shell .app-cartoon-icon>.toon-icon { width:36px; height:36px; }
 .phone-shell .bottom-nav .app-cartoon-icon { width:36px; height:36px; margin:0 auto; background:transparent; border:0; box-shadow:none; transform:none; }

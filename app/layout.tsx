@@ -9,6 +9,7 @@ import "./chat-stickers/bear-v3.css";
 import "./user-theme.css";
 import "./commerce-layout.css";
 import "./home-commerce.css";
+import "./search-discovery.css";
 import "./trade-v31/trade.css";
 import "./conversation-list.css";
 import "./seller-workbench/seller-workbench.css"; // Merchant workbench theme

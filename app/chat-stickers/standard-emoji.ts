@@ -18,6 +18,7 @@ export function emojiTokens(text: string) {
 export function searchEmoji(query: string, category: string, recentIds: string[] = []) {
   const search = query.trim().toLocaleLowerCase();
   if (search) return standardEmoji.filter(e => [e.label, e.name, e.glyph, ...e.keywords].join(' ').toLocaleLowerCase().includes(search));
+  if (category === '全部') return standardEmoji;
   if (category === '常用') return recentIds.flatMap(id => { const emoji = byId.get(id); return emoji ? [emoji] : []; });
   return standardEmoji.filter(e => e.category === category);
 }

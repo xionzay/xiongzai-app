@@ -1,29 +1,29 @@
 "use client";
 import { PRODUCT_GAMES, publicGames } from '../product-decisions';
 import { CartoonIcon } from "../ui/CartoonIcon";
-import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { CatalogImage } from '../CatalogImage';
 import { ImagePicker } from './ImagePicker';
 import { errorMessage, fieldLabels, fieldLimits, profileFields, revisionPayload, validateProfile, type Profile, type ProfileFields, type Request, type Revision } from './model';
 type VoicePolicy = { id: string; title: string; content: string; version_no: number };
 const statusText: Record<string, string> = { DRAFT: '草稿已保存', SUBMITTED: '资料已提交，等待审核', UNDER_REVIEW: '资料审核中', NEEDS_SUPPLEMENT: '需要补充资料', REJECTED: '资料审核未通过', APPROVED: '资料已生效' };
-export function ProfileEditor({ request, onBack, onPreview, onLogin, navigationGuard, notify }: { request: Request; onBack: () => void; onPreview: (id: string) => void; onLogin: () => void; navigationGuard: MutableRefObject<((next: () => void) => void) | null>; notify: (message: string) => void }) {
+export function ProfileEditor({ request, onBack, onPreview, onLogin, registerNavigationGuard, notify }: { request: Request; onBack: () => void; onPreview: (id: string) => void; onLogin: () => void; registerNavigationGuard: (guard: ((next: () => void) => void) | null) => void; notify: (message: string) => void }) {
   const [profile, setProfile] = useState<Profile | null>(null), [draft, setDraft] = useState<ProfileFields | null>(null), [revision, setRevision] = useState<Revision | null>(null);
   const [baseline, setBaseline] = useState(''), [error, setError] = useState(''), [fieldErrors, setFieldErrors] = useState<Record<string, string>>({}), [busy, setBusy] = useState(false);
   const [picker, setPicker] = useState<'SELLER_AVATAR' | null>(null), [leave, setLeave] = useState<(() => void) | null>(null);
   const lock = useRef(false), form = useRef<HTMLFormElement>(null), leaveDialog = useRef<HTMLDialogElement>(null);
   const [voicePolicies, setVoicePolicies] = useState<VoicePolicy[]>([]), [voiceSelected, setVoiceSelected] = useState<string[]>([]), [policyReady, setPolicyReady] = useState(false), [policyError, setPolicyError] = useState('');
   const loadPolicies = async () => { setPolicyReady(false); setPolicyError(''); try { const [policies, accepted] = await Promise.all([request<VoicePolicy[]>('/policies/current?scene=VOICE_SAMPLE_UPLOAD'), request<{ policy_version_id: string; acceptance_scene: string }[]>('/policies/acceptances')]); if (!policies.length) throw new Error('声音名片授权协议尚未配置'); setVoicePolicies(policies.filter(p => !accepted.some(a => a.policy_version_id === p.id && a.acceptance_scene === 'VOICE_SAMPLE_UPLOAD'))); setPolicyReady(true); } catch (e) { setPolicyError(errorMessage(e)); } };
-  useEffect(() => { void loadPolicies(); }, [request]);
+  useEffect(() => { void Promise.resolve().then(loadPolicies); }, [request]);
   const dirty = Boolean(draft && JSON.stringify(draft) !== baseline);
   const reviewed = profile && ['APPROVED', 'SUSPENDED'].includes(profile.status);
   const locked = ['SUBMITTED', 'UNDER_REVIEW'].includes(revision?.status ?? '') || ['PENDING_REVIEW', 'BANNED'].includes(profile?.status ?? '');
   const load = async () => { setError(''); try { const row = await request<Profile>('/seller/profile'); const pending = row.pending_profile_revision ?? null; const value = profileFields(pending?.snapshot ?? row); setProfile(row); setDraft(value); setRevision(pending); setBaseline(JSON.stringify(value)); } catch (e) { setError(errorMessage(e)); } };
-  useEffect(() => { void load(); }, [request]);
+  useEffect(() => { void Promise.resolve().then(load); }, [request]);
   useEffect(() => { if (!dirty) return; const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ''; }; window.addEventListener('beforeunload', handler); return () => window.removeEventListener('beforeunload', handler); }, [dirty]);
   useEffect(() => { if (leave) leaveDialog.current?.showModal(); }, [leave]);
-  const exit = (next: () => void) => { if (lock.current) return; const proceed = () => { navigationGuard.current = null; next(); }; if (dirty) setLeave(() => proceed); else proceed(); };
-  useEffect(() => { navigationGuard.current = exit; return () => { navigationGuard.current = null; }; }, [dirty, busy, navigationGuard]);
+  const exit = (next: () => void) => { if (lock.current) return; const proceed = () => { registerNavigationGuard(null); next(); }; if (dirty) setLeave(() => proceed); else proceed(); };
+  useEffect(() => { registerNavigationGuard(exit); return () => { registerNavigationGuard(null); }; }, [dirty, busy, registerNavigationGuard]);
   const update = (key: keyof ProfileFields, value: string | null) => { setDraft(s => s ? { ...s, [key]: value } : s); setFieldErrors(s => { const next = { ...s }; delete next[key]; return next; }); };
   const invalid = (errors: Record<string, string>) => { setFieldErrors(errors); requestAnimationFrame(() => { const field = form.current?.querySelector<HTMLElement>(`[data-field="${Object.keys(errors)[0]}"]`); field?.scrollIntoView({ block: 'center' }); field?.querySelector<HTMLElement>('input,textarea,button')?.focus(); }); };
   const save = async (submit: boolean) => {

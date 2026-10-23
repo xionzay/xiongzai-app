@@ -1,0 +1,562 @@
+{
+  "version": 5,
+  "style": "用户指定亮面奶油果冻·双手柄",
+  "icons": [
+    {
+      "kind": "quick-match",
+      "label": "快速匹配",
+      "url": "/assets/reference-jelly-v5/quick-match.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/快速匹配-双手柄原图.png",
+      "cell": null,
+      "artwork": "approved-reference-double-controller"
+    },
+    {
+      "kind": "coupon-center",
+      "label": "领券中心",
+      "url": "/assets/reference-jelly-v5/coupon-center-original-shape.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/01-首页图标-原图形果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 0,
+        "width": 362,
+        "height": 327
+      },
+      "artwork": "original-shape-current-jelly"
+    },
+    {
+      "kind": "app-rules",
+      "label": "平台规则",
+      "url": "/assets/reference-jelly-v5/app-rules.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 730,
+        "top": 0,
+        "width": 350,
+        "height": 380
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "feedback",
+      "label": "意见反馈",
+      "url": "/assets/reference-jelly-v5/feedback-original-shape.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/01-首页图标-原图形果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 0,
+        "width": 362,
+        "height": 327
+      },
+      "artwork": "original-shape-current-jelly"
+    },
+    {
+      "kind": "official-notices",
+      "label": "官方通知",
+      "url": "/assets/reference-jelly-v5/official-notices.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 0,
+        "top": 380,
+        "width": 380,
+        "height": 315
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "home",
+      "label": "首页",
+      "url": "/assets/reference-jelly-v5/home.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 380,
+        "width": 350,
+        "height": 315
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "order",
+      "label": "订单",
+      "url": "/assets/reference-jelly-v5/order-original-shape.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/01-首页图标-原图形果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 385,
+        "width": 362,
+        "height": 305
+      },
+      "artwork": "original-shape-current-jelly"
+    },
+    {
+      "kind": "message",
+      "label": "消息",
+      "url": "/assets/reference-jelly-v5/message.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 1080,
+        "top": 380,
+        "width": 368,
+        "height": 315
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "mine",
+      "label": "我的",
+      "url": "/assets/reference-jelly-v5/mine.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 0,
+        "top": 695,
+        "width": 380,
+        "height": 391
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "search",
+      "label": "搜索",
+      "url": "/assets/reference-jelly-v5/search.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 695,
+        "width": 350,
+        "height": 391
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "flame",
+      "label": "熊崽热卖",
+      "url": "/assets/reference-jelly-v5/flame.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 730,
+        "top": 695,
+        "width": 350,
+        "height": 391
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "crown",
+      "label": "热门店铺",
+      "url": "/assets/reference-jelly-v5/crown.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-首页图标.png",
+      "cell": {
+        "left": 1080,
+        "top": 695,
+        "width": 368,
+        "height": 391
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "product",
+      "label": "商品管理",
+      "url": "/assets/reference-jelly-v5/product.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 483,
+        "height": 336
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "wallet",
+      "label": "钱包",
+      "url": "/assets/reference-jelly-v5/wallet.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 483,
+        "top": 0,
+        "width": 482,
+        "height": 336
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "shield",
+      "label": "售后盾牌",
+      "url": "/assets/reference-jelly-v5/shield.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 965,
+        "top": 0,
+        "width": 483,
+        "height": 336
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "favorite",
+      "label": "收藏",
+      "url": "/assets/reference-jelly-v5/favorite.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 0,
+        "top": 380,
+        "width": 483,
+        "height": 302
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "setting",
+      "label": "设置",
+      "url": "/assets/reference-jelly-v5/setting.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 483,
+        "top": 380,
+        "width": 482,
+        "height": 302
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "share",
+      "label": "分享上传",
+      "url": "/assets/reference-jelly-v5/share.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 965,
+        "top": 380,
+        "width": 483,
+        "height": 302
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "service",
+      "label": "客服",
+      "url": "/assets/reference-jelly-v5/service.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 0,
+        "top": 730,
+        "width": 483,
+        "height": 295
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "data",
+      "label": "经营数据",
+      "url": "/assets/reference-jelly-v5/data.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 483,
+        "top": 730,
+        "width": 482,
+        "height": 295
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "mine-wait",
+      "label": "待服务",
+      "url": "/assets/reference-jelly-v5/mine-wait.png",
+      "source": "output/imagegen/reference-jelly-double-controller-2026-10-12/用户参考-功能图标.png",
+      "cell": {
+        "left": 965,
+        "top": 730,
+        "width": 483,
+        "height": 295
+      },
+      "artwork": "exact-user-reference"
+    },
+    {
+      "kind": "coupon",
+      "label": "票券选择",
+      "url": "/assets/reference-jelly-v5/coupon.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 362,
+        "height": 285
+      }
+    },
+    {
+      "kind": "back",
+      "label": "返回",
+      "url": "/assets/reference-jelly-v5/back.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 0,
+        "width": 362,
+        "height": 285
+      }
+    },
+    {
+      "kind": "close",
+      "label": "关闭",
+      "url": "/assets/reference-jelly-v5/close.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 0,
+        "width": 362,
+        "height": 285
+      }
+    },
+    {
+      "kind": "chevron",
+      "label": "下拉",
+      "url": "/assets/reference-jelly-v5/chevron.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 0,
+        "width": 362,
+        "height": 285
+      }
+    },
+    {
+      "kind": "check",
+      "label": "勾选",
+      "url": "/assets/reference-jelly-v5/check.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 384,
+        "width": 362,
+        "height": 253
+      }
+    },
+    {
+      "kind": "plus",
+      "label": "添加",
+      "url": "/assets/reference-jelly-v5/plus.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 384,
+        "width": 362,
+        "height": 253
+      }
+    },
+    {
+      "kind": "minus",
+      "label": "减少",
+      "url": "/assets/reference-jelly-v5/minus.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 384,
+        "width": 362,
+        "height": 253
+      }
+    },
+    {
+      "kind": "more",
+      "label": "更多",
+      "url": "/assets/reference-jelly-v5/more.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 384,
+        "width": 362,
+        "height": 253
+      }
+    },
+    {
+      "kind": "smile",
+      "label": "标准表情入口",
+      "url": "/assets/reference-jelly-v5/smile.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 730,
+        "width": 362,
+        "height": 267
+      }
+    },
+    {
+      "kind": "send",
+      "label": "发送箭头",
+      "url": "/assets/reference-jelly-v5/send.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 730,
+        "width": 362,
+        "height": 267
+      }
+    },
+    {
+      "kind": "rating-outline",
+      "label": "星级轮廓",
+      "url": "/assets/reference-jelly-v5/rating-outline.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 730,
+        "width": 362,
+        "height": 267
+      }
+    },
+    {
+      "kind": "message-outline",
+      "label": "联系商家",
+      "url": "/assets/reference-jelly-v5/message-outline.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/03-轻量控件-原图形果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 730,
+        "width": 362,
+        "height": 267
+      }
+    },
+    {
+      "kind": "rating-filled",
+      "label": "选中星级",
+      "url": "/assets/reference-jelly-v5/rating-filled.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 362,
+        "height": 305
+      }
+    },
+    {
+      "kind": "target",
+      "label": "定位",
+      "url": "/assets/reference-jelly-v5/target.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 0,
+        "width": 362,
+        "height": 305
+      }
+    },
+    {
+      "kind": "refresh",
+      "label": "刷新",
+      "url": "/assets/reference-jelly-v5/refresh.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 0,
+        "width": 362,
+        "height": 305
+      }
+    },
+    {
+      "kind": "image",
+      "label": "图片附件",
+      "url": "/assets/reference-jelly-v5/image.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 0,
+        "width": 362,
+        "height": 305
+      }
+    },
+    {
+      "kind": "warning",
+      "label": "警告",
+      "url": "/assets/reference-jelly-v5/warning.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 375,
+        "width": 362,
+        "height": 282
+      }
+    },
+    {
+      "kind": "hourglass",
+      "label": "沙漏",
+      "url": "/assets/reference-jelly-v5/hourglass.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 375,
+        "width": 362,
+        "height": 282
+      }
+    },
+    {
+      "kind": "male",
+      "label": "男性符号",
+      "url": "/assets/reference-jelly-v5/male.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 375,
+        "width": 362,
+        "height": 282
+      }
+    },
+    {
+      "kind": "female",
+      "label": "女性符号",
+      "url": "/assets/reference-jelly-v5/female.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 375,
+        "width": 362,
+        "height": 282
+      }
+    },
+    {
+      "kind": "play",
+      "label": "播放",
+      "url": "/assets/reference-jelly-v5/play.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 0,
+        "top": 736,
+        "width": 362,
+        "height": 264
+      }
+    },
+    {
+      "kind": "pause",
+      "label": "暂停",
+      "url": "/assets/reference-jelly-v5/pause.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 362,
+        "top": 736,
+        "width": 362,
+        "height": 264
+      }
+    },
+    {
+      "kind": "heart-filled",
+      "label": "实心爱心",
+      "url": "/assets/reference-jelly-v5/heart-filled.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 724,
+        "top": 736,
+        "width": 362,
+        "height": 264
+      }
+    },
+    {
+      "kind": "heart-outline",
+      "label": "爱心轮廓",
+      "url": "/assets/reference-jelly-v5/heart-outline.png",
+      "source": "output/imagegen/original-shape-jelly-2026-10-11/04-补充控件-原图形果冻.png",
+      "cell": {
+        "left": 1086,
+        "top": 736,
+        "width": 362,
+        "height": 264
+      }
+    }
+  ]
+}

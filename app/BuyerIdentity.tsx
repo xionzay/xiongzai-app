@@ -11,7 +11,7 @@ export function BuyerIdentity({ request, userId, onOpen, onBack, onNavigate, det
   useEffect(() => {
     if (!userId) return;
     let active = true;
-    setResult(undefined);
+    void Promise.resolve().then(() => { if (active) setResult(undefined); });
     void request<BuyerSellerProfile>('/seller/profile').then(profile => { if (active) setResult({ userId, profile }); }).catch(error => {
       if (active) setResult({ userId, profile: null, ...(error?.code === 'SELLER_NOT_FOUND' ? {} : { error: '身份状态加载失败，请重试' }) });
     });
@@ -23,7 +23,7 @@ export function BuyerIdentity({ request, userId, onOpen, onBack, onNavigate, det
   const title = !userId ? '登录后查看陪玩身份' : !ready ? '陪玩身份' : entry.title;
   const note = !userId ? '申请入驻或查看已有资格' : current?.error ?? (!current ? '正在读取身份状态…' : entry.note);
   const open = () => { if (!userId) onNavigate('auth'); else if (current?.error) setRetry(n => n + 1); else if (ready && entry.target === 'seller') onNavigate('seller'); else if (ready) onOpen?.(); };
-  if (!detail) return <button type="button" className="buyer-identity-entry" disabled={Boolean(userId && !current)} onClick={open}><i className="app-cartoon-icon menu-symbol" aria-hidden="true"><CartoonIcon kind="product" /></i><span><b>{title}</b><small>{note}</small></span><em aria-hidden="true">›</em></button>;
+  if (!detail) return <button type="button" className="buyer-identity-entry" disabled={Boolean(userId && !current)} onClick={open}><i className="app-cartoon-icon menu-symbol" aria-hidden="true"><CartoonIcon kind="product" /></i><span><b>{title}</b><small>{note}</small></span><em aria-hidden="true"><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>;
   return <div className="app-screen buyer-identity-screen"><header className="buyer-identity-header"><button type="button" aria-label="返回" onClick={onBack}><CartoonIcon kind="back" /></button><h1>陪玩身份</h1><span /></header><section className="buyer-identity-content"><h2>{title}</h2><p role={current?.error ? 'alert' : undefined}>{note}</p>
     {current?.profile?.suspended_reason && <p>原因：{current.profile.suspended_reason}</p>}
     {current?.profile?.latest_application?.rejection_reason && <p>审核意见：{current.profile.latest_application.rejection_reason}</p>}

@@ -30,17 +30,20 @@ export type BearStickerSender = ReturnType<typeof useBearStickerSender>;
 // Keep the last message visible when the keyboard/panel changes the available
 // height, while leaving a user who is reading older messages at their position.
 export function useChatViewportAnchor(pane: RefObject<HTMLElement | null>, enabled: boolean) {
+  const followLatest = useRef(true);
   useEffect(() => {
     const element = pane.current;
     if (!enabled || !element || typeof ResizeObserver === "undefined") return;
     let previousHeight = element.clientHeight;
     element.style.setProperty("--chat-visible-height", `${previousHeight}px`);
     let atBottom = element.scrollHeight - element.scrollTop - previousHeight <= 32;
+    followLatest.current = atBottom;
     let resizing = false;
     let frame: number | undefined;
     const onScroll = () => {
       if (resizing || element.clientHeight !== previousHeight) return;
       atBottom = element.scrollHeight - element.scrollTop - previousHeight <= 32;
+      followLatest.current = atBottom;
     };
     const observer = new ResizeObserver(() => {
       const height = element.clientHeight;
@@ -60,6 +63,7 @@ export function useChatViewportAnchor(pane: RefObject<HTMLElement | null>, enabl
     observer.observe(element);
     return () => { observer.disconnect(); if (frame !== undefined) cancelAnimationFrame(frame); element.removeEventListener("scroll", onScroll); element.style.removeProperty("--chat-visible-height"); };
   }, [pane, enabled]);
+  return followLatest;
 }
 
 export function BearStickerImage({ id, panel = false }: { id?: string; panel?: boolean }) {
@@ -73,11 +77,11 @@ export function BearStickerImage({ id, panel = false }: { id?: string; panel?: b
   // eslint-disable-next-line @next/next/no-img-element
   return <img key={`${sticker.id}:${revision}`} className={panel ? "bear-v3-panel-art" : "bear-v3-message-art"} src={sticker.url} alt={sticker.name} width={384} height={384} loading={panel ? "lazy" : undefined} decoding="async" draggable={false} onError={() => setFailedUrl(sticker.url)} />;
 }
-export function BearStickerPanel({ sender }: { sender: BearStickerSender }) {
+export function BearStickerPanel({ sender, previewOnly = false }: { sender: BearStickerSender; previewOnly?: boolean }) {
   const stickers = bearStickersFor(sender.side);
   return <section className="bear-v3-panel" aria-label={`${sender.side === "buyer" ? "买家" : "卖家"}熊崽动态表情`}>
-    <p className="bear-v3-panel-hint">{sender.side === "buyer" ? "买家" : "卖家"}表情 · 35 个 · 点击发送</p>
-    <div className="bear-v3-grid" aria-busy={sender.sending}>{stickers.map(sticker => <button type="button" key={sticker.id} disabled={sender.disabled} aria-label={`发送${sticker.name}`} title={sticker.name} onClick={() => sender.send(sticker.id)}><BearStickerImage id={sticker.id} panel /></button>)}</div>
+    <p className="bear-v3-panel-hint">{sender.side === "buyer" ? "买家" : "卖家"}表情 · 35 个 · {previewOnly ? "点击本地预览" : "点击发送"}</p>
+    <div className="bear-v3-grid" aria-busy={sender.sending}>{stickers.map(sticker => <button type="button" key={sticker.id} disabled={sender.disabled} aria-label={`${previewOnly ? "本地预览" : "发送"}${sticker.name}`} title={sticker.name} onClick={() => sender.send(sticker.id)}><BearStickerImage id={sticker.id} panel /></button>)}</div>
     <p className="bear-v3-panel-status" role="status">{sender.sending ? "正在发送表情…" : sender.disabled ? "当前会话暂不能发送表情" : "向上滑动查看全部表情"}</p>
   </section>;
 }

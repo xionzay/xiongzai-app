@@ -1,0 +1,502 @@
+{
+  "style": "参考图奶油多彩果冻，快速匹配双手柄",
+  "version": 3,
+  "reference": "用户确认的 01 蓝黄果冻",
+  "icons": [
+    {
+      "kind": "quick-match",
+      "url": "/assets/cream-jelly-v3/quick-match.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0b518-adbd-75f0-9a87-2086654a20ba/exec-8f23f529-e469-4b42-bfbb-856b90074e9a.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 380,
+        "height": 392
+      }
+    },
+    {
+      "kind": "coupon-center",
+      "url": "/assets/cream-jelly-v3/coupon-center.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 0,
+        "width": 350,
+        "height": 392
+      }
+    },
+    {
+      "kind": "app-rules",
+      "url": "/assets/cream-jelly-v3/app-rules.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0b518-adbd-75f0-9a87-2086654a20ba/exec-fed49477-5132-4ece-934f-115878e40c04.png",
+      "cell": {
+        "left": 730,
+        "top": 0,
+        "width": 350,
+        "height": 392
+      }
+    },
+    {
+      "kind": "feedback",
+      "url": "/assets/cream-jelly-v3/feedback.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0b518-adbd-75f0-9a87-2086654a20ba/exec-e142990e-1fa7-41cc-84a5-e92f4359943e.png",
+      "cell": {
+        "left": 1080,
+        "top": 0,
+        "width": 368,
+        "height": 392
+      }
+    },
+    {
+      "kind": "official-notices",
+      "url": "/assets/cream-jelly-v3/official-notices.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0b518-adbd-75f0-9a87-2086654a20ba/exec-2f5eab84-c74a-4075-bfc5-cbf51c882f51.png",
+      "cell": {
+        "left": 0,
+        "top": 392,
+        "width": 380,
+        "height": 318
+      }
+    },
+    {
+      "kind": "home",
+      "url": "/assets/cream-jelly-v3/home.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 392,
+        "width": 350,
+        "height": 318
+      }
+    },
+    {
+      "kind": "order",
+      "url": "/assets/cream-jelly-v3/order.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0b518-adbd-75f0-9a87-2086654a20ba/exec-dc93fbc0-758a-4ab8-ae22-be8a462a1d31.png",
+      "cell": {
+        "left": 730,
+        "top": 392,
+        "width": 350,
+        "height": 318
+      }
+    },
+    {
+      "kind": "message",
+      "url": "/assets/cream-jelly-v3/message.png",
+      "source": "/Users/Admin/.codex/generated_images/01a0b518-adbd-75f0-9a87-2086654a20ba/exec-9f1fd1c1-7976-4e0c-b251-28e14bb8a56f.png",
+      "cell": {
+        "left": 1080,
+        "top": 392,
+        "width": 368,
+        "height": 318
+      }
+    },
+    {
+      "kind": "mine",
+      "url": "/assets/cream-jelly-v3/mine.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 0,
+        "top": 710,
+        "width": 380,
+        "height": 376
+      }
+    },
+    {
+      "kind": "search",
+      "url": "/assets/cream-jelly-v3/search.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 710,
+        "width": 350,
+        "height": 376
+      }
+    },
+    {
+      "kind": "flame",
+      "url": "/assets/cream-jelly-v3/flame.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 730,
+        "top": 710,
+        "width": 350,
+        "height": 376
+      }
+    },
+    {
+      "kind": "crown",
+      "url": "/assets/cream-jelly-v3/crown.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 1080,
+        "top": 710,
+        "width": 368,
+        "height": 376
+      }
+    },
+    {
+      "kind": "product",
+      "url": "/assets/cream-jelly-v3/product.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 440,
+        "height": 418
+      }
+    },
+    {
+      "kind": "wallet",
+      "url": "/assets/cream-jelly-v3/wallet.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 440,
+        "top": 0,
+        "width": 396,
+        "height": 418
+      }
+    },
+    {
+      "kind": "shield",
+      "url": "/assets/cream-jelly-v3/shield.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 836,
+        "top": 0,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "favorite",
+      "url": "/assets/cream-jelly-v3/favorite.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 0,
+        "top": 418,
+        "width": 440,
+        "height": 418
+      }
+    },
+    {
+      "kind": "setting",
+      "url": "/assets/cream-jelly-v3/setting.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 440,
+        "top": 418,
+        "width": 396,
+        "height": 418
+      }
+    },
+    {
+      "kind": "share",
+      "url": "/assets/cream-jelly-v3/share.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 836,
+        "top": 418,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "service",
+      "url": "/assets/cream-jelly-v3/service.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 0,
+        "top": 836,
+        "width": 440,
+        "height": 418
+      }
+    },
+    {
+      "kind": "data",
+      "url": "/assets/cream-jelly-v3/data.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 440,
+        "top": 836,
+        "width": 396,
+        "height": 418
+      }
+    },
+    {
+      "kind": "mine-wait",
+      "url": "/assets/cream-jelly-v3/mine-wait.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 836,
+        "top": 836,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "coupon",
+      "url": "/assets/cream-jelly-v3/coupon.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "back",
+      "url": "/assets/cream-jelly-v3/back.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 362,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "close",
+      "url": "/assets/cream-jelly-v3/close.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 724,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "chevron",
+      "url": "/assets/cream-jelly-v3/chevron.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 1086,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "check",
+      "url": "/assets/cream-jelly-v3/check.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 0,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "plus",
+      "url": "/assets/cream-jelly-v3/plus.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 362,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "minus",
+      "url": "/assets/cream-jelly-v3/minus.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 724,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "more",
+      "url": "/assets/cream-jelly-v3/more.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 1086,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "smile",
+      "url": "/assets/cream-jelly-v3/smile.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 0,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "send",
+      "url": "/assets/cream-jelly-v3/send.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 362,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "rating-outline",
+      "url": "/assets/cream-jelly-v3/rating-outline.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 724,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "message-outline",
+      "url": "/assets/cream-jelly-v3/message-outline.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 1086,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "rating-filled",
+      "url": "/assets/cream-jelly-v3/rating-filled.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 444,
+        "height": 444
+      }
+    },
+    {
+      "kind": "target",
+      "url": "/assets/cream-jelly-v3/target.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 444,
+        "top": 0,
+        "width": 443,
+        "height": 444
+      }
+    },
+    {
+      "kind": "refresh",
+      "url": "/assets/cream-jelly-v3/refresh.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 887,
+        "top": 0,
+        "width": 444,
+        "height": 444
+      }
+    },
+    {
+      "kind": "image",
+      "url": "/assets/cream-jelly-v3/image.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 1331,
+        "top": 0,
+        "width": 443,
+        "height": 444
+      }
+    },
+    {
+      "kind": "warning",
+      "url": "/assets/cream-jelly-v3/warning.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 0,
+        "top": 444,
+        "width": 444,
+        "height": 443
+      }
+    },
+    {
+      "kind": "hourglass",
+      "url": "/assets/cream-jelly-v3/hourglass.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 444,
+        "top": 444,
+        "width": 443,
+        "height": 443
+      }
+    },
+    {
+      "kind": "male",
+      "url": "/assets/cream-jelly-v3/male.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 887,
+        "top": 444,
+        "width": 444,
+        "height": 443
+      }
+    },
+    {
+      "kind": "female",
+      "url": "/assets/cream-jelly-v3/female.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 1331,
+        "top": 444,
+        "width": 443,
+        "height": 443
+      }
+    },
+    {
+      "kind": "play",
+      "url": "/assets/cream-jelly-v3/play.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "pause",
+      "url": "/assets/cream-jelly-v3/pause.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 627,
+        "top": 0,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "heart-filled",
+      "url": "/assets/cream-jelly-v3/heart-filled.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 0,
+        "top": 627,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "heart-outline",
+      "url": "/assets/cream-jelly-v3/heart-outline.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 627,
+        "top": 627,
+        "width": 627,
+        "height": 627
+      }
+    }
+  ]
+}

@@ -32,15 +32,17 @@ function publicImage(fileId: string): Promise<string | null> {
 
 export function CatalogImage({ src, alt, fileId, kind = "service", className = "", fallbackSrc }: { fallbackSrc?: string; src?: string; alt: string; fileId?: string | null; kind?: "avatar" | "service"; className?: string }) {
   const fallback = fallbackSrc ?? (kind === "avatar" ? DEFAULT_PLAYER_IMAGE : DEFAULT_SERVICE_IMAGE);
+  // Order snapshots contain approved file IDs, not image URLs.
+  const resolvedFileId = fileId ?? (src && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(src) ? src : null);
   const legacy = src && /^\/assets\/(player-(kirito|luye|xiaoyou|susu|poster)|product-hero|home-hero|publish-arcade)\.png$/.test(src);
   const [remote, setRemote] = useState<{ id: string; url: string | null } | null>(null);
   useEffect(() => {
-    if (!fileId) return;
+    if (!resolvedFileId) return;
     let active = true;
-    void publicImage(fileId).then(url => { if (active) setRemote({ id: fileId, url }); });
+    void publicImage(resolvedFileId).then(url => { if (active) setRemote({ id: resolvedFileId, url }); });
     return () => { active = false; };
-  }, [fileId]);
-  const candidate = fileId ? (remote?.id === fileId ? remote.url : null) ?? fallback : legacy ? fallback : src || fallback;
+  }, [resolvedFileId]);
+  const candidate = resolvedFileId ? (remote?.id === resolvedFileId ? remote.url : null) ?? fallback : legacy ? fallback : src || fallback;
   const [loaded, setLoaded] = useState("");
   const [failed, setFailed] = useState("");
   const broken = failed === candidate;

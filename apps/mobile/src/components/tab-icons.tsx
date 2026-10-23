@@ -1,19 +1,18 @@
 import { useEffect, useState } from "react";
 import { Animated, Easing, Image, type ColorValue, type ImageSourcePropType } from "react-native";
-import couponIcon from "../../assets/transparent-icons/coupon.png";
-import favoriteActionFilledIcon from "../../assets/transparent-icons/favorite-action-filled.png";
-import favoriteActionOutlineIcon from "../../assets/transparent-icons/favorite-action-outline.png";
-import favoriteIcon from "../../assets/transparent-icons/favorite.png";
-import homeIcon from "../../assets/transparent-icons/home.png";
-import messageActionIcon from "../../assets/transparent-icons/message-action.png";
-import messageIcon from "../../assets/transparent-icons/message.png";
-import mineIcon from "../../assets/transparent-icons/mine.png";
-import orderIcon from "../../assets/transparent-icons/order.png";
-import serviceIcon from "../../assets/transparent-icons/service.png";
-import settingIcon from "../../assets/transparent-icons/setting.png";
-import shieldIcon from "../../assets/transparent-icons/shield.png";
-import walletIcon from "../../assets/transparent-icons/wallet.png";
-import withdrawIcon from "../../assets/transparent-icons/withdraw.png";
+import couponIcon from "../../assets/reference-jelly-v5/coupon.png";
+import favoriteActionFilledIcon from "../../assets/reference-jelly-v5/rating-filled.png";
+import favoriteActionOutlineIcon from "../../assets/reference-jelly-v5/rating-outline.png";
+import favoriteIcon from "../../assets/reference-jelly-v5/favorite.png";
+import homeIcon from "../../assets/reference-jelly-v5/home.png";
+import messageActionIcon from "../../assets/reference-jelly-v5/message-outline.png";
+import messageIcon from "../../assets/reference-jelly-v5/message.png";
+import mineIcon from "../../assets/reference-jelly-v5/mine.png";
+import orderIcon from "../../assets/reference-jelly-v5/order-original-shape.png";
+import serviceIcon from "../../assets/reference-jelly-v5/service.png";
+import settingIcon from "../../assets/reference-jelly-v5/setting.png";
+import shieldIcon from "../../assets/reference-jelly-v5/shield.png";
+import walletIcon from "../../assets/reference-jelly-v5/wallet.png";
 
 type TabIconProps = { color?: ColorValue; size?: number };
 const iconSources = {
@@ -27,14 +26,14 @@ const iconSources = {
   setting: settingIcon,
   favorite: favoriteIcon,
   coupon: couponIcon,
-  withdraw: withdrawIcon,
+  withdraw: walletIcon,
   favoriteActionOutline: favoriteActionOutlineIcon,
   favoriteActionFilled: favoriteActionFilledIcon,
   messageAction: messageActionIcon,
 } as const;
 
-function DesignAssetIcon({ source, color, size }: { source: ImageSourcePropType; color: ColorValue; size: number }) {
-  return <Image source={source} resizeMode="contain" style={{ width: size, height: size, tintColor: color }} />;
+function DesignAssetIcon({ source, size }: { source: ImageSourcePropType; color: ColorValue; size: number }) {
+  return <Image source={source} resizeMode="contain" style={{ width: size, height: size, opacity: 1 }} />;
 }
 
 export function HomeTabIcon({ color = "#6E706F", size = 40 }: TabIconProps) {
@@ -69,7 +68,7 @@ export function FavoriteMenuIcon({ color = "#FFB319", size = 62 }: TabIconProps)
   return <DesignAssetIcon source={iconSources.favorite} color={color} size={size} />;
 }
 
-export function FavoriteActionIcon({ selected = false, color = "#FF5A1F", size = 34 }: { selected?: boolean; color?: ColorValue; size?: number }) {
+export function FavoriteActionIcon({ selected = false, size = 34 }: { selected?: boolean; color?: ColorValue; size?: number }) {
   const [scale] = useState(() => new Animated.Value(1));
   useEffect(() => {
     scale.stopAnimation();
@@ -80,7 +79,7 @@ export function FavoriteActionIcon({ selected = false, color = "#FF5A1F", size =
       Animated.timing(scale, { toValue: 1, duration: 60, easing: Easing.out(Easing.ease), useNativeDriver: true }),
     ]).start();
   }, [scale, selected]);
-  return <Animated.Image source={selected ? iconSources.favoriteActionFilled : iconSources.favoriteActionOutline} resizeMode="contain" style={{ width: size, height: size, tintColor: selected ? "#FF5A1F" : color, transform: [{ scale }] }} />;
+  return <Animated.Image source={selected ? iconSources.favoriteActionFilled : iconSources.favoriteActionOutline} resizeMode="contain" style={{ width: size, height: size, transform: [{ scale }] }} />;
 }
 
 export function MessageActionIcon({ color = "#2F8FE5", size = 34 }: { color?: ColorValue; size?: number }) {

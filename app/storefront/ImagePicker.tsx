@@ -11,7 +11,7 @@ export function ImagePicker({ kind, request, onClose, onSelect }: { kind: 'SELLE
   const ratio = kind === 'SELLER_COVER' ? 2.75 : 1;
   const maxSize = kind === 'SELLER_COVER' ? 10 : 5;
   const load = async () => { try { const result = await request<{ items: FileRecord[] }>(`/me/files?file_type=${kind}&limit=50`); setRecords(result.items); if (uploaded) setUploaded(result.items.find(r => r.id === uploaded.id) ?? uploaded); } catch (e) { setError(errorMessage(e)); } };
-  useEffect(() => { dialog.current?.showModal(); void load(); }, []);
+  useEffect(() => { dialog.current?.showModal(); void Promise.resolve().then(load); }, []);
   useEffect(() => () => { if (source) URL.revokeObjectURL(source); }, [source]);
   useEffect(() => { if (!dimensions.width || !image.current || !canvas.current) return; const rect = cropRect(dimensions.width, dimensions.height, ratio, zoom, x, y); const context = canvas.current.getContext('2d'); context?.clearRect(0, 0, canvas.current.width, canvas.current.height); context?.drawImage(image.current, rect.x, rect.y, rect.width, rect.height, 0, 0, canvas.current.width, canvas.current.height); }, [dimensions, ratio, zoom, x, y]);
   const upload = async () => {

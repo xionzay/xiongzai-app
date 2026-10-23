@@ -4,7 +4,8 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {webcrypto} from 'node:crypto';
-function load(path,deps={}){const c={exports:{},crypto:webcrypto,structuredClone,require:k=>deps[k]};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,c);return c.exports;}
+import { contractDependencies } from './helpers/commerce-contract.mjs';
+function load(path,deps={}){const c={exports:{},crypto:webcrypto,structuredClone,require:k=>({...contractDependencies,...deps})[k]};vm.runInNewContext(ts.transpileModule(readFileSync(new URL(path,import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,c);return c.exports;}
 const d=load('../app/product-decisions.ts'),c=load('../app/commerce-model.ts'),m=load('../app/trade-v31/model.ts'),a=load('../app/trade-v31/card-actions.ts',{'./model':m}),p=load('../app/seller-workbench/product-editor-model.ts');
 test('exact four games; game and explicit companion offer both needed for matching',()=>{
  assert.deepEqual([...d.PRODUCT_GAMES],['和平精英','三角洲行动','王者荣耀','无畏契约']);
@@ -38,7 +39,7 @@ test('official feedback and refund categories remain separate from ordinary orde
 
 test('single and multiple SKU purchases share a bottom sheet with quantity and exact total',async()=>{
  const React=await import('react'),{renderToStaticMarkup}=await import('react-dom/server');
- const context={exports:{},require:key=>key==='react'?{...React,useEffect(){},useId:()=> 'purchase-test',useRef:value=>({current:value})}:key==='react-dom'?{createPortal:node=>node}:key.endsWith('usePanelDismiss')?{usePanelDismiss:close=>({closing:false,dismiss:close})}:{CartoonIcon:()=>null}};
+ const context={exports:{},require:key=>key==='react'?{...React,useEffect(){},useState:()=>[{},()=>{}],useId:()=> 'purchase-test',useRef:value=>({current:value})}:key==='react-dom'?{createPortal:node=>node}:key.endsWith('usePanelDismiss')?{usePanelDismiss:close=>({closing:false,dismiss:close})}:{CartoonIcon:()=>null}};
  vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../app/PurchaseSpecSheet.tsx',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React}}).outputText,{...context,React});
  const props={anchor:{current:{closest:()=>({})}},title:'单价商品',cover:'/test.png',seller:'测试店铺',specs:[{id:'single',name:'标准',priceCent:1234}],selected:0,onSelect(){},quantity:2,onQuantity(){},onClose(){},onConfirm(){}};
  const single=renderToStaticMarkup(context.exports.PurchaseSpecSheet(props));assert.match(single,/role="dialog"/);assert.match(single,/购买数量/);assert.match(single,/¥24.68/);assert.doesNotMatch(single,/role="group"/);

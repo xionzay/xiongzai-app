@@ -14,9 +14,10 @@ function load(file,modules={},append='') {
 }
 function hooks(initial=[]) {
  const state=[...initial],refs=[];let cursor=0,refCursor=0;
- return {state,reset(){cursor=refCursor=0},react:{...React,useEffect(){},useState(value){const i=cursor++;if(!(i in state))state[i]=typeof value==='function'?value():value;return[state[i],next=>state[i]=typeof next==='function'?next(state[i]):next]},useRef(value){const i=refCursor++;return refs[i]??(refs[i]={current:value})}}};
+ return {state,reset(){cursor=refCursor=0},react:{...React,useEffect(){},useImperativeHandle(ref,create){if(ref)ref.current=create()},useState(value){const i=cursor++;if(!(i in state))state[i]=typeof value==='function'?value():value;return[state[i],next=>state[i]=typeof next==='function'?next(state[i]):next]},useRef(value){const i=refCursor++;return refs[i]??(refs[i]={current:value})}}};
 }
 const {CartoonIcon}=load('app/ui/CartoonIcon.tsx');
+const {ChatIcon}=load('app/ChatIcon.tsx');
 const {ThemedFilePicker}=load('app/ui/ThemedFilePicker.tsx',{'./CartoonIcon':{CartoonIcon}});
 const fixtures=[];
 const fixture=(name,node)=>fixtures.push({name,html:renderToStaticMarkup(node)});
@@ -29,19 +30,19 @@ function elements(node,type){if(!node||typeof node!=='object')return [];if(Array
  fixture('附件选择（测试控件，不上传）',React.createElement(ThemedFilePicker,{'aria-label':'测试附件选择',accept:'image/png',multiple:true},'选择图片'));
 });
  test('coupon data and locked duplicate actions survive the themed control change',async()=>{
- const h=hooks(),m=load('app/ProductDecisionPages.tsx',{'react':h.react,'./ui/CartoonIcon':{CartoonIcon},'./ui/ThemedFilePicker':{ThemedFilePicker}});
+ const h=hooks(),m=load('app/ProductDecisionPages.tsx',{'react':h.react,'./ChatIcon':{ChatIcon},'./ui/CartoonIcon':{CartoonIcon},'./ui/ThemedFilePicker':{ThemedFilePicker}});
  let calls=0,resolve;
  const row={id:'test-only',title:'测试券（隔离数据）',thresholdCent:'10000',discountCent:'1000',expiresAt:'测试日期',claimed:false};
  const api={coupons:{list:()=>{calls++;return new Promise(r=>resolve=r)},claim:async()=>({...row,claimed:true})}};
  const render=()=>{h.reset();return m.CouponCenter({back(){},api})};
  const initial=render(),loadButton=elements(initial,'button').find(b=>b.props.className==='toon-action');
- const pending=loadButton.props.onClick();loadButton.props.onClick();assert.equal(calls,1);resolve([row]);await new Promise(r=>setImmediate(r));
+ loadButton.props.onClick();loadButton.props.onClick();assert.equal(calls,1);resolve([row]);await new Promise(r=>setImmediate(r));
  const loaded=render();assert.match(renderToStaticMarkup(loaded),/测试券/);fixture('领券分支（隔离测试数据）',loaded);
  const claim=elements(loaded,'button').find(b=>b.props.className?.includes('toon-action-primary'));claim.props.onClick();await new Promise(r=>setImmediate(r));assert.equal(h.state[0][0].claimed,true);assert.match(renderToStaticMarkup(render()),/已领取/);
 });
  test('coupon picker preserves null opt-out, quote callback, ineligible disabling and error retry',async()=>{
  const quote={quoteId:'test',payableCent:'9000',discountCent:'1000',selectedCouponId:'a',coupons:[{id:'a',title:'测试可用券',discountCent:'1000',eligible:true},{id:'b',title:'测试不可用券',discountCent:'2000',eligible:false,reason:'未达到门槛'}]};
- const h=hooks([true,quote,false,'']),m=load('app/OrderCouponPicker.tsx',{react:h.react});let passed,onQuote;
+ const h=hooks([true,quote,false,'']),m=load('app/OrderCouponPicker.tsx',{react:h.react,'./ui/CartoonIcon':{CartoonIcon}});let passed,onQuote;
  const api=async id=>{passed=id;return {...quote,selectedCouponId:id,discountCent:'0'}};
  const render=()=>{h.reset();return m.OrderCouponPicker({quote,api,onQuote:q=>onQuote=q})};
  const node=render();fixture('订单选券分支（隔离测试数据）',node);
@@ -56,12 +57,12 @@ function elements(node,type){if(!node||typeof node!=='object')return [];if(Array
  const retry=elements(node,'button').find(b=>b.props.children==='重试');assert.equal(retry.props.className,'toon-action');retry.props.onClick();await new Promise(r=>setImmediate(r));assert.equal(text,'测试建议');assert.equal(h.state[0],'测试建议');assert.equal(h.state[4],'测试失败');
 });
  test('attachment read failure keeps the real retry callback',()=>{
- let called=0; const m=load('app/trade-v31/TradeWorkspace.tsx',{'./preview-storage':{usePreviewFile:()=>({error:'测试读取失败',retry:()=>called++})}},'\nexport {EvidenceMedia};');
+ let called=0; const model=load('app/trade-v31/model.ts'); const m=load('app/trade-v31/TradeWorkspace.tsx',{'./model':model,'./preview-storage':{usePreviewFile:()=>({error:'测试读取失败',retry:()=>called++})}},'\nexport {EvidenceMedia};');
  const node=m.EvidenceMedia({file:{id:'test',name:'测试图片',kind:'image',digest:'test'}});fixture('附件读取失败（隔离测试数据）',node);const [retry]=elements(node,'button');assert.equal(retry.props.className,'toon-action');retry.props.onClick();assert.equal(called,1);
 });
  test('media picker covers picture, video and audio without changing the selected file or send protocol',()=>{
  for(const [selected,accept] of [['图片','image/*'],['视频','video/*'],['语音','audio/*']]){
-  const h=hooks([true,selected,null,null,'',false]),m=load('app/ProductDecisionPages.tsx',{react:h.react,'./ui/CartoonIcon':{CartoonIcon},'./ui/ThemedFilePicker':{ThemedFilePicker}});
+  const h=hooks([true,selected,null,null,'',false]),m=load('app/ProductDecisionPages.tsx',{react:h.react,'./ChatIcon':{ChatIcon},'./ui/CartoonIcon':{CartoonIcon},'./ui/ThemedFilePicker':{ThemedFilePicker}});
   const node=m.ChatPlusPanel({});const picker=elements(node,ThemedFilePicker)[0];assert.equal(picker.props.accept,accept);const file={name:'测试文件'};picker.props.onChange({target:{files:[file]}});assert.equal(h.state[3],file);
   fixture('聊天'+selected+'选择（隔离控件，未接通发送）',node);assert.match(renderToStaticMarkup(node),/不会发送给对方/);
  }

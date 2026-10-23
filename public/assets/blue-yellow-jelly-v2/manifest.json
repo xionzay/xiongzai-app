@@ -1,0 +1,502 @@
+{
+  "style": "蓝黄亮面果冻",
+  "version": 2,
+  "reference": "用户确认的 01 蓝黄果冻",
+  "icons": [
+    {
+      "kind": "quick-match",
+      "url": "/assets/blue-yellow-jelly-v2/quick-match.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 380,
+        "height": 392
+      }
+    },
+    {
+      "kind": "coupon-center",
+      "url": "/assets/blue-yellow-jelly-v2/coupon-center.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 0,
+        "width": 350,
+        "height": 392
+      }
+    },
+    {
+      "kind": "app-rules",
+      "url": "/assets/blue-yellow-jelly-v2/app-rules.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 730,
+        "top": 0,
+        "width": 350,
+        "height": 392
+      }
+    },
+    {
+      "kind": "feedback",
+      "url": "/assets/blue-yellow-jelly-v2/feedback.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 1080,
+        "top": 0,
+        "width": 368,
+        "height": 392
+      }
+    },
+    {
+      "kind": "official-notices",
+      "url": "/assets/blue-yellow-jelly-v2/official-notices.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 0,
+        "top": 392,
+        "width": 380,
+        "height": 318
+      }
+    },
+    {
+      "kind": "home",
+      "url": "/assets/blue-yellow-jelly-v2/home.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 392,
+        "width": 350,
+        "height": 318
+      }
+    },
+    {
+      "kind": "order",
+      "url": "/assets/blue-yellow-jelly-v2/order.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 730,
+        "top": 392,
+        "width": 350,
+        "height": 318
+      }
+    },
+    {
+      "kind": "message",
+      "url": "/assets/blue-yellow-jelly-v2/message.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 1080,
+        "top": 392,
+        "width": 368,
+        "height": 318
+      }
+    },
+    {
+      "kind": "mine",
+      "url": "/assets/blue-yellow-jelly-v2/mine.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 0,
+        "top": 710,
+        "width": 380,
+        "height": 376
+      }
+    },
+    {
+      "kind": "search",
+      "url": "/assets/blue-yellow-jelly-v2/search.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 380,
+        "top": 710,
+        "width": 350,
+        "height": 376
+      }
+    },
+    {
+      "kind": "flame",
+      "url": "/assets/blue-yellow-jelly-v2/flame.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 730,
+        "top": 710,
+        "width": 350,
+        "height": 376
+      }
+    },
+    {
+      "kind": "crown",
+      "url": "/assets/blue-yellow-jelly-v2/crown.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/01-首页图标.png",
+      "cell": {
+        "left": 1080,
+        "top": 710,
+        "width": 368,
+        "height": 376
+      }
+    },
+    {
+      "kind": "product",
+      "url": "/assets/blue-yellow-jelly-v2/product.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 440,
+        "height": 418
+      }
+    },
+    {
+      "kind": "wallet",
+      "url": "/assets/blue-yellow-jelly-v2/wallet.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 440,
+        "top": 0,
+        "width": 396,
+        "height": 418
+      }
+    },
+    {
+      "kind": "shield",
+      "url": "/assets/blue-yellow-jelly-v2/shield.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 836,
+        "top": 0,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "favorite",
+      "url": "/assets/blue-yellow-jelly-v2/favorite.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 0,
+        "top": 418,
+        "width": 440,
+        "height": 418
+      }
+    },
+    {
+      "kind": "setting",
+      "url": "/assets/blue-yellow-jelly-v2/setting.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 440,
+        "top": 418,
+        "width": 396,
+        "height": 418
+      }
+    },
+    {
+      "kind": "share",
+      "url": "/assets/blue-yellow-jelly-v2/share.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 836,
+        "top": 418,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "service",
+      "url": "/assets/blue-yellow-jelly-v2/service.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 0,
+        "top": 836,
+        "width": 440,
+        "height": 418
+      }
+    },
+    {
+      "kind": "data",
+      "url": "/assets/blue-yellow-jelly-v2/data.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 440,
+        "top": 836,
+        "width": 396,
+        "height": 418
+      }
+    },
+    {
+      "kind": "mine-wait",
+      "url": "/assets/blue-yellow-jelly-v2/mine-wait.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/02-功能工具.png",
+      "cell": {
+        "left": 836,
+        "top": 836,
+        "width": 418,
+        "height": 418
+      }
+    },
+    {
+      "kind": "coupon",
+      "url": "/assets/blue-yellow-jelly-v2/coupon.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "back",
+      "url": "/assets/blue-yellow-jelly-v2/back.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 362,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "close",
+      "url": "/assets/blue-yellow-jelly-v2/close.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 724,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "chevron",
+      "url": "/assets/blue-yellow-jelly-v2/chevron.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 1086,
+        "top": 0,
+        "width": 362,
+        "height": 355
+      }
+    },
+    {
+      "kind": "check",
+      "url": "/assets/blue-yellow-jelly-v2/check.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 0,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "plus",
+      "url": "/assets/blue-yellow-jelly-v2/plus.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 362,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "minus",
+      "url": "/assets/blue-yellow-jelly-v2/minus.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 724,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "more",
+      "url": "/assets/blue-yellow-jelly-v2/more.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 1086,
+        "top": 355,
+        "width": 362,
+        "height": 322
+      }
+    },
+    {
+      "kind": "smile",
+      "url": "/assets/blue-yellow-jelly-v2/smile.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 0,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "send",
+      "url": "/assets/blue-yellow-jelly-v2/send.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 362,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "rating-outline",
+      "url": "/assets/blue-yellow-jelly-v2/rating-outline.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 724,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "message-outline",
+      "url": "/assets/blue-yellow-jelly-v2/message-outline.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/03-轻量控件.png",
+      "cell": {
+        "left": 1086,
+        "top": 677,
+        "width": 362,
+        "height": 409
+      }
+    },
+    {
+      "kind": "rating-filled",
+      "url": "/assets/blue-yellow-jelly-v2/rating-filled.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 444,
+        "height": 444
+      }
+    },
+    {
+      "kind": "target",
+      "url": "/assets/blue-yellow-jelly-v2/target.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 444,
+        "top": 0,
+        "width": 443,
+        "height": 444
+      }
+    },
+    {
+      "kind": "refresh",
+      "url": "/assets/blue-yellow-jelly-v2/refresh.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 887,
+        "top": 0,
+        "width": 444,
+        "height": 444
+      }
+    },
+    {
+      "kind": "image",
+      "url": "/assets/blue-yellow-jelly-v2/image.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 1331,
+        "top": 0,
+        "width": 443,
+        "height": 444
+      }
+    },
+    {
+      "kind": "warning",
+      "url": "/assets/blue-yellow-jelly-v2/warning.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 0,
+        "top": 444,
+        "width": 444,
+        "height": 443
+      }
+    },
+    {
+      "kind": "hourglass",
+      "url": "/assets/blue-yellow-jelly-v2/hourglass.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 444,
+        "top": 444,
+        "width": 443,
+        "height": 443
+      }
+    },
+    {
+      "kind": "male",
+      "url": "/assets/blue-yellow-jelly-v2/male.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 887,
+        "top": 444,
+        "width": 444,
+        "height": 443
+      }
+    },
+    {
+      "kind": "female",
+      "url": "/assets/blue-yellow-jelly-v2/female.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/04-补充控件.png",
+      "cell": {
+        "left": 1331,
+        "top": 444,
+        "width": 443,
+        "height": 443
+      }
+    },
+    {
+      "kind": "play",
+      "url": "/assets/blue-yellow-jelly-v2/play.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 0,
+        "top": 0,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "pause",
+      "url": "/assets/blue-yellow-jelly-v2/pause.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 627,
+        "top": 0,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "heart-filled",
+      "url": "/assets/blue-yellow-jelly-v2/heart-filled.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 0,
+        "top": 627,
+        "width": 627,
+        "height": 627
+      }
+    },
+    {
+      "kind": "heart-outline",
+      "url": "/assets/blue-yellow-jelly-v2/heart-outline.png",
+      "source": "docs/blue-yellow-jelly-2026-10-11/05-播放收藏.png",
+      "cell": {
+        "left": 627,
+        "top": 627,
+        "width": 627,
+        "height": 627
+      }
+    }
+  ]
+}

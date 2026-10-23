@@ -5,8 +5,9 @@ import vm from "node:vm";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
+import { contractDependencies } from './helpers/commerce-contract.mjs';
 
-async function compileModule(file, dependencies = {}) {
+async function compileModule(file, dependencies = contractDependencies) {
   const source = await readFile(new URL(file, import.meta.url), "utf8");
   const context = { exports: {}, require: name => {
     if (!(name in dependencies)) throw new Error(`Unstubbed dependency: ${name}`);
@@ -17,6 +18,7 @@ async function compileModule(file, dependencies = {}) {
 }
 const decisions = await compileModule("../app/product-decisions.ts");
 const model = await compileModule("../app/home-shop-model.ts", { "./product-decisions": decisions });
+const productModel = await compileModule("../app/home-product-model.ts");
 const shop = { id: "stable-seller-id", name: "店铺", image: "/original-avatar.jpg", tags: [], introduction: "认真沟通，耐心配合。" };
 
 test("unknown counts and ratings never become zero, five stars or no reviews", () => {
@@ -84,6 +86,12 @@ const { HomeShopCard } = await compileModule("../app/HomeShopCard.tsx", {
   "./home-shop-model": model,
   "./CatalogImage": { CatalogImage: props => React.createElement("img", Object.fromEntries(Object.entries(props).filter(([key]) => ["src", "alt", "className"].includes(key)))) },
 });
+test("shop identity shows explicit games beside the name even when the introduction includes them", () => {
+  const markup = renderToStaticMarkup(HomeShopCard({ shop: { ...shop, tags: ["和平精英"], introduction: "和平精英组队陪玩。", reviewCount: 0 }, onOpen: () => {} }));
+  assert.match(markup, /home-shop-identity[^]*home-shop-name[^]*home-shop-games[^]*和平精英/);
+  assert.equal((markup.match(/class="home-shop-games"/g) || []).length, 1);
+  assert.match(markup, /和平精英组队陪玩。/);
+});
 test("a whole native row opens the exact seller, keeps its original avatar and exposes the complete long name", () => {
   const long = { ...shop, name: "名称很长但详情必须显示完整的真实店铺名称", reviewCount: 0 };
   let opened;
@@ -107,18 +115,18 @@ function homeHarness(preview = false) {
   const fakeReact = { ...React };
   const source = ts.transpileModule(home.getText(ast), { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   const HomeScreen = vm.runInNewContext(`${source}\nHomeScreen;`, {
-    React: fakeReact, ...model,
+    React: fakeReact, ...model, ...productModel,
     useState: initial => { const i = stateIndex++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = value; }]; },
     useRef: initial => { const i = refIndex++; return refs[i] ??= { current: initial }; },
     useLayoutEffect: (fn, deps) => { const i = effectIndex++; if (!effects[i] || deps.some((dep, index) => dep !== effects[i].deps[index])) effects[i] = { fn, deps, pending: true }; },
     useSyncExternalStore: () => preview, useHomeModeMotion: noop,
     subscribeLocalPreview: noop, getLocalPreview: noop, getServerPreview: noop,
-    previewCompanions: [shop], previewServices: [{ sellerId: shop.id }],
+    previewCompanions: [shop], previewServices: [{ sellerId: shop.id, id: 'local-product', gameCategory: '和平精英', priceCent: '3000' }],
     publicGames: decisions.publicGames, PRODUCT_GAMES: decisions.PRODUCT_GAMES,
     StatusBar: noop, CartoonIcon: noop, HomeAnnouncementCarousel: noop,
     HomeShortcuts: noop, HomeHotSale: noop, LoadingState: noop, RequestErrorBear: noop,
     ContextStateScreen: noop, SectionTitle: noop, CompanionCard: noop, SortBar: noop,
-    GameFilter: noop, ServiceCard: noop, BuyerNav: noop, homeAnnouncements: [],
+    GameFilter: noop, HomeProductGameFilter: noop, HomeProductCard: noop, ServiceCard: noop, BuyerNav: noop, homeAnnouncements: [],
   });
   function render(props) {
     stateIndex = refIndex = effectIndex = 0;
@@ -144,7 +152,7 @@ test("more opens the real shop mode at its own scroll position; returning restor
   tree = harness.render(props);
   assert.equal(harness.states[1], "店铺");
   assert.equal(harness.refs[0].current.scrollTop, 0);
-  assert.ok([...elements(tree)].find(el => el.props.title === "全部店铺"));
+  assert.ok([...elements(tree)].find(el => el.props["aria-label"] === "全部店铺"));
   harness.refs[0].current.scrollTop = 300;
   [...elements(tree)].find(el => el.type === "button" && el.props.children === "推荐").props.onClick();
   harness.render(props);
@@ -168,4 +176,24 @@ test("the full shop list keeps loading and retry feedback without falsely claimi
   assert.doesNotMatch(renderToStaticMarkup(tree), /已加载全部店铺/);
   tree = harness.render({ ...props, loadingMoreShops: true });
   assert.equal([...elements(tree)].find(el => el.props.className === "home-shop-load-more").props.disabled, true);
+});
+test("product filtering distinguishes an empty game from an in-flight request or failure", () => {
+  const harness = homeHarness();
+  const props = { serviceItems: [{ id: 'one', gameCategory: '和平精英', priceCent: '3000' }] };
+  let tree = harness.render(props);
+  [...elements(tree)].find(el => el.type === 'button' && el.props.children === '商品').props.onClick();
+  harness.states[0] = '无畏契约';
+  tree = harness.render(props);
+  assert.match(renderToStaticMarkup(tree), /该游戏暂无可展示商品/);
+  for (const state of [{loading:true},{error:'网络失败'}]) {
+    tree = harness.render({...props,...state});
+    assert.doesNotMatch(renderToStaticMarkup(tree), /该游戏暂无可展示商品/);
+  }
+});
+test("local preview empty-game feedback is not suppressed by unrelated API errors", () => {
+  const harness = homeHarness(true);
+  let tree = harness.render({});
+  [...elements(tree)].find(el => el.type === 'button' && el.props.children === '商品').props.onClick();
+  harness.states[0] = '无畏契约';
+  assert.match(renderToStaticMarkup(harness.render({loading:true,error:'接口不可用'})), /该游戏暂无可展示商品/);
 });

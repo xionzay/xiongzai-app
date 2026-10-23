@@ -44,7 +44,7 @@ export function CartoonSelect(props: SelectHTMLAttributes<HTMLSelectElement>) {
     <button ref={trigger} type="button" className="toon-select-trigger" disabled={props.disabled} aria-label={title} aria-haspopup="dialog" onClick={show}>
       <span>{selected?.text ?? title}</span><CartoonIcon kind="chevron" />
     </button>
-    <dialog className={`toon-picker${closing ? " is-closing" : ""}`} ref={dialog} aria-labelledby={id} onCancel={e => { e.preventDefault(); close(); }} onClick={e => { if (e.target === dialog.current) close(); }}>
+    <dialog className={`toon-picker${closing ? " is-closing" : ""}`} ref={dialog} aria-labelledby={id} onCancel={e => { e.preventDefault(); close(); }} onPointerDown={e => { if (e.target === dialog.current) close(); }}>
       <header><CartoonIcon kind="service" /><h2 id={id}>{title}</h2><button type="button" aria-label="关闭选择" onClick={close}><CartoonIcon kind="close" /></button></header>
       <div className="toon-picker-options" role="radiogroup" aria-label={title}>{options.map((o,i) => <label key={`${o.value}-${i}`}><input type="radio" name={id} value={o.value} checked={draft === o.value} disabled={o.disabled} onChange={() => setDraft(o.value)} /><span>{o.text}</span>{draft === o.value && <CartoonIcon kind="check" />}</label>)}</div>
       <footer><button type="button" onClick={close}>取消</button><button type="button" className="toon-confirm" disabled={closing} onClick={confirm}>确认选择</button></footer>

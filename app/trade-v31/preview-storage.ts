@@ -39,7 +39,7 @@ export async function savePreviewFile(file: File) {
 export function usePreviewFile(id?: string, fallback?: string) {
   const [url, setUrl] = useState(fallback), [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
-  useEffect(() => { let live = true, objectUrl: string | undefined; setError(''); setUrl(fallback);
+  useEffect(() => { let live = true, objectUrl: string | undefined; void Promise.resolve().then(()=>{if(live){setError('');setUrl(fallback);}});
     if (id) previewRead<Blob>(`file:${id}`).then(blob => { if (!live) return; if (!blob) throw new Error('missing'); objectUrl = URL.createObjectURL(blob); setUrl(objectUrl); }).catch(() => { if (live) setError('附件读取失败，请重试或重新选择原文件。'); });
     return () => { live = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [id, fallback, retry]);

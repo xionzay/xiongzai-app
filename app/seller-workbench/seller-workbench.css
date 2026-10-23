@@ -199,11 +199,11 @@
 .sw-order-switcher button b { flex: none; font-size: 11px; }
 .sw-conversation-stream { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; padding: 16px 12px; scrollbar-width: none; }
 .phone-shell .sw-conversation-empty { margin: 20px auto; width: fit-content; border-radius: 18px; padding: 7px 12px; background: var(--sw-input); color: #60798d; font-size: 12px; }
-.sw-message { display: flex; align-items: flex-end; gap: 8px; margin: 0 0 14px; }
+.sw-message { display: flex; align-items: flex-start; gap: 8px; margin: 0 0 14px; }
 .sw-message.is-self { flex-direction: row-reverse; }
-.sw-message > img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex: none; }
-.phone-shell .sw-message > p { margin: 0; max-width: calc(100% - 70px); border-radius: 18px 18px 18px 5px; padding: 10px 13px; background: #dce7fa; color: var(--xiongzai-chat-ink); box-shadow: 0 1px 3px #2f556a14; font-size: 16px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.phone-shell .sw-message.is-self > p { border-radius: 18px 18px 5px 18px; background: #deedfc; color: #24445e; }
+.sw-message > img { width: 40px; height: 40px; border-radius: 50%; object-fit: contain; flex: none; }
+.phone-shell .sw-message > p { margin: 0; max-width: calc(100% - 70px); position: relative; border-radius: 12px; padding: 9px 12px; background: #fff; color: #202923; box-shadow: none; font-size: 16px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.phone-shell .sw-message.is-self > p { border-radius: 12px; background: #d5ecff; color: #202923; }
 .sw-conversation-dock { flex: none; padding: 8px calc(12px + var(--device-safe-right)) calc(10px + var(--device-safe-bottom)) calc(12px + var(--device-safe-left)); background: linear-gradient(#f5f9ffbe,#f5f9fff5); }
 .sw-reply-shortcuts { display: flex; gap: 8px; margin-bottom: 8px; }
 .phone-shell .sw-reply-shortcuts button { flex: 1; min-width: 0; min-height: 44px; padding: 0 4px; border: 1px solid var(--sw-control-line); border-radius: 14px; background: var(--sw-input); color: #436c88; font-size: 12px; }
@@ -225,16 +225,17 @@
 /* Seller conversations retain the pattern but use the seller home blue/lilac palette. */
 .phone-shell .seller-workbench.seller-message-wallpaper,
 .phone-shell .v31-role-seller.seller-message-wallpaper,
-.phone-shell.page-sellerChat .chat-screen {
+.phone-shell.page-sellerChat .chat-screen,
+.phone-shell[data-page-palette="seller"] .customer-service-screen {
   background-color: #eaf0fc !important;
   background-image:
     radial-gradient(ellipse at 100% 38%, #eae2fac7 0%, #eee8fb70 28%, transparent 65%),
-    linear-gradient(125deg, #e0f0fcb3 0%, #eaf0fca6 55%, #f1ecfbb3 100%),
+    linear-gradient(125deg, #e0f0fcc7 0%, #eaf0fcbd 55%, #f1ecfbc7 100%),
     url("/assets/wallpapers/chat-dense-blue-v3.png"),
     var(--seller-page-background) !important;
   background-position: center !important;
   background-repeat: no-repeat !important;
-  background-size: 100% 100%, 100% 100%, contain, 100% 100%, 100% 100% !important;
+  background-size: 100% 100%, 100% 100%, cover, 100% 100% !important;
   background-attachment: scroll !important;
 }
 
@@ -279,12 +280,6 @@
     -webkit-mask-image: var(--chat-edge-mask);
     mask-image: var(--chat-edge-mask);
   }
-}
-.phone-shell.page-sellerChat .chat-screen .chat-topbar::before {
-  background: linear-gradient(to bottom, #e6eefc 0%, #e9edfcf5 calc(100% - 44px), #e9edfc00 100%);
-}
-.phone-shell.page-sellerChat .chat-screen .chat-compose-dock::before {
-  background: linear-gradient(to bottom, #edeafb00 0%, #eceafbf5 44px, #eeeafb 100%);
 }
 
 /* Merchant operating surfaces: clear type, compact rows, consistent actions. */

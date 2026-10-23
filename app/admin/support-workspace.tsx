@@ -5,6 +5,7 @@ import { AdminApiError, adminApiRequest, adminFailure } from "./admin-api";
 import { BearStickerImage } from "../chat-stickers/BearStickers";
 import styles from "./admin.module.css";
 import { useSafeUrlChoice } from "./url-state";
+import { mergeSupportMessages } from "./support-messages";
 
 type SupportStatus = "WAITING" | "SERVING" | "TRANSFERRED" | "CLOSED";
 type SupportCase = {
@@ -63,6 +64,7 @@ const quickReplies = ["您好，平台客服已接入，正在为您核实。", 
 
 export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: string; canManage: boolean; canReply: boolean }) {
   const [query, setQuery] = useState("");
+  const listController=useRef<AbortController|null>(null);
   const [status, setStatus] = useSafeUrlChoice("support_status", "", supportStatusOptions);
   const [items, setItems] = useState<SupportCase[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -76,6 +78,14 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
   const [messageState, setMessageState] = useState<LoadState>("empty");
   const [messageError, setMessageError] = useState("");
   const [messageRevision, setMessageRevision] = useState(0);
+  const [messageCursor, setMessageCursor] = useState<string | null>(null);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [messageCaseId, setMessageCaseId] = useState<string | null>(null);
+  const historyController = useRef<AbortController | null>(null);
+  const historyInitialized = useRef(false);
+  const stickToBottom = useRef(true);
+  const messageViewport = useRef<HTMLDivElement | null>(null);
+  const pendingReply = useRef<{ caseId: string; content: string; id: string } | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState("");
@@ -93,8 +103,10 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
     if (status) params.set("status", status);
     if (query.trim()) params.set("keyword", query.trim());
     if (cursor) params.set("cursor", cursor);
+    const controller=new AbortController();listController.current?.abort();listController.current=controller;
     try {
-      const page = await adminApiRequest<Page<SupportCase>>(`/support-cases?${params.toString()}`);
+      const page = await adminApiRequest<Page<SupportCase>>(`/support-cases?${params.toString()}`,{signal:controller.signal});
+      if(controller.signal.aborted)return;
       setItems((current) => cursor ? [...current, ...page.items.filter((item) => !current.some((existing) => existing.id === item.id))] : page.items);
       setNextCursor(page.next_cursor);
       if (!cursor) {
@@ -102,15 +114,16 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
         setSelectedId((current) => page.items.some((item) => item.id === current) ? current : page.items[0]?.id ?? null);
       }
     } catch (cause) {
+      if(controller.signal.aborted)return;
       const failure = adminFailure(cause);
       if (!cursor) { setItems([]); setNextCursor(null); setListState(failure.state); setListError(failure.message); setSelectedId(null); }
       else setListError(failure.message);
-    } finally { if (cursor) setLoadingMore(false); }
+    } finally { if (cursor && !controller.signal.aborted) setLoadingMore(false); }
   }, [query, status]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadCases(), 220);
-    return () => window.clearTimeout(timer);
+    return () => {window.clearTimeout(timer);listController.current?.abort();};
   }, [loadCases]);
 
   const selected = useMemo(() => items.find((item) => item.id === selectedId) ?? null, [items, selectedId]);
@@ -132,8 +145,8 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
   }, [detailRevision, selectedId]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { setDraft(""); setNotice(""); setMessageError(""); }, 0);
-    return () => window.clearTimeout(timer);
+    const timer = window.setTimeout(() => { setDraft(""); setNotice(""); setMessageError(""); setMessages([]); setMessageCursor(null); setHistoryBusy(false); setMessageCaseId(null); historyInitialized.current = false; stickToBottom.current = true; pendingReply.current = null; }, 0);
+    return () => { window.clearTimeout(timer); historyController.current?.abort(); };
   }, [selectedId]);
 
   useEffect(() => {
@@ -148,10 +161,10 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
       adminApiRequest<Page<SupportMessage>>(`/support-cases/${selectedId}/messages?limit=100`, { signal: controller.signal })
         .then((page) => {
           if (controller.signal.aborted) return;
-          const chronological = [...page.items].sort((left, right) => Number(left.sequence_no) - Number(right.sequence_no));
-          setMessages(chronological); setMessageState(chronological.length ? "success" : "empty");
+          if (!historyInitialized.current) { setMessageCursor(page.next_cursor); historyInitialized.current = true; }
+          setMessageCaseId(selectedId); setMessages(current => mergeSupportMessages(current, page.items)); setMessageState(page.items.length ? "success" : "empty");
         })
-        .catch((cause) => { if (!controller.signal.aborted) { const failure = adminFailure(cause); setMessages([]); setMessageState(failure.state); setMessageError(failure.message); } });
+        .catch((cause) => { if (!controller.signal.aborted) { const failure = adminFailure(cause); setMessageState(failure.state); setMessageError(failure.message); } });
     }, 0);
     return () => { window.clearTimeout(timer); controller.abort(); };
   // messages is intentionally excluded so a successful poll does not start a request loop.
@@ -164,7 +177,21 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
     return () => window.clearInterval(timer);
   }, [assignedToCurrentAdmin, selected?.status]);
 
-  useEffect(() => { messageEndRef.current?.scrollIntoView({ block: "end" }); }, [messages]);
+  useEffect(() => { if (stickToBottom.current) messageEndRef.current?.scrollIntoView({ block: "end" }); }, [messages]);
+
+  async function loadOlderMessages() {
+    if (!selectedId || !messageCursor || historyBusy || !assignedToCurrentAdmin) return;
+    const controller = new AbortController(); historyController.current?.abort(); historyController.current = controller;
+    setHistoryBusy(true); setMessageError(""); stickToBottom.current = false;
+    const viewport = messageViewport.current, height = viewport?.scrollHeight ?? 0, top = viewport?.scrollTop ?? 0;
+    try {
+      const page = await adminApiRequest<Page<SupportMessage>>(`/support-cases/${selectedId}/messages?limit=100&cursor=${encodeURIComponent(messageCursor)}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
+      setMessages(current => mergeSupportMessages(current, page.items)); setMessageCursor(page.next_cursor);
+      requestAnimationFrame(() => { if (!controller.signal.aborted && viewport) viewport.scrollTop = top + viewport.scrollHeight - height; });
+    } catch (cause) { if (!controller.signal.aborted) setMessageError(adminFailure(cause).message); }
+    finally { if (!controller.signal.aborted) setHistoryBusy(false); }
+  }
 
   const reloadSelected = useCallback(async () => {
     await loadCases();
@@ -176,8 +203,11 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
     const content = draft.trim();
     if (!selected || !content || sending || !canReply || !assignedToCurrentAdmin || selected.status !== "SERVING") return;
     setSending(true); setMessageError(""); setNotice("");
+    if (pendingReply.current?.caseId !== selected.id || pendingReply.current.content !== content) pendingReply.current = { caseId: selected.id, content, id: `admin-${crypto.randomUUID()}` };
+    const attempt = pendingReply.current;
     try {
-      await adminApiRequest(`/support-cases/${selected.id}/reply`, { method: "POST", body: JSON.stringify({ client_message_id: `admin-${crypto.randomUUID()}`, content }) });
+      await adminApiRequest(`/support-cases/${selected.id}/reply`, { method: "POST", body: JSON.stringify({ client_message_id: attempt.id, content }) });
+      if(pendingReply.current!==attempt)return; pendingReply.current = null; stickToBottom.current = true;
       setDraft(""); setNotice("回复已由服务端保存并同步给用户。");
       await reloadSelected();
     } catch (cause) {
@@ -208,7 +238,7 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
     } finally { setActionBusy(false); }
   }
 
-  const current = detail ?? selected;
+  const current = detail?.id===selectedId ? detail : selected;
   const requesterName = current?.requester?.nickname ?? "平台用户";
   const requesterNo = current?.requester?.public_user_no ?? current?.requester?.phone_mask ?? shortId(current?.requester_id);
 
@@ -243,8 +273,9 @@ export function SupportWorkspace({ adminId, canManage, canReply }: { adminId: st
             </div>
           </header>
           <div className={styles.supportNotice}><AdminIcon /><div><b>{assignedToCurrentAdmin ? "你是当前接入客服" : current.status === "WAITING" || current.status === "TRANSFERRED" ? "接入后才能读取用户消息" : "该工单不由当前管理员负责"}</b><small>消息访问由服务端分配关系、MFA 和客服权限共同控制。</small></div></div>
-          <div className={styles.supportMessages} aria-live="polite">
-            {messageState === "loading" ? <div className={styles.supportEmpty}>正在读取真实聊天记录…</div> : messageState === "error" || messageState === "offline" ? <div className={styles.supportEmpty}>{messageError}<br /><button type="button" onClick={() => setMessageRevision((value) => value + 1)}>重新加载</button></div> : !assignedToCurrentAdmin ? <div className={styles.supportEmpty}>为了保护用户会话，只有当前接入客服可以查看消息。</div> : messageState === "empty" ? <div className={styles.supportEmpty}>当前工单还没有消息。</div> : messages.map((message) => message.sender_role === "SYSTEM" ? <div className={styles.supportSystemMessage} key={message.id}><span>{message.content}</span><time>{formatMessageTime(message.created_at)}</time></div> : <div className={`${styles.supportMessage} ${message.sender_role === "ADMIN" ? styles.supportAgentMessage : ""}`} key={message.id}>
+          <div className={styles.supportMessages} ref={messageViewport} onScroll={event=>{const node=event.currentTarget;stickToBottom.current=node.scrollHeight-node.scrollTop-node.clientHeight<80;}} aria-live="polite">
+            {assignedToCurrentAdmin && messageCursor ? <button type="button" disabled={historyBusy} onClick={()=>void loadOlderMessages()}>{historyBusy?"正在加载历史…":"加载更早消息"}</button> : null}
+            {messageState === "loading" ? <div className={styles.supportEmpty}>正在读取真实聊天记录…</div> : messageState === "error" || messageState === "offline" ? <div className={styles.supportEmpty}>{messageError}<br /><button type="button" onClick={() => setMessageRevision((value) => value + 1)}>重新加载</button></div> : !assignedToCurrentAdmin ? <div className={styles.supportEmpty}>为了保护用户会话，只有当前接入客服可以查看消息。</div> : messageState === "empty" ? <div className={styles.supportEmpty}>当前工单还没有消息。</div> : (messageCaseId===selectedId?messages:[]).map((message) => message.sender_role === "SYSTEM" ? <div className={styles.supportSystemMessage} key={message.id}><span>{message.content}</span><time>{formatMessageTime(message.created_at)}</time></div> : <div className={`${styles.supportMessage} ${message.sender_role === "ADMIN" ? styles.supportAgentMessage : ""}`} key={message.id}>
               {message.sender_role !== "ADMIN" ? <span className={styles.avatarFallback}>{requesterName.slice(0, 1)}</span> : null}
               <span><b>{message.sender_role === "ADMIN" ? "平台客服" : requesterName}</b><p>{message.message_type === "STICKER" ? <BearStickerImage id={message.sticker?.id}/> : message.content}</p><small>{formatMessageTime(message.created_at)} · {messageStatusLabel(message.send_status)}</small></span>
               {message.sender_role === "ADMIN" ? <i>客</i> : null}

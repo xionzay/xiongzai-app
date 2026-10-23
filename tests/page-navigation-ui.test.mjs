@@ -5,6 +5,7 @@ import vm from "node:vm";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
+import { contractDependencies } from './helpers/commerce-contract.mjs';
 
 const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
@@ -18,11 +19,14 @@ const compiled = ts.transpileModule(components.map((node) => node.getText(source
   compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const commerceSource = await readFile(new URL("../app/commerce-model.ts", import.meta.url),"utf8");
-const commerceContext={exports:{}};
+const commerceContext={exports:{},require:name=>contractDependencies[name]};
 vm.runInNewContext(ts.transpileModule(commerceSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,commerceContext);
 const stub = () => null;
+const iconContext={exports:{},React};
+const iconSource=await readFile(new URL("../app/ui/CartoonIcon.tsx",import.meta.url),"utf8");
+vm.runInNewContext(ts.transpileModule(iconSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,iconContext);
 const { Header, MineScreen } = vm.runInNewContext(`${compiled}\n({ Header, MineScreen });`, {
-  React, BuyerIdentity: stub, apiRequest: stub, mineOrderIcon: {}, buyerOrderEntries: commerceContext.exports.buyerOrderEntries, StatusBar: stub, CartoonIcon: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}], DEFAULT_PLAYER_IMAGE: "/assets/placeholders/player.svg",
+  React, creamJellyIconUrl:iconContext.exports.creamJellyIconUrl, JellyLabel:iconContext.exports.JellyLabel, BuyerIdentity: stub, apiRequest: stub, mineOrderIcon: {}, buyerOrderEntries: commerceContext.exports.buyerOrderEntries, StatusBar: stub, CartoonIcon: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}], DEFAULT_PLAYER_IMAGE: "/assets/placeholders/player.svg",
 });
 
 function* elements(node) {
@@ -151,7 +155,8 @@ test("back-only, actions-only and combined toolbars do not collapse or lose call
 test("chat and support retain their independently owned safe area outside ordinary toolbars", () => {
   assert.doesNotMatch(chatCss, /page-toolbar/);
   assert.match(chatCss, /\.phone-shell \.chat-screen,\s*\.phone-shell \.customer-service-screen\s*\{[^}]*padding:\s*0 !important;/);
-  assert.match(chatCss, /\.phone-shell \.chat-screen \.chat-topbar,\s*\.phone-shell \.customer-service-screen \.chat-topbar\s*\{[^}]*padding:\s*calc\(9px \+ var\(--device-safe-top\)\)/);
+  assert.match(chatCss, /\.phone-shell \.chat-screen \.chat-topbar,\s*\.phone-shell \.customer-service-screen \.chat-topbar\s*\{[^}]*padding:\s*calc\(5px \+ var\(--device-safe-top\)\)/);
+  assert.match(chatCss, /\.customer-service-screen \.chat-compose-dock\s*\{[^}]*calc\(10px \+ var\(--device-safe-bottom\)\)/);
 });
 
 
@@ -191,13 +196,13 @@ test("mine consolidates profile/settings while account links and unauthenticated
 });
 
 test("mine remembers its own scroll without capturing nested scrollers", () => {
-  const scrollState = { current: 0 };
+  let current = 0; const scrollState = { read: () => current, write: value => { current = value; } };
   const screen = MineScreen({ go() {}, viewer: null, scrollState });
   const screenNode = { scrollTop: 140 };
   screen.props.onScroll({ target: screenNode, currentTarget: screenNode });
-  assert.equal(scrollState.current, 140);
+  assert.equal(scrollState.read(), 140);
   screen.props.onScroll({ target: {}, currentTarget: { scrollTop: 0 } });
-  assert.equal(scrollState.current, 140);
+  assert.equal(scrollState.read(), 140);
   const remount = MineScreen({ go() {}, viewer: null, scrollState });
   const restored = { scrollTop: 0 };
   remount.props.ref(restored);

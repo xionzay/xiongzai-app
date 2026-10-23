@@ -1,4 +1,5 @@
 "use client";
+import { CartoonIcon } from "../ui/CartoonIcon";
 /* eslint-disable @next/next/no-img-element -- Reuse the prototype's existing local avatar and brand assets. */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -37,14 +38,14 @@ function DemoSurface({ mode, onMode }: { mode: "chat" | "support"; onMode: (mode
     </aside>
     <section className="phone-shell" aria-label={mode === "support" ? "客服表情演示" : "普通聊天表情演示"}>
       <div className={`app-screen ${mode === "support" ? "customer-service-screen" : "chat-screen"} sticker-demo-chat`}>
-        <div className="chat-topbar"><div className="screen-header"><div className="header-title"><Link className="icon-button" href="/" prefetch={false} aria-label="返回用户端">‹</Link><div><h1>{mode === "support" ? "平台客服" : "熊崽陪玩"}</h1><p>本地表情演示</p></div></div><span className="chat-person-avatar">{mode === "support" ? "客" : "熊"}</span></div><div className="chat-notice">表情交互演示，尚未接入真实发送</div></div>
+        <div className="chat-topbar"><div className="screen-header"><div className="header-title"><Link className="icon-button" href="/" prefetch={false} aria-label="返回用户端"><CartoonIcon kind="back" className="toon-glyph" label="返回" /></Link><div><h1>{mode === "support" ? "平台客服" : "熊崽陪玩"}</h1><p>本地表情演示</p></div></div><span className="chat-person-avatar">{mode === "support" ? "客" : "熊"}</span></div><div className="chat-notice">表情交互演示，尚未接入真实发送</div></div>
         <section className="chat-scroll-content chat-messages" ref={pane} aria-label="表情演示聊天记录">
           {!control.messages.length && !texts.length ? <div className="sticker-demo-empty">点输入框旁的笑脸，选一只熊崽。<br />轻点本地展示，长按放大预览。<br />未发送的文字不会丢失。</div> : null}
           <StickerDemoMessages control={control} selfAvatar={selfAvatar} otherAvatar={otherAvatar} localTexts={texts} />
         </section>
         <div className="chat-compose-dock"><div className={`${mode === "support" ? "customer-chat-input" : "chat-input"} has-stickers`}>
           <input ref={inputRef} aria-label="本地演示文字输入" value={draft} onFocus={control.closePanel} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) sendText(); }} placeholder="输入消息…" />
-          <StickerToggle control={control} /><button type="button" aria-label="本地展示文字" disabled={!draft.trim()} onClick={sendText}>↑</button>
+          <StickerToggle control={control} /><button type="button" aria-label="本地展示文字" disabled={!draft.trim()} onClick={sendText}><CartoonIcon kind="send" className="toon-glyph" /></button>
         </div><StickerTray control={control} /></div>
         <StickerChatPreview control={control} />
       </div>

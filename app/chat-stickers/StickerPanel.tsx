@@ -1,4 +1,5 @@
 "use client";
+import { CartoonIcon } from "../ui/CartoonIcon";
 /* eslint-disable @next/next/no-img-element -- Local delivered PNG thumbnails, no image transformation. */
 import { useEffect, useId, useRef, useState } from "react";
 import { bearStickers, type ChatSticker } from "./manifest";
@@ -45,7 +46,7 @@ export function StickerPanel({ onSendSticker, onPreview, onClose }: { onSendStic
     return () => node?.removeEventListener("keydown", keydown);
   }, [onClose]);
   return <section ref={panel} className="sticker-panel" aria-labelledby={title}>
-    <header><strong id={title}>熊崽 <small>35 个表情</small></strong><button type="button" onClick={onClose} aria-label="关闭表情面板">收起 ×</button></header>
+    <header><strong id={title}>熊崽 <small>35 个表情</small></strong><button type="button" onClick={onClose} aria-label="关闭表情面板">收起 <CartoonIcon kind="close" className="toon-glyph" /></button></header>
     <p>轻点演示发送 · 长按预览 · 不会发送给对方</p>
     <div className="sticker-grid">{bearStickers.map((sticker) => <StickerTile key={sticker.id} sticker={sticker} onSendSticker={onSendSticker} onPreview={onPreview} />)}</div>
   </section>;

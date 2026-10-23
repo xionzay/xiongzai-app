@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
-const module = { exports: {} };
-vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../app/seller-workbench/product-editor-model.ts', import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,module);
-const { withSpecIds, replaceDimensions, specErrors, productErrors, priceRange, unitSummary } = module.exports;
+const cjsModule = { exports: {} };
+vm.runInNewContext(ts.transpileModule(readFileSync(new URL('../app/seller-workbench/product-editor-model.ts', import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,cjsModule);
+const { withSpecIds, replaceDimensions, specErrors, productErrors, priceRange, unitSummary } = cjsModule.exports;
 const fixture = () => withSpecIds({id:'p1',title:'陪玩',description:'介绍',cover:'/original.jpg',hours:'24',dimensions:[{name:'套餐',values:'体验,全程'},{name:'大区',values:'QQ区,微信区'}],variants:['体验 / QQ区','体验 / 微信区','全程 / QQ区','全程 / 微信区'].map((key,i)=>({id:`old-${i}`,key,price:String(10+i),stock:String(i)}))});
 test('legacy migration retains images, IDs and each combination value; repeated migration is stable',()=>{
  const p=fixture(); assert.equal(p.cover,'/original.jpg'); assert.equal(p.variants[0].id,'old-0'); assert.equal(p.variants[0].stock,'0'); assert.equal(JSON.stringify(withSpecIds(p)),JSON.stringify(p));
@@ -50,14 +50,14 @@ test('combination limit remains 100 with a detectable overflow sentinel',()=>{
 });
 test('failed local persistence rejects without changing the original products; retry is an upsert',async()=>{
  const existing=fixture(), before=JSON.stringify(existing), changed={...existing,title:'更新标题'};
- await assert.rejects(module.exports.persistProductChange(changed,[existing],async()=>{throw new Error('quota');}),/quota/);
+ await assert.rejects(cjsModule.exports.persistProductChange(changed,[existing],async()=>{throw new Error('quota');}),/quota/);
  assert.equal(JSON.stringify(existing),before);
  let saved;
- const next=await module.exports.persistProductChange(changed,[existing],async(key,value)=>{assert.equal(key,'merchant-products');saved=value;});
+ const next=await cjsModule.exports.persistProductChange(changed,[existing],async(key,value)=>{assert.equal(key,'merchant-products');saved=value;});
  assert.equal(next.length,1);assert.equal(next[0].title,'更新标题');assert.equal(saved,next);
- const retry=await module.exports.persistProductChange(changed,next,async()=>{});assert.equal(retry.length,1);
+ const retry=await cjsModule.exports.persistProductChange(changed,next,async()=>{});assert.equal(retry.length,1);
 });
 test('image constraints preserve the existing PNG/JPEG/WebP 5MB limit',()=>{
- for(const type of ['image/png','image/jpeg','image/webp'])assert.equal(module.exports.coverFileError({type,size:5*1024*1024}),'');
- assert.ok(module.exports.coverFileError({type:'image/gif',size:100}));assert.ok(module.exports.coverFileError({type:'image/png',size:5*1024*1024+1}));
+ for(const type of ['image/png','image/jpeg','image/webp'])assert.equal(cjsModule.exports.coverFileError({type,size:5*1024*1024}),'');
+ assert.ok(cjsModule.exports.coverFileError({type:'image/gif',size:100}));assert.ok(cjsModule.exports.coverFileError({type:'image/png',size:5*1024*1024+1}));
 });

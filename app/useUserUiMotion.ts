@@ -41,11 +41,17 @@ export function useUserUiMotion(root: RefObject<HTMLElement | null>, page: strin
     const easing = style.getPropertyValue("--motion-ease").trim() || "ease-out";
     const animations: Animation[] = [];
     // Opacity only: transformed screens would change fixed navigation positioning.
-    if (!returningHome) {
+    const searchPage = page === "search" || page === "searchResults";
+    if (searchPage) {
+      // Keep the aligned search field stationary and fully opaque, including on return.
+      for (const piece of screen.querySelectorAll<HTMLElement>(":scope > :not(.discovery-search-bar)")) {
+        animations.push(piece.animate([{ opacity: .65, translate: "0 4px" }, { opacity: 1, translate: "0 0" }], { duration: 160, easing }));
+      }
+    } else if (!returningHome) {
       const surface = node.dataset.pagePalette === 'seller' ? screen.querySelector<HTMLElement>('.sw-content, .v31-content') ?? screen : screen;
       const roots = ['home','orders','messages','mine','seller','sellerOrders','sellerMessages','sellerMine'];
       const detail = navigated && !roots.includes(page) && node.dataset.pagePalette !== 'seller';
-      const pieces = detail ? Array.from(surface.querySelectorAll?.<HTMLElement>(':scope > :not(nav):not(.sticky-actions):not(.preview-bottom):not(.sf-footer):not(.sf-save-bar):not(.product-purchase-actions):not(.sheet-backdrop):not(.flow-overlay)') ?? []) : [];
+      const pieces = detail ? Array.from(surface.querySelectorAll?.<HTMLElement>(':scope > :not(nav):not(.sticky-actions):not(.preview-bottom):not(.sf-footer):not(.sf-save-bar):not(.product-purchase-actions):not(.sheet-backdrop):not(.flow-overlay):not(.discovery-search-bar)') ?? []) : [];
       if (pieces.length) pieces.forEach(piece => animations.push(piece.animate([{ opacity:.75, transform:`translateX(${backward ? -8 : 8}px)` }, { opacity:1, transform:'translateX(0)' }], { duration:180, easing })));
       else animations.push(surface.animate([{ opacity: .75 }, { opacity: 1 }], { duration, easing }));
     }
@@ -65,7 +71,7 @@ export function useUserUiMotion(root: RefObject<HTMLElement | null>, page: strin
     const node = root.current;
     if (!node) return;
     let pressed: HTMLElement | null = null;
-    let origin: { x: number; y: number; id: number } | null = null;
+    let origin: { x: number; y: number; id: number; rect: DOMRect } | null = null;
     let cancelled: HTMLElement | null = null;
     let cancelledAt = 0;
     const button = (target: EventTarget | null) => target instanceof Element ? target.closest<HTMLElement>("button:not(:disabled):not([aria-disabled='true']):not([aria-busy='true']), a[href]") : null;
@@ -76,11 +82,11 @@ export function useUserUiMotion(root: RefObject<HTMLElement | null>, page: strin
       if (!event.isPrimary || event.button !== 0) return;
       const target = button(event.target);
       if (!target || target.closest(".home-announcement-carousel")) return;
-      pressed = target; origin = { x: event.clientX, y: event.clientY, id: event.pointerId }; target.dataset.pressed = "true";
+      pressed = target; origin = { x: event.clientX, y: event.clientY, id: event.pointerId, rect: target.getBoundingClientRect() }; target.dataset.pressed = "true";
     };
     const move = (event: PointerEvent) => {
       if (!origin || origin.id !== event.pointerId || !pressed) return;
-      const rect = pressed.getBoundingClientRect();
+      const rect = origin.rect;
       if (Math.hypot(event.clientX - origin.x, event.clientY - origin.y) > 8 || event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) cancel();
     };
     const up = () => { clear(); origin = null; };

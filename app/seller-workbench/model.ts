@@ -1,4 +1,4 @@
-import { activeCase, orderLabel, matchesOrderTab, caseLabel, stageNames, settlement, type TradeOrder } from '../trade-v31/model';
+import { activeCase, matchesOrderTab, caseLabel, settlement, type TradeOrder } from '../trade-v31/model';
 
 export type SellerAction = { id: 'start' | 'evidence' | 'case' | 'funds' | 'contact'; label: string };
 export function sellerPrimaryAction(order: TradeOrder, now = Date.now()): SellerAction {

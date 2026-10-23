@@ -7,8 +7,9 @@
 .phone-shell .bear-v3-grid > button:focus-visible { outline: 2px solid var(--brand,#087bf5); outline-offset: -2px; }
 .phone-shell .bear-v3-grid > button:disabled { opacity: .55; cursor: default; }
 .phone-shell img.bear-v3-panel-art { display: block; width: 100%; height: auto; max-width: none; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; object-fit: contain; pointer-events: none; }
+.phone-shell :is(.chat-screen,.customer-service-screen) { --bear-message-size: 152px; }
 .phone-shell .chat-screen { --bear-message-clearance: 56px; }
-img.bear-v3-message-art { display: block; width: clamp(88px,calc(var(--chat-visible-height,240px) - var(--bear-message-clearance,32px)),172px); height: clamp(88px,calc(var(--chat-visible-height,240px) - var(--bear-message-clearance,32px)),172px); max-width: 100%; object-fit: contain; border: 0; border-radius: 0; padding: 0; margin: 0; background: transparent; }
+img.bear-v3-message-art { display: block; width: clamp(88px,calc(var(--chat-visible-height,240px) - var(--bear-message-clearance,32px)),var(--bear-message-size,172px)); height: clamp(88px,calc(var(--chat-visible-height,240px) - var(--bear-message-clearance,32px)),var(--bear-message-size,172px)); max-width: 100%; object-fit: contain; border: 0; border-radius: 0; padding: 0; margin: 0; background: transparent; }
 .phone-shell .chat-screen .chat-messages .message.bear-v3-message > span > p, .phone-shell .customer-service-screen .customer-message.bear-v3-message > p { padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
 .phone-shell .chat-screen .chat-messages .message.bear-v3-message > span > p::before, .phone-shell .customer-service-screen .customer-message.bear-v3-message > p::before { display: none; }
 .phone-shell .bear-v3-pending { display: flex; flex-direction: column; align-items: flex-end; margin: 8px 0; }

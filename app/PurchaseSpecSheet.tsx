@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { CartoonIcon } from "./ui/CartoonIcon";
 import { usePanelDismiss } from "./ui/usePanelDismiss";
 import { createPortal } from "react-dom";
@@ -13,18 +13,19 @@ type Props = {
   quantity?: number; onQuantity?: (quantity: number) => void;
   onClose: () => void; onConfirm: () => void;
 };
-const money = (cent: number | string) => (Number(cent) / 100).toFixed(2);
+const money = (cent: number | string) => { const n=BigInt(cent);return (n/100n).toString()+"."+(n%100n).toString().padStart(2,"0"); };
 
 export function PurchaseSpecSheet({ anchor, title, cover, seller, specs, selected, onSelect, quantity = 1, onQuantity, onClose, onConfirm }: Props) {
   const { closing, dismiss } = usePanelDismiss(onClose);
   const headingId = useId();
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
-  close.current = dismiss;
-  const host = anchor.current?.closest(".phone-shell");
+  useEffect(() => { close.current = dismiss; }, [dismiss]);
+  const [host,setHost] = useState<Element|null>(null);
+  useEffect(() => { const element=anchor.current?.closest(".phone-shell")??null;void Promise.resolve().then(()=>setHost(element)); },[anchor]);
   const spec = specs[selected] ?? specs[0];
   useEffect(() => {
-    const screen = anchor.current;
+    const screen = document.querySelector<HTMLElement>(".service-screen.product-page");
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const overflow = screen?.style.overflowY ?? "";
     const wasInert = screen?.inert ?? false;
@@ -41,7 +42,8 @@ export function PurchaseSpecSheet({ anchor, title, cover, seller, specs, selecte
     document.addEventListener("keydown", onKey, true);
     return () => {
       document.removeEventListener("keydown", onKey, true);
-      if (screen) { screen.style.overflowY = overflow; screen.inert = wasInert; }
+      const element = document.querySelector<HTMLElement>(".service-screen.product-page");
+      if (element) { element.style.overflowY = overflow; element.inert = wasInert; }
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, [anchor]);
@@ -54,10 +56,10 @@ export function PurchaseSpecSheet({ anchor, title, cover, seller, specs, selecte
       <div className="purchase-spec-body">
         {specs.length > 1 && <h3>商品规格</h3>}
         {specs.length > 1 && <div className="purchase-spec-options" role="group" aria-label="服务规格">{specs.map((item, index) => <button key={item.id} type="button" aria-pressed={selected === index} onClick={() => onSelect(index)}><span>{item.name}</span><strong>¥{money(item.priceCent)}</strong>{selected === index ? <i aria-hidden="true"><CartoonIcon kind="check" /></i> : null}</button>)}</div>}
-        <div className="purchase-spec-quantity"><b>购买数量</b>{onQuantity ? <div><button type="button" aria-label="减少数量" disabled={quantity <= 1} onClick={() => onQuantity(quantity - 1)}><CartoonIcon kind="minus" /></button><output aria-live="polite">{quantity}</output><button type="button" aria-label="增加数量" disabled={quantity >= Number.MAX_SAFE_INTEGER} onClick={() => onQuantity(quantity + 1)}><CartoonIcon kind="plus" /></button></div> : <span>1 份</span>}</div>
+        <div className="purchase-spec-quantity"><b>购买数量</b>{onQuantity ? <div><button type="button" aria-label="减少数量" disabled={quantity <= 1} onClick={() => onQuantity(quantity - 1)}><CartoonIcon kind="minus" /></button><output aria-live="polite">{quantity}</output><button type="button" aria-label="增加数量" disabled={quantity >= 20} onClick={() => onQuantity(quantity + 1)}><CartoonIcon kind="plus" /></button></div> : <span>1 份</span>}</div>
         <p className="purchase-spec-note">商品内容与价格以所选规格为准</p>
       </div>
-      <footer className="purchase-spec-footer"><button type="button" onClick={onConfirm}>确认订单 <strong aria-live="polite">¥{money(Number(spec.priceCent) * quantity)}</strong></button></footer>
+      <footer className="purchase-spec-footer"><button type="button" onClick={onConfirm}>确认订单 <strong aria-live="polite">¥{money((BigInt(spec.priceCent) * BigInt(quantity)).toString())}</strong></button></footer>
     </section>
   </div>, host);
 }
