@@ -1,0 +1,12 @@
+import { runDueCommerceJobs } from './commerce-core.js';
+import { simulationAvailable } from './orders.js';
+import { createDatabase } from './db.js';
+import { buildApp } from './app.js';
+import { ObjectStorage } from './storage.js';
+if(!process.env.DATABASE_URL)throw new Error('DATABASE_URL is required.');
+const {db,pool}=createDatabase(process.env.DATABASE_URL);
+const app=buildApp({db,storage:ObjectStorage.fromEnvironment()});
+let working=false;const timer=simulationAvailable()?setInterval(()=>{if(working)return;working=true;void runDueCommerceJobs(db).catch(error=>app.log.error({message:error.message},'Commerce jobs failed')).finally(()=>{working=false;});},30000):null;timer?.unref();
+app.addHook('onClose',async()=>{if(timer)clearInterval(timer);await pool.end();});
+await app.listen({host:'127.0.0.1',port:Number(process.env.PORT??3100)});
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>void app.close());

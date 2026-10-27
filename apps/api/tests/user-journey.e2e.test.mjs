@@ -54,7 +54,7 @@ before(async () => {
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
   await runMigration("0006_policy_version_bindings.sql");
-  await runMigration("0009_clear_rhodey.sql");
+  await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_versions.sql"); await runMigration("0011_service_categories.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-user-journey-e2e", options: `-c search_path=${schemaName},public`, max: 16 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async (delivery) => deliveries.push({ ...delivery }) }, logger: new JsonLogger("user-journey-e2e", (line) => logs.push(line)) });
   admin = await seedAdmin(["order.read", "withdrawal.read", "withdrawal.manage", "withdrawal.review.initial"]);

@@ -48,7 +48,7 @@ before(async () => {
   await runMigration("0006_policy_version_bindings.sql");
   await runMigration("0007_user_lifecycle_requests.sql");
   await runMigration("0008_user_lifecycle_invariants.sql");
-  await runMigration("0009_clear_rhodey.sql");
+  await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_versions.sql"); await runMigration("0011_service_categories.sql");
 });
 
 after(async () => {
@@ -65,7 +65,7 @@ test("all migrations apply to an empty PostgreSQL 16 database", { skip: !enabled
     [schemaName],
   );
 
-  assert.equal(result.rows[0].count, 70);
+  assert.equal(result.rows[0].count, 71);
   const enums = await client.query(
     `SELECT count(*)::integer AS count
        FROM pg_type type

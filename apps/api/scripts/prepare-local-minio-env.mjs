@@ -20,7 +20,6 @@ await writeSecure(minioEnvPath, upsertEnv(minioSource, {
   MINIO_ADDRESS: `${minioBindHost}:9000`,
   MINIO_CONSOLE_ADDRESS: "127.0.0.1:9001",
   MINIO_VOLUMES: resolve(workspaceRoot, ".local/minio-data"),
-  MINIO_LICENSE_PATH: resolve(workspaceRoot, ".local/minio/license/minio.license"),
 }));
 
 const backendSource = await readOptional(backendEnvPath);

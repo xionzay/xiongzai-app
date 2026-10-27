@@ -5,12 +5,14 @@ import { adminApiBlob, adminApiRequest, adminFailure } from "./admin-api";
 import styles from "./admin.module.css";
 
 type ServiceImage = { id: string; file_id: string; sort_order: number; is_cover: boolean };
-type ServiceSku = { id: string; sku_name: string; description: string | null; price_cent: string; duration_minutes: number; status: string; sort_order: number };
+type ServiceSku = { id: string; sku_name: string; description: string | null; price_cent: string; duration_minutes: number; billing_unit?: string; unit_count?: number; status: string; sort_order: number };
 type ReviewLog = { id: string; action: string; old_status: string | null; new_status: string | null; reason: string | null; created_at: string };
 type ServiceDetail = {
   id: string;
   title: string;
   description: string;
+  category?: { name: string; fields: Array<{ key: string; label: string }> } | null;
+  attributes?: Record<string, string>;
   service_time_description: string | null;
   cover_file_id: string | null;
   status: string;
@@ -82,9 +84,10 @@ export function ServiceReviewDrawer({ productId, title, canPreviewMedia, onClose
             <div><span>{serviceStatusLabel(detail.status)} · 第 {detail.current_version_no ?? 1} 版</span><h3>{detail.title}</h3><p>{detail.description || "用户未填写服务说明。"}</p><dl className={styles.serviceSummaryFacts}><div><dt>陪玩</dt><dd>{detail.seller.seller_nickname}</dd></div><div><dt>最低价格</dt><dd>{formatCent(detail.min_price_cent)}</dd></div><div><dt>服务时间说明</dt><dd>{detail.service_time_description || "未填写"}</dd></div><div><dt>提交时间</dt><dd>{formatTime(detail.submitted_at)}</dd></div></dl></div>
           </section>
 
+          <section className={styles.detailSection}><h3>服务分类：{detail.category?.name ?? "旧版服务（未分类）"}</h3><dl>{detail.category?.fields.map((field) => <div key={field.key}><dt>{field.label}</dt><dd>{detail.attributes?.[field.key] || "未填写"}</dd></div>)}</dl></section>
           <section className={styles.detailSection}><h3>用户上传的服务图片</h3>{!canPreviewMedia && sortedImages.length ? <p className={styles.serviceReviewNote}>当前管理员没有文件读取与审核权限，未发出图片预览请求。</p> : previewLoading ? <p className={styles.serviceReviewNote}>正在通过受控管理接口读取图片，请稍候…</p> : sortedImages.length === 0 ? <p className={styles.serviceReviewNote}>当前服务没有绑定任何图片。这是真实空状态，页面没有填充占位业务图片。</p> : <div className={styles.serviceImageGrid}>{sortedImages.map((image, index) => { const preview = previews.find((item) => item.fileId === image.file_id); return <figure key={image.id}>{preview?.url ? <ServiceImagePreview src={preview.url} alt={`${detail.title}服务图片 ${index + 1}`} /> : <div>{preview?.error ?? "图片加载失败"}</div>}<figcaption>{image.is_cover ? "主图" : `详情图 ${index + 1}`} · 排序 {image.sort_order}</figcaption></figure>; })}</div>}</section>
 
-          <section className={styles.detailSection}><h3>服务规格与价格</h3>{detail.skus.length ? <table className={styles.skuTable}><thead><tr><th>规格名称</th><th>说明</th><th>时长</th><th>价格</th><th>状态</th></tr></thead><tbody>{detail.skus.map((sku) => <tr key={sku.id}><td>{sku.sku_name}</td><td>{sku.description || "—"}</td><td>{sku.duration_minutes} 分钟</td><td>{formatCent(sku.price_cent)}</td><td>{skuStatusLabel(sku.status)}</td></tr>)}</tbody></table> : <p className={styles.serviceReviewNote}>当前服务没有可审核的规格。</p>}</section>
+          <section className={styles.detailSection}><h3>服务规格与价格</h3>{detail.skus.length ? <table className={styles.skuTable}><thead><tr><th>规格名称</th><th>说明</th><th>套餐包含</th><th>预约时长</th><th>价格</th><th>状态</th></tr></thead><tbody>{detail.skus.map((sku) => <tr key={sku.id}><td>{sku.sku_name}</td><td>{sku.description || "—"}</td><td>{sku.unit_count ?? 1} {({ MATCH: "局", HOUR: "小时", SESSION: "次" } as Record<string, string>)[sku.billing_unit ?? "SESSION"]}</td><td>{sku.duration_minutes} 分钟</td><td>{formatCent(sku.price_cent)}</td><td>{skuStatusLabel(sku.status)}</td></tr>)}</tbody></table> : <p className={styles.serviceReviewNote}>当前服务没有可审核的规格。</p>}</section>
 
           <section className={styles.detailSection}><h3>审核记录</h3>{detail.review_logs.length ? <div className={styles.serviceReviewLogs}>{detail.review_logs.map((log) => <article key={log.id}><b>{reviewActionLabel(log.action)}</b><p>{log.reason || "未填写原因"}</p><small>{serviceStatusLabel(log.old_status)} → {serviceStatusLabel(log.new_status)} · {formatTime(log.created_at)}</small></article>)}</div> : <p className={styles.serviceReviewNote}>当前服务还没有管理员审核记录。</p>}</section>
 

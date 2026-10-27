@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { FinanceLedgerEngine, IdempotencyService, ORDER_JOB_TYPES, OutboxService, ScheduledJobService, canonicalRequestHash } from "@xiongzai/application";
-import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize, type BuyerOrderAction, type PaymentChannel } from "@xiongzai/contracts";
+import { AppError, assertLegacyOrderRules, LEGACY_APPOINTMENT_RULE_VERSION, decodeCursor, encodeCursor, errorCodes, normalizePageSize, type BuyerOrderAction, type PaymentChannel } from "@xiongzai/contracts";
 import {
   complaints, orderSlotReservations, orderStatusLogs, orders, paymentEvents, payments, platformConfigs, productImages, productSkus, refunds, reviews,
   products, sellerAvailabilitySlots, sellerProfiles, userProfiles, uuidv7, type Database, type DatabaseClient, type DatabaseTransaction,
@@ -57,6 +57,7 @@ export class OrderPaymentService {
         const [order] = await tx.insert(orders).values({
           id: orderId, orderNo, buyerId: userId, sellerUserId: context.seller.userId, sellerId: context.seller.id,
           productId: context.product.id, skuId: context.sku.id, productTitleSnapshot: context.product.title,
+          serviceDetailsSnapshot: { category: context.product.categorySnapshot, attributes: context.product.attributes, billing_unit: context.sku.billingUnit, unit_count: context.sku.unitCount },
           productImageSnapshot: context.imageFileId ?? "", productDescriptionSnapshot: context.product.description,
           sellerNameSnapshot: context.seller.sellerNickname, sellerAvatarSnapshot: context.seller.sellerAvatarFileId,
           skuNameSnapshot: context.sku.skuName, skuDescriptionSnapshot: context.sku.description,
@@ -65,7 +66,7 @@ export class OrderPaymentService {
           payableAmountCent: calculated.payable_amount_cent, commissionRateBpsSnapshot: policy.commissionRateBps,
           platformFeeCent: calculated.platform_fee_cent, sellerIncomeCent: calculated.seller_income_cent,
           serviceStartsAt: input.serviceStartsAt, serviceEndsAt: calculated.service_ends_at, buyerNote: input.buyerNote,
-          expiresAt,
+          expiresAt, transactionRuleVersion: LEGACY_APPOINTMENT_RULE_VERSION,
         }).returning();
         await tx.insert(orderSlotReservations).values({ id: uuidv7(), orderId, slotId: context.slot.id, sellerId: context.seller.id, startsAt: input.serviceStartsAt, endsAt: calculated.service_ends_at, status: "HELD", expiresAt });
         await tx.insert(orderStatusLogs).values({ id: uuidv7(), orderId, oldStatus: null, newStatus: "PENDING_PAYMENT", operatorUserId: userId, operatorRole: "BUYER", action: "CREATE", remark: "买家创建订单并占用预约时段", requestId: metadata.requestId });
@@ -87,11 +88,13 @@ export class OrderPaymentService {
     const existing = await this.database.db.select().from(payments).where(eq(payments.idempotencyKey, storedKey)).limit(1);
     if (existing[0]) {
       if (existing[0].orderId !== orderId || existing[0].channel !== paymentChannel) throw conflict("PAYMENT_IDEMPOTENCY_CONFLICT", "支付幂等键已用于不同的订单或支付渠道");
+      await this.requirePaymentForUser(userId, existing[0].id);
       return { ...paymentView(existing[0]), client_payload: replayClientPayload(paymentProvider, existing[0]) };
     }
     const created = await this.database.db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(and(eq(orders.id, orderId), eq(orders.buyerId, userId))).limit(1).for("update");
       if (!order) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+      assertLegacyOrderRules(order);
       if (order.status !== "PENDING_PAYMENT" || order.expiresAt <= new Date()) throw invalidState("订单当前不可支付");
       if (order.paymentStatus === "PAYING") throw conflict("PAYMENT_ALREADY_PAYING", "订单已有支付正在处理中");
       const [transactionPolicy] = await this.identity.requirePolicyAcceptances(tx, userId, "ORDER_PAYMENT");
@@ -133,6 +136,9 @@ export class OrderPaymentService {
     const result = await this.database.db.transaction(async (tx) => {
       const [payment] = await tx.select().from(payments).where(and(eq(payments.paymentNo, payload.payment_no), eq(payments.channel, stored.channel))).limit(1).for("update");
       if (!payment) throw notFound("PAYMENT_NOT_FOUND", "支付单不存在");
+      const [order] = await tx.select().from(orders).where(eq(orders.id, payment.orderId)).limit(1).for("update");
+      if (!order) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+      assertLegacyOrderRules(order);
       const inserted = await tx.insert(paymentEvents).values({ id: uuidv7(), paymentId: payment.id, channel: payment.channel, providerEventId: payload.event_id, eventType: payload.event_type, signatureVerified: true, payloadSha256: canonicalRequestHash(payload) }).onConflictDoNothing().returning();
       if (!inserted[0]) return { duplicate: true, payment: paymentView(payment) } as const;
       let callbackAmount: bigint;
@@ -155,8 +161,7 @@ export class OrderPaymentService {
         await tx.update(paymentEvents).set({ processingError: "PAYMENT_STATE_INVALID", processedAt: new Date() }).where(eq(paymentEvents.id, inserted[0].id));
         return { error: "PAYMENT_STATE_INVALID" as const };
       }
-      const [order] = await tx.select().from(orders).where(eq(orders.id, payment.orderId)).limit(1).for("update");
-      if (!order || order.status !== "PENDING_PAYMENT") {
+      if (order.status !== "PENDING_PAYMENT") {
         await tx.update(paymentEvents).set({ processingError: "ORDER_NOT_PAYABLE", processedAt: new Date() }).where(eq(paymentEvents.id, inserted[0].id));
         return { error: "ORDER_NOT_PAYABLE" as const };
       }
@@ -296,6 +301,7 @@ export class OrderPaymentService {
   async startService(userId: string, orderId: string, version: number, metadata: RequestMetadata) {
     const [order] = await this.database.db.select().from(orders).where(eq(orders.id, orderId)).limit(1);
     if (!order || order.sellerUserId !== userId) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+    assertLegacyOrderRules(order);
     if (order.status === "ACCEPTED" && order.version !== version) throw versionConflict();
     if (order.status === "ACCEPTED" && order.serviceStartsAt > new Date()) throw conflict("ORDER_SERVICE_NOT_STARTED", "预约时间未到，不能提前开始服务");
     return this.transition(userId, orderId, "SELLER", "ACCEPTED", "IN_SERVICE", version, "START_SERVICE", "陪玩开始服务", metadata, { serviceStartedAt: new Date() });
@@ -310,6 +316,7 @@ export class OrderPaymentService {
     return this.database.db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
       if (!order || (role === "BUYER" ? order.buyerId !== userId : order.sellerUserId !== userId)) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+      assertLegacyOrderRules(order);
       if (order.status !== expected) throw invalidState(`订单状态 ${order.status} 不能执行 ${action}`);
       if (order.version !== version) throw versionConflict();
       const [updated] = await tx.update(orders).set({ ...fields, status: next, version: sql`${orders.version} + 1`, updatedAt: new Date() })
@@ -349,7 +356,9 @@ export class OrderPaymentService {
 
   private async requirePaymentForUser(userId: string, paymentId: string) {
     const [row] = await this.database.db.select({ payment: payments, order: orders }).from(payments).innerJoin(orders, eq(payments.orderId, orders.id)).where(and(eq(payments.id, paymentId), or(eq(orders.buyerId, userId), eq(orders.sellerUserId, userId)))).limit(1);
-    if (!row) throw notFound("PAYMENT_NOT_FOUND", "支付单不存在"); return row.payment;
+    if (!row) throw notFound("PAYMENT_NOT_FOUND", "支付单不存在");
+    assertLegacyOrderRules(row.order);
+    return row.payment;
   }
 
   private async loadPurchaseContext(executor: Database | DatabaseTransaction, userId: string, input: OrderDraft, lock = false): Promise<PurchaseContext> {
@@ -382,14 +391,15 @@ export class OrderPaymentService {
 function previewView(context: PurchaseContext, policy: Policy, quantity: number, serviceStartsAt: Date) {
   const total = context.sku.priceCent * BigInt(quantity); const platformFee = total * BigInt(policy.commissionRateBps) / 10_000n;
   const serviceEndsAt = new Date(serviceStartsAt.getTime() + context.sku.durationMinutes * quantity * 60_000);
-  return { product_id: context.product.id, product_title: context.product.title, product_image_file_id: context.imageFileId, seller_id: context.seller.id, seller_name: context.seller.sellerNickname, sku_id: context.sku.id, sku_name: context.sku.skuName, sku_price_cent: context.sku.priceCent, sku_duration_minutes: context.sku.durationMinutes, quantity, total_amount_cent: total, discount_cent: 0n, payable_amount_cent: total, commission_rate_bps: policy.commissionRateBps, platform_fee_cent: platformFee, seller_income_cent: total - platformFee, service_starts_at: serviceStartsAt, service_ends_at: serviceEndsAt };
+  return { product_id: context.product.id, product_title: context.product.title, product_image_file_id: context.imageFileId, seller_id: context.seller.id, seller_name: context.seller.sellerNickname, sku_id: context.sku.id, sku_name: context.sku.skuName, sku_price_cent: context.sku.priceCent, sku_duration_minutes: context.sku.durationMinutes, billing_unit: context.sku.billingUnit, unit_count: context.sku.unitCount, category: context.product.categorySnapshot, attributes: context.product.attributes, quantity, total_amount_cent: total, discount_cent: 0n, payable_amount_cent: total, commission_rate_bps: policy.commissionRateBps, platform_fee_cent: platformFee, seller_income_cent: total - platformFee, service_starts_at: serviceStartsAt, service_ends_at: serviceEndsAt };
 }
 
-function orderView(row: typeof orders.$inferSelect) { return { id: row.id, order_no: row.orderNo, buyer_id: row.buyerId, seller_user_id: row.sellerUserId, seller_id: row.sellerId, product_id: row.productId, sku_id: row.skuId, transaction_policy_version_id: row.transactionPolicyVersionId, refund_policy_version_id: row.refundPolicyVersionId, product_title: row.productTitleSnapshot, product_image: row.productImageSnapshot, product_description: row.productDescriptionSnapshot, seller_name: row.sellerNameSnapshot, seller_avatar: row.sellerAvatarSnapshot, sku_name: row.skuNameSnapshot, sku_description: row.skuDescriptionSnapshot, sku_price_cent: row.skuPriceCentSnapshot, sku_duration_minutes: row.skuDurationMinutesSnapshot, quantity: row.quantity, total_amount_cent: row.totalAmountCent, discount_cent: row.discountCent, payable_amount_cent: row.payableAmountCent, paid_amount_cent: row.paidAmountCent, refunded_amount_cent: row.refundedAmountCent, commission_rate_bps: row.commissionRateBpsSnapshot, platform_fee_cent: row.platformFeeCent, seller_income_cent: row.sellerIncomeCent, service_starts_at: row.serviceStartsAt, service_ends_at: row.serviceEndsAt, buyer_note: row.buyerNote, status: row.status, payment_status: row.paymentStatus, after_sale_status: row.afterSaleStatus, expires_at: row.expiresAt, auto_confirm_at: row.autoConfirmAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
+function orderView(row: typeof orders.$inferSelect) { return { id: row.id, order_no: row.orderNo, buyer_id: row.buyerId, seller_user_id: row.sellerUserId, seller_id: row.sellerId, product_id: row.productId, sku_id: row.skuId, transaction_rule_version: row.transactionRuleVersion, transaction_policy_version_id: row.transactionPolicyVersionId, refund_policy_version_id: row.refundPolicyVersionId, product_title: row.productTitleSnapshot, product_image: row.productImageSnapshot, product_description: row.productDescriptionSnapshot, service_details: row.serviceDetailsSnapshot, seller_name: row.sellerNameSnapshot, seller_avatar: row.sellerAvatarSnapshot, sku_name: row.skuNameSnapshot, sku_description: row.skuDescriptionSnapshot, sku_price_cent: row.skuPriceCentSnapshot, sku_duration_minutes: row.skuDurationMinutesSnapshot, quantity: row.quantity, total_amount_cent: row.totalAmountCent, discount_cent: row.discountCent, payable_amount_cent: row.payableAmountCent, paid_amount_cent: row.paidAmountCent, refunded_amount_cent: row.refundedAmountCent, commission_rate_bps: row.commissionRateBpsSnapshot, platform_fee_cent: row.platformFeeCent, seller_income_cent: row.sellerIncomeCent, service_starts_at: row.serviceStartsAt, service_ends_at: row.serviceEndsAt, buyer_note: row.buyerNote, status: row.status, payment_status: row.paymentStatus, after_sale_status: row.afterSaleStatus, expires_at: row.expiresAt, auto_confirm_at: row.autoConfirmAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
 function paymentView(row: typeof payments.$inferSelect) { return { id: row.id, payment_no: row.paymentNo, order_id: row.orderId, channel: row.channel, amount_cent: row.amountCent, currency: row.currency, status: row.status, provider_transaction_id: row.providerTransactionId, paid_at: row.paidAt, closed_at: row.closedAt, version: row.version, created_at: row.createdAt }; }
 function replayClientPayload(provider: PaymentProvider, row: typeof payments.$inferSelect) { return { mode: provider.mode, payment_channel: row.channel, payment_no: row.paymentNo }; }
 function reservationView(row: typeof orderSlotReservations.$inferSelect) { return { id: row.id, slot_id: row.slotId, starts_at: row.startsAt, ends_at: row.endsAt, status: row.status, expires_at: row.expiresAt, released_at: row.releasedAt, version: row.version }; }
 function buyerActions(order: typeof orders.$inferSelect, hasRefund: boolean, hasReview: boolean, refundableAmount: bigint): BuyerOrderAction[] {
+  if (order.transactionRuleVersion !== LEGACY_APPOINTMENT_RULE_VERSION) return [];
   const actions: BuyerOrderAction[] = ["VIEW_SERVICE"];
   if (order.status === "PENDING_PAYMENT" && order.expiresAt > new Date() && ["CREATED", "FAILED"].includes(order.paymentStatus)) actions.push("PAY", "CANCEL");
   if (order.status === "PENDING_BUYER_CONFIRM") actions.push("CONFIRM_COMPLETE");
@@ -400,6 +410,7 @@ function buyerActions(order: typeof orders.$inferSelect, hasRefund: boolean, has
   return actions;
 }
 function sellerActions(order: typeof orders.$inferSelect) {
+  if (order.transactionRuleVersion !== LEGACY_APPOINTMENT_RULE_VERSION) return [];
   const actions: ("ACCEPT" | "REJECT" | "START" | "COMPLETE" | "PROCESS_REFUND" | "CONTACT_BUYER")[] = ["CONTACT_BUYER"];
   if (order.afterSaleStatus === "IN_PROGRESS") actions.push("PROCESS_REFUND");
   if (order.status === "PENDING_ACCEPT") actions.push("ACCEPT", "REJECT");

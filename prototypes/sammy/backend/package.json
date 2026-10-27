@@ -1,0 +1,38 @@
+{
+  "name": "xiongzai-sammy-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=.env --env-file-if-exists=.env.local src/local.ts",
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
+    "db:migrate": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrate.ts",
+    "admin:grant": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/grant-admin.ts",
+    "test:integration": "sh scripts/test-postgres.sh",
+    "storage:check": "node --import tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/check-cloudinary.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/s3-request-presigner": "^3.1152.0",
+    "@neon/config": "^1.9.3",
+    "@neon/env": "^1.6.4",
+    "cloudinary": "^2.11.0",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.7",
+    "file-type": "^22.2.0",
+    "music-metadata": "^12.2.2",
+    "pg": "^8.23.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

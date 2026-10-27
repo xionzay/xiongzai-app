@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "熊崽电竞",
+    "slug": "xiongzai-sammy-prototype",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "xiongzai-sammy-prototype",
+    "ios": {
+      "bundleIdentifier": "com.xiongzai.sammy.prototype"
+    },
+    "android": {
+      "package": "com.xiongzai.sammy.prototype"
+    },
+    "plugins": [
+      "expo-dev-client",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose a profile photo for your Xiongzai account.",
+          "cameraPermission": false,
+          "microphonePermission": "Record a voice introduction for your Xiongzai provider profile."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Record a voice introduction for your Xiongzai provider profile.",
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-secure-store"
+    ]
+  }
+}

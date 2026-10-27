@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Image, Keyboard, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,10 +17,16 @@ import { sellerEntry, sellerServiceSchema, sellerSkuSchema, type SellerServiceVa
 import { queryClient } from "@/query/query-client";
 import { colors } from "@/theme/tokens";
 import type { FileApiView } from "@/types/api";
+import { ServiceCategoryFields, PackageUnits } from "./service-category-fields";
+import { validUnitCount, type BillingUnit } from "@/features/catalog/service-catalog";
 import publishCover from "../../../assets/publish-arcade.png";
 
 export function SellerServiceCreateScreen() {
   const { status, user, bootstrapError, retryBootstrap } = useAuth();
+  const [previewing, setPreviewing] = useState(false);
+  const [savedDraftId, setSavedDraftId] = useState<string | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [coverFile, setCoverFile] = useState<FileApiView | null>(null);
@@ -30,6 +36,8 @@ export function SellerServiceCreateScreen() {
   const [specErrors, setSpecErrors] = useState<Record<string, { skuName?: string; priceYuan?: string }>>({});
   const seller = useSellerProfile(status === "authenticated" && Boolean(user));
   const service = useForm<SellerServiceValues>({ resolver: zodResolver(sellerServiceSchema), defaultValues: { title: "", description: "" } });
+
+  const previewValues = useWatch({ control: service.control });
 
   useEffect(() => {
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
@@ -43,7 +51,9 @@ export function SellerServiceCreateScreen() {
   }, []);
 
   const save = (submitForReview: boolean) => service.handleSubmit(async (serviceValues) => {
-    if (busy) return;
+    if (busy || savedDraftId) return;
+    if (!categoryId) { setNotice("请选择服务分类。"); return; }
+    if (specs.some((item) => !validUnitCount(item.unitCount) || (item.billingUnit === "HOUR" && Number(item.durationMinutes) !== Number(item.unitCount) * 60))) { setNotice("请检查套餐数量和预约时长，小时数必须与分钟数一致。"); return; }
     if (!specs.length) {
       setNotice("至少添加一个服务规格。");
       return;
@@ -65,10 +75,12 @@ export function SellerServiceCreateScreen() {
       setShowUploader(true);
       return;
     }
+    if (submitForReview && !previewing) { setPreviewing(true); return; }
     setBusy(true);
     setNotice(null);
     try {
-      const product = await createSellerService({ title: serviceValues.title, description: serviceValues.description, service_time_description: null, cover_file_id: coverFile?.id ?? null });
+      const product = await createSellerService({ category_id: categoryId, attributes, title: serviceValues.title, description: serviceValues.description, service_time_description: null, cover_file_id: coverFile?.id ?? null });
+      setSavedDraftId(product.id);
       if (coverFile) {
         await replaceSellerServiceImages(product.id, {
           version: product.version,
@@ -77,7 +89,7 @@ export function SellerServiceCreateScreen() {
       }
       const validSpecs = parsed.map((row) => row.result.success ? row.result.data : null).filter((row): row is SellerSkuValues => Boolean(row));
       for (const [index, skuValues] of validSpecs.entries()) {
-        await addSellerSku(product.id, { sku_name: skuValues.skuName, description: null, price_cent: yuanToCent(skuValues.priceYuan)!, duration_minutes: 60, sort_order: index });
+        await addSellerSku(product.id, { sku_name: skuValues.skuName, description: null, price_cent: yuanToCent(skuValues.priceYuan)!, duration_minutes: Number(skuValues.durationMinutes), billing_unit: specs[index]!.billingUnit, unit_count: Number(specs[index]!.unitCount), sort_order: index });
       }
       if (submitForReview) {
         const latest = await getSellerService(product.id);
@@ -91,7 +103,7 @@ export function SellerServiceCreateScreen() {
     } finally { setBusy(false); }
   });
 
-  const updateSpec = (localId: string, field: "skuName" | "priceYuan", value: string) => {
+  const updateSpec = (localId: string, field: "skuName" | "priceYuan" | "durationMinutes", value: string) => {
     setSpecs((items) => items.map((item) => item.localId === localId ? { ...item, [field]: value } : item));
     setSpecErrors((errors) => ({ ...errors, [localId]: { ...errors[localId], [field]: undefined } }));
   };
@@ -146,6 +158,7 @@ export function SellerServiceCreateScreen() {
           /> : null}
           {notice ? <NoticeBanner tone={notice.includes("已准备好") ? "success" : "danger"} message={notice} /> : null}
           <View style={styles.panel}>
+            <ServiceCategoryFields categoryId={categoryId} attributes={attributes} editable={!busy} onChange={(id, values) => { setCategoryId(id); setAttributes(values); }} />
             <View style={styles.required}><Text style={styles.requiredText}>必填</Text></View>
             <Controller control={service.control} name="title" render={({ field }) => <FormField label="服务标题" placeholder="输入服务标题" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} maxLength={40} error={service.formState.errors.title?.message} />} />
             <Controller control={service.control} name="description" render={({ field }) => <FormField label="服务详情" placeholder="介绍服务内容、沟通方式和注意事项" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} multiline maxLength={1000} style={styles.multiline} error={service.formState.errors.description?.message} />} />
@@ -158,25 +171,29 @@ export function SellerServiceCreateScreen() {
                 <View style={[styles.specPrice, specErrors[item.localId]?.priceYuan && styles.inputError]}><Text style={styles.currency}>¥</Text><TextInput accessibilityLabel={`规格${index + 1}价格`} placeholder="价格" placeholderTextColor="#9A9DA5" value={item.priceYuan} onChangeText={(value) => updateSpec(item.localId, "priceYuan", value)} keyboardType="decimal-pad" style={styles.specPriceInput} /></View>
                 <Pressable accessibilityRole="button" accessibilityLabel={`删除规格${index + 1}`} onPress={() => setSpecs((items) => items.filter((row) => row.localId !== item.localId))} style={({ pressed }) => [styles.removeSpec, pressed && styles.pressed]}><Text style={styles.removeSpecText}>×</Text></Pressable>
               </View>
+              <PackageUnits unit={item.billingUnit} count={item.unitCount} onChange={(billingUnit, unitCount) => setSpecs((items) => items.map((row) => row.localId === item.localId ? { ...row, billingUnit, unitCount, ...(billingUnit === "HOUR" ? { durationMinutes: String(Number(unitCount) * 60) } : {}) } : row))} />
+              <FormField label="预计预约时长（分钟）" value={item.durationMinutes} onChangeText={(value) => updateSpec(item.localId, "durationMinutes", value)} keyboardType="number-pad" />
               {specErrors[item.localId]?.skuName || specErrors[item.localId]?.priceYuan ? <Text style={styles.specError}>{specErrors[item.localId]?.skuName ?? specErrors[item.localId]?.priceYuan}</Text> : null}
             </View>)}
             <Pressable accessibilityRole="button" accessibilityLabel="添加规格" disabled={specs.length >= 9} onPress={() => setSpecs((items) => [...items, createSpecDraft()])} style={({ pressed }) => [styles.addSpec, specs.length >= 9 && styles.disabled, pressed && styles.pressed]}><Text style={styles.addSpecText}>＋ 添加规格</Text></Pressable>
           </View>
+          {previewing ? <View style={styles.panel}><Text style={styles.panelTitleText}>发布预览</Text><Text>{previewValues.title}</Text><Text>{previewValues.description}</Text>{Object.entries(attributes).map(([key, value]) => <Text key={key}>{value}</Text>)}{specs.map((spec) => <Text key={spec.localId}>{spec.skuName} · ¥{spec.priceYuan} / {spec.unitCount} {({ SESSION: "次", MATCH: "局", HOUR: "小时" })[spec.billingUnit]} · 预约 {spec.durationMinutes} 分钟</Text>)}<Text>请核对上方图片、分类和服务内容后确认提交。</Text><Pressable accessibilityRole="button" onPress={() => setPreviewing(false)}><Text>返回编辑</Text></Pressable></View> : null}
+          {savedDraftId ? <Pressable accessibilityRole="button" onPress={() => router.replace({ pathname: "/seller/services/[id]/edit", params: { id: savedDraftId } })}><Text>草稿已保存，前往编辑并继续完成发布</Text></Pressable> : null}
         </ScrollView>
         {!keyboardVisible ? <View style={styles.submitBar}>
-          <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void save(false)(); }} style={({ pressed }) => [styles.draftButton, busy && styles.disabled, pressed && styles.pressed]}><Text style={styles.draftText}>存草稿</Text></Pressable>
-          <Pressable accessibilityRole="button" disabled={busy} onPress={() => { void save(true)(); }} style={({ pressed }) => [styles.submitButton, busy && styles.disabled, pressed && styles.pressed]}><Text style={styles.submitText}>{busy ? "正在保存…" : "提交审核"}</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={busy || Boolean(savedDraftId)} onPress={() => { void save(false)(); }} style={({ pressed }) => [styles.draftButton, busy && styles.disabled, pressed && styles.pressed]}><Text style={styles.draftText}>存草稿</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={busy || Boolean(savedDraftId)} onPress={() => { void save(true)(); }} style={({ pressed }) => [styles.submitButton, busy && styles.disabled, pressed && styles.pressed]}><Text style={styles.submitText}>{busy ? "正在保存…" : previewing ? "确认提交审核" : "预览并提交审核"}</Text></Pressable>
         </View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-type SpecDraft = SellerSkuValues & { localId: string };
+type SpecDraft = SellerSkuValues & { localId: string; billingUnit: BillingUnit; unitCount: string };
 let nextSpecId = 0;
 function createSpecDraft(): SpecDraft {
   nextSpecId += 1;
-  return { localId: `spec-${nextSpecId}`, skuName: "", description: "", priceYuan: "", durationMinutes: "60" };
+  return { billingUnit: "SESSION", unitCount: "1", localId: `spec-${nextSpecId}`, skuName: "", description: "", priceYuan: "", durationMinutes: "60" };
 }
 
 function sellerPermissionCopy(entry: ReturnType<typeof sellerEntry>) {

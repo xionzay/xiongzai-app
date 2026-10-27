@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { isOwnedCacheUri, recordingDurationMessage, recordingPermissionMessage, recordingPermissionState, shouldAcceptFinishedRecording, shouldExpireAccess, VOICE_NATIVE_AUTOSTOP_DURATION_MS } from "../src/features/files/voice-native-domain";
@@ -9,6 +10,7 @@ function source(relativePath: string) {
 }
 
 const packageJson = JSON.parse(source("../package.json")) as { dependencies: Record<string, string> };
+const expoNativeModules = JSON.parse(readFileSync(createRequire(import.meta.url).resolve("expo/bundledNativeModules.json"), "utf8")) as Record<string, string>;
 const appConfig = source("../app.config.ts");
 const nativeSelection = source("../src/features/files/voice-media-selection.native.ts");
 const webSelection = source("../src/features/files/voice-media-selection.ts");
@@ -21,10 +23,11 @@ const uploadSlot = source("../src/features/files/voice-upload-slot.tsx");
 const companionDetail = source("../src/features/discovery/companion-detail-screen.tsx");
 const sellerApplication = source("../src/features/seller/seller-application-screen.tsx");
 
-test("Expo 57 音频、文件选择和文件系统依赖固定在兼容版本，并关闭后台音频", () => {
-  assert.equal(packageJson.dependencies["expo-audio"], "~57.0.4");
-  assert.equal(packageJson.dependencies["expo-document-picker"], "~57.0.1");
-  assert.equal(packageJson.dependencies["expo-file-system"], "~57.0.5");
+test("音频、文件选择和文件系统依赖匹配当前 Expo SDK 推荐版本，并关闭后台音频", () => {
+  for (const dependency of ["expo-audio", "expo-document-picker", "expo-file-system"]) {
+    assert.ok(expoNativeModules[dependency], `Expo SDK must declare a compatible version for ${dependency}`);
+    assert.equal(packageJson.dependencies[dependency], expoNativeModules[dependency], `${dependency} must match the installed Expo SDK`);
+  }
   assert.match(appConfig, /"expo-audio"[\s\S]*recordAudioAndroid: true[\s\S]*enableBackgroundRecording: false[\s\S]*enableBackgroundPlayback: false/u);
 });
 

@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
-import { OrderJobProcessor, ORDER_JOB_TYPES } from "@xiongzai/application";
+import { FinanceLedgerEngine, OrderJobProcessor, ORDER_JOB_TYPES } from "@xiongzai/application";
 import { issueAccessToken } from "@xiongzai/auth";
-import { createDatabaseClient } from "@xiongzai/database";
+import { createDatabaseClient, orders } from "@xiongzai/database";
 import { JsonLogger } from "@xiongzai/observability";
 import pg from "pg";
+import { eq } from "drizzle-orm";
 import { createApiApp, loadApiConfig, MockPaymentProvider } from "../dist/index.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -45,7 +46,7 @@ before(async () => {
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
   await runMigration("0006_policy_version_bindings.sql");
-  await runMigration("0009_clear_rhodey.sql");
+  await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_versions.sql"); await runMigration("0011_service_categories.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-order-payment-test", options: `-c search_path=${schemaName},public`, max: 8 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, logger: new JsonLogger("order-payment-test", () => {}) });
   seller = await seedUser("seller");
@@ -242,6 +243,108 @@ test("accept-timeout and auto-confirm jobs are idempotent and release reservatio
   assert.deepEqual(autoState.rows[0], { status: "COMPLETED", reservation_status: "RELEASED", jobs: 1 });
 });
 
+
+test("unsupported order rules cannot use legacy commands, jobs, or financial posting", { skip: !enabled }, async () => {
+  const draft = nextDraft(1);
+  const key = `rule-baseline-${randomUUID()}`;
+  for (const path of ["/api/v1/orders/preview", "/api/v1/orders"]) {
+    const rejected = await userRequest(buyers[0], "POST", path, { ...draft, transaction_rule_version: 2 }, { "idempotency-key": key });
+    assert.equal(rejected.statusCode, 400, rejected.body);
+    assert.equal(rejected.json().code, "VALIDATION_FAILED");
+  }
+  const created = await userRequest(buyers[0], "POST", "/api/v1/orders", { ...draft, transaction_rule_version: 1 }, { "idempotency-key": key });
+  assert.equal(created.statusCode, 201, created.body);
+  assert.equal(created.json().transaction_rule_version, 1);
+  const processor = new OrderJobProcessor(database.db);
+  const ledger = new FinanceLedgerEngine(database.db);
+  const scenarios = [
+    { status: "PENDING_PAYMENT", paths: [[buyers[0], "orders", "cancel"]], job: ORDER_JOB_TYPES.PAYMENT_TIMEOUT },
+    { status: "PENDING_ACCEPT", paths: [[seller, "seller/orders", "accept"], [seller, "seller/orders", "reject"]], job: ORDER_JOB_TYPES.ACCEPT_TIMEOUT },
+    { status: "ACCEPTED", paths: [[seller, "seller/orders", "start"]] },
+    { status: "IN_SERVICE", paths: [[seller, "seller/orders", "complete"]] },
+    { status: "PENDING_BUYER_CONFIRM", paths: [[buyers[0], "orders", "confirm"]], job: ORDER_JOB_TYPES.AUTO_CONFIRM },
+    { status: "COMPLETED", paths: [] },
+  ];
+  for (const [index, scenario] of scenarios.entries()) {
+    // Insert synthetic future fixtures; never relabel an existing historical order.
+    const order = await cloneOrder(created.json().id, {
+      transaction_rule_version: index === 0 ? 99 : 2, status: scenario.status,
+      paid_amount_cent: scenario.status === "PENDING_PAYMENT" ? "0" : "2500",
+      payment_status: scenario.status === "PENDING_PAYMENT" ? "CREATED" : "PAID",
+      expires_at: new Date(Date.now() - 1000).toISOString(),
+      auto_confirm_at: new Date(Date.now() - 1000).toISOString(),
+      service_starts_at: new Date(Date.now() - 60000).toISOString(),
+    });
+    const before = (await migrationClient.query("SELECT to_jsonb(o) AS row FROM orders o WHERE id = $1", [order.id])).rows[0];
+    for (const [account, family, action] of scenario.paths) {
+      const response = await userRequest(account, "POST", `/api/v1/${family}/${order.id}/${action}`, { version: order.version, reason: "版本隔离测试" });
+      assert.equal(response.statusCode, 409, response.body);
+      assert.equal(response.json().code, "ORDER_RULE_VERSION_UNSUPPORTED");
+    }
+    const detail = await userRequest(buyers[0], "GET", `/api/v1/orders/${order.id}`);
+    assert.equal(detail.statusCode, 200, detail.body);
+    assert.equal(detail.json().transaction_rule_version, order.transaction_rule_version);
+    assert.deepEqual(detail.json().available_actions, []);
+    const unauthorized = await userRequest(buyers[1], "POST", `/api/v1/orders/${order.id}/cancel`, { version: 0, reason: "版本隔离测试" });
+    assert.equal(unauthorized.statusCode, 404, unauthorized.body);
+    if (scenario.job) await assert.rejects(processor.process(scenario.job, order.id, "rule-isolation"), { code: "ORDER_RULE_VERSION_UNSUPPORTED" });
+    const payment = await userRequest(buyers[0], "POST", "/api/v1/payments", { order_id: order.id, payment_channel: "WECHAT_APP" }, { "idempotency-key": `future-payment-${randomUUID()}` });
+    assert.equal(payment.json().code, "ORDER_RULE_VERSION_UNSUPPORTED", payment.body);
+    const refund = await userRequest(buyers[0], "POST", "/api/v1/refunds", { order_id: order.id, amount_cent: "100", reason_code: "RULE_TEST", reason_text: "版本隔离测试" }, { "idempotency-key": `future-refund-${randomUUID()}` });
+    assert.equal(refund.json().code, "ORDER_RULE_VERSION_UNSUPPORTED", refund.body);
+    const review = await userRequest(buyers[0], "POST", "/api/v1/reviews", { order_id: order.id, rating: 5, anonymous: false });
+    assert.equal(review.json().code, "ORDER_RULE_VERSION_UNSUPPORTED", review.body);
+    const [row] = await database.db.select().from(orders).where(eq(orders.id, order.id));
+    await assert.rejects(database.db.transaction(tx => ledger.recordOrderCompleted(tx, row)), { code: "ORDER_RULE_VERSION_UNSUPPORTED" });
+    await assert.rejects(database.db.transaction(tx => ledger.recordRefund(tx, {}, row, 100n, 0n)), { code: "ORDER_RULE_VERSION_UNSUPPORTED" });
+    const after = (await migrationClient.query("SELECT to_jsonb(o) AS row FROM orders o WHERE id = $1", [order.id])).rows[0];
+    assert.deepEqual(after, before);
+    const effects = await migrationClient.query(`SELECT
+      (SELECT count(*) FROM payments WHERE order_id=$1)::int AS payments,
+      (SELECT count(*) FROM refunds WHERE order_id=$1)::int AS refunds,
+      (SELECT count(*) FROM reviews WHERE order_id=$1)::int AS reviews,
+      (SELECT count(*) FROM seller_incomes WHERE order_id=$1)::int AS incomes,
+      (SELECT count(*) FROM ledger_transactions WHERE source_id=$1)::int AS ledger,
+      (SELECT count(*) FROM order_status_logs WHERE order_id=$1)::int AS logs,
+      (SELECT count(*) FROM outbox_events WHERE aggregate_id=$1)::int AS outbox,
+      (SELECT count(*) FROM scheduled_jobs WHERE target_id=$1)::int AS jobs`, [order.id]);
+    assert.deepEqual(effects.rows[0], { payments: 0, refunds: 0, reviews: 0, incomes: 0, ledger: 0, logs: 0, outbox: 0, jobs: 0 });
+  }
+  const legacy = await userRequest(buyers[0], "POST", `/api/v1/orders/${created.json().id}/cancel`, { version: 0, reason: "历史规则继续可用" });
+  assert.equal(legacy.statusCode, 201, legacy.body);
+  assert.equal(legacy.json().transaction_rule_version, 1);
+});
+
+test("signed callbacks and payment replays reject unsupported rules without consuming events", { skip: !enabled }, async () => {
+  const baseline = await userRequest(buyers[0], "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `callback-baseline-${randomUUID()}` });
+  const order = await cloneOrder(baseline.json().id, { transaction_rule_version: 2, payment_status: "PAYING" });
+  const paymentId = randomUUID();
+  const paymentNo = `RULE${randomUUID()}`;
+  const paymentKey = `rule-replay-${randomUUID()}`;
+  const storedKey = createHash("sha256").update(`${buyers[0].id}:${paymentKey}`).digest("hex");
+  await migrationClient.query("INSERT INTO payments(id,order_id,payment_no,channel,idempotency_key,amount_cent,status) VALUES($1,$2,$3,'WECHAT_APP',$4,2500,'PAYING')", [paymentId, order.id, paymentNo, storedKey]);
+  const replay = await userRequest(buyers[0], "POST", "/api/v1/payments", { order_id: order.id, payment_channel: "WECHAT_APP" }, { "idempotency-key": paymentKey });
+  assert.equal(replay.statusCode, 409, replay.body);
+  assert.equal(replay.json().code, "ORDER_RULE_VERSION_UNSUPPORTED");
+  const provider = new MockPaymentProvider(webhookSecret, "WECHAT_APP");
+  for (const event_type of ["PAYMENT_SUCCEEDED", "PAYMENT_FAILED"]) {
+    const payload = { event_id: `rule-${randomUUID()}`, event_type, payment_no: paymentNo, provider_transaction_id: `tx-${randomUUID()}`, amount_cent: "2500" };
+    const response = await callbackRequest(payload, provider.sign(payload));
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().code, "ORDER_RULE_VERSION_UNSUPPORTED");
+  }
+  const canceled = await userRequest(buyers[0], "POST", `/api/v1/payments/${paymentId}/mock-cancel`);
+  assert.equal(canceled.json().code, "ORDER_RULE_VERSION_UNSUPPORTED", canceled.body);
+  const stored = await migrationClient.query("SELECT p.status, o.status AS order_status, (SELECT count(*) FROM payment_events WHERE payment_id=p.id)::int AS events FROM payments p JOIN orders o ON o.id=p.order_id WHERE p.id=$1", [paymentId]);
+  assert.deepEqual(stored.rows[0], { status: "PAYING", order_status: "PENDING_PAYMENT", events: 0 });
+});
+
+async function cloneOrder(sourceId, overrides) {
+  const values = { id: randomUUID(), order_no: `RULE${randomUUID()}`, ...overrides };
+  const result = await migrationClient.query("INSERT INTO orders SELECT (jsonb_populate_record(NULL::orders, to_jsonb(o) || $2::jsonb)).* FROM orders o WHERE id=$1 RETURNING *", [sourceId, JSON.stringify(values)]);
+  return result.rows[0];
+}
+
 async function createPaidOrder(account) {
   const created = await userRequest(account, "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `paid-order-${randomUUID()}` });
   assert.equal(created.statusCode, 201, created.body);
@@ -290,3 +393,23 @@ function userRequest(account, method, url, payload, extraHeaders = {}) { return 
 function callbackRequest(payload, signature, channel = "mock") { return app.inject({ method: "POST", url: `/callbacks/v1/payments/${channel}`, headers: { "x-payment-signature": signature }, payload }); }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(fileName) { let source = await readFile(new URL(`../../../packages/database/migrations/${fileName}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }
+
+test("purchased category attributes and package units survive later catalog edits", { skip: !enabled }, async () => {
+  const category = { id: randomUUID(), name: "开黑服务", version: 1, fields: [{ key: "mode", label: "模式", required: true }] };
+  await migrationClient.query("UPDATE products SET category_snapshot=$2,attributes=$3 WHERE id=$1", [productId, JSON.stringify(category), JSON.stringify({ mode: "经典模式" })]);
+  await migrationClient.query("UPDATE product_skus SET billing_unit='MATCH',unit_count=3 WHERE id=$1", [skuId]);
+  try {
+    const created = await userRequest(buyers[0], "POST", "/api/v1/orders", nextDraft(1), { "idempotency-key": `catalog-snapshot-${randomUUID()}` });
+    assert.equal(created.statusCode, 201, created.body);
+    const expected = { category, attributes: { mode: "经典模式" }, billing_unit: "MATCH", unit_count: 3 };
+    assert.deepEqual(created.json().service_details, expected);
+    await migrationClient.query("UPDATE products SET category_snapshot=NULL,attributes='{}' WHERE id=$1", [productId]);
+    await migrationClient.query("UPDATE product_skus SET billing_unit='SESSION',unit_count=1 WHERE id=$1", [skuId]);
+    const detail = await userRequest(buyers[0], "GET", `/api/v1/orders/${created.json().id}`);
+    assert.equal(detail.statusCode, 200, detail.body);
+    assert.deepEqual(detail.json().service_details, expected);
+  } finally {
+    await migrationClient.query("UPDATE products SET category_snapshot=NULL,attributes='{}' WHERE id=$1", [productId]);
+    await migrationClient.query("UPDATE product_skus SET billing_unit='SESSION',unit_count=1 WHERE id=$1", [skuId]);
+  }
+});

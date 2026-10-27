@@ -52,7 +52,7 @@ before(async () => {
   await runMigration("0003_admin_query_performance.sql");
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
-  await runMigration("0006_policy_version_bindings.sql");
+  await runMigration("0006_policy_version_bindings.sql"); await runMigration("0010_order_rule_versions.sql"); await runMigration("0011_service_categories.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-seller-product-test", options: `-c search_path=${schemaName},public`, max: 4 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, objectStorageProvider: storage, logger: new JsonLogger("seller-product-test", () => {}) });
   user = await seedUser(true);
@@ -442,3 +442,66 @@ function adminRequest(account, method, url, payload) { return app.inject({ metho
 function sellerPublicInput(profile) { return { seller_nickname: profile.seller_nickname, seller_avatar_file_id: profile.seller_avatar_file_id, cover_file_id: profile.cover_file_id, introduction: profile.introduction, game_rank: profile.game_rank, kd: profile.kd, preferred_mode: profile.preferred_mode, play_style: profile.play_style, game_experience: profile.game_experience, voice_file_id: profile.voice_file_id, voice_duration_ms: profile.voice_duration_ms }; }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(fileName) { let source = await readFile(new URL(`../../../packages/database/migrations/${fileName}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }
+
+test("category-driven publishing validates fields, permissions, units and immutable review details", { skip: !enabled }, async () => {
+  const input = { name: "技术指导", enabled: true, fields: [{ key: "skill_focus", label: "指导内容", required: true }], reason: "启用技术指导分类" };
+  const denied = await adminRequest(readOnlyAdmin, "POST", "/admin-api/v1/service-categories", input);
+  assert.equal(denied.statusCode, 403);
+  const duplicateKeys = await adminRequest(admin, "POST", "/admin-api/v1/service-categories", { ...input, fields: [...input.fields, ...input.fields] });
+  assert.equal(duplicateKeys.statusCode, 400);
+  const createdCategory = await adminRequest(admin, "POST", "/admin-api/v1/service-categories", input);
+  assert.equal(createdCategory.statusCode, 201, createdCategory.body);
+  const category = createdCategory.json();
+  const visible = await userRequest("GET", "/api/v1/seller/service-categories");
+  assert.equal(visible.statusCode, 200, visible.body);
+  assert.ok(visible.json().some((item) => item.id === category.id));
+  const productInput = { title: "和平精英技术指导", description: "针对玩家的实际情况提供游戏技巧指导。", category_id: category.id, attributes: {} };
+  const badField = await userRequest("POST", "/api/v1/seller/services", { ...productInput, attributes: { unsupported: "value" } });
+  assert.equal(badField.statusCode, 400, badField.body);
+  const draft = await userRequest("POST", "/api/v1/seller/services", productInput);
+  assert.equal(draft.statusCode, 201, draft.body);
+  const id = draft.json().id;
+  const badHour = await userRequest("POST", `/api/v1/seller/services/${id}/skus`, { sku_name: "两小时指导", price_cent: "5000", duration_minutes: 60, billing_unit: "HOUR", unit_count: 2 });
+  assert.equal(badHour.statusCode, 400, badHour.body);
+  const sku = await userRequest("POST", `/api/v1/seller/services/${id}/skus`, { sku_name: "三局指导", price_cent: "5000", duration_minutes: 90, billing_unit: "MATCH", unit_count: 3 });
+  assert.equal(sku.statusCode, 201, sku.body);
+  assert.equal(sku.json().unit_count, 3);
+  const updatedUnits = await userRequest("PATCH", `/api/v1/seller/services/${id}/skus/${sku.json().id}`, { billing_unit: "HOUR", unit_count: 2, duration_minutes: 120, version: sku.json().version });
+  assert.equal(updatedUnits.statusCode, 200, updatedUnits.body);
+  assert.equal(updatedUnits.json().billing_unit, "HOUR");
+  assert.equal(updatedUnits.json().unit_count, 2);
+  const restoredUnits = await userRequest("PATCH", `/api/v1/seller/services/${id}/skus/${sku.json().id}`, { billing_unit: "MATCH", unit_count: 3, duration_minutes: 90, version: updatedUnits.json().version });
+  assert.equal(restoredUnits.statusCode, 200, restoredUnits.body);
+  const current = await userRequest("GET", `/api/v1/seller/services/${id}`);
+  const missing = await userRequest("POST", `/api/v1/seller/services/${id}/submit-review`, { version: current.json().version });
+  assert.equal(missing.statusCode, 400, missing.body);
+  const filled = await userRequest("PATCH", `/api/v1/seller/services/${id}`, { ...productInput, attributes: { skill_focus: "团队配合" }, version: current.json().version });
+  assert.equal(filled.statusCode, 200, filled.body);
+  const legacyEdit = await userRequest("PATCH", `/api/v1/seller/services/${id}`, { title: productInput.title, description: productInput.description, version: filled.json().version });
+  assert.equal(legacyEdit.statusCode, 200, legacyEdit.body);
+  assert.equal(legacyEdit.json().category_id, category.id);
+  assert.deepEqual(legacyEdit.json().attributes, { skill_focus: "团队配合" });
+  const submitted = await userRequest("POST", `/api/v1/seller/services/${id}/submit-review`, { version: legacyEdit.json().version });
+  assert.equal(submitted.statusCode, 201, submitted.body);
+  const lockedSku = await userRequest("PATCH", `/api/v1/seller/services/${id}/skus/${sku.json().id}`, { billing_unit: "SESSION", version: sku.json().version });
+  assert.equal(lockedSku.statusCode, 409, lockedSku.body);
+  const renamed = await adminRequest(admin, "PATCH", `/admin-api/v1/service-categories/${category.id}`, { ...input, name: "新版技术指导", fields: [{ key: "goal", label: "目标", required: true }], version: category.version });
+  assert.equal(renamed.statusCode, 200, renamed.body);
+  const stale = await adminRequest(admin, "PATCH", `/admin-api/v1/service-categories/${category.id}`, { ...input, version: category.version });
+  assert.equal(stale.statusCode, 409, stale.body);
+  const reviewed = await adminRequest(admin, "GET", `/admin-api/v1/products/${id}`);
+  assert.equal(reviewed.json().category.name, "技术指导");
+  assert.equal(reviewed.json().category.fields[0].key, "skill_focus");
+  assert.equal(reviewed.json().attributes.skill_focus, "团队配合");
+  const snapshot = await migrationClient.query("SELECT snapshot_json FROM product_versions WHERE product_id=$1", [id]);
+  assert.equal(snapshot.rows[0].snapshot_json.product.category.name, "技术指导");
+  assert.equal(snapshot.rows[0].snapshot_json.skus[0].billing_unit, "MATCH");
+  const disabled = await adminRequest(admin, "PATCH", `/admin-api/v1/service-categories/${category.id}`, { ...input, enabled: false, version: renamed.json().version });
+  assert.equal(disabled.statusCode, 200, disabled.body);
+  const blocked = await userRequest("POST", "/api/v1/seller/services", productInput);
+  assert.equal(blocked.statusCode, 400, blocked.body);
+  const hidden = await userRequest("GET", "/api/v1/seller/service-categories");
+  assert.ok(!hidden.json().some((item) => item.id === category.id));
+  const audit = await migrationClient.query("SELECT count(*)::int AS count FROM admin_operation_logs WHERE target_id=$1 AND action LIKE 'SERVICE_CATEGORY_%'", [category.id]);
+  assert.equal(audit.rows[0].count, 3);
+});

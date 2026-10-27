@@ -129,7 +129,7 @@ await fileExists(".local/minio/bin/minio");
 await fileExists(".local/minio/bin/mc");
 
 const minio = await readEnvFile(".env.minio.local");
-for (const key of ["MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD", "MINIO_ADDRESS", "MINIO_CONSOLE_ADDRESS", "MINIO_VOLUMES", "MINIO_LICENSE_PATH"]) has(key, minio);
+for (const key of ["MINIO_ROOT_USER", "MINIO_ROOT_PASSWORD", "MINIO_ADDRESS", "MINIO_CONSOLE_ADDRESS", "MINIO_VOLUMES"]) has(key, minio);
 record("MinIO 凭证一致", Boolean(minio.MINIO_ROOT_USER) && minio.MINIO_ROOT_USER === process.env.FILE_STORAGE_ACCESS_KEY_ID && minio.MINIO_ROOT_PASSWORD === process.env.FILE_STORAGE_SECRET_ACCESS_KEY, "只比较，不输出值");
 const minioBindHost = (minio.MINIO_ADDRESS ?? "").split(":")[0];
 const storageEndpointHost = (() => { try { return new URL(process.env.FILE_STORAGE_ENDPOINT ?? "").hostname; } catch { return ""; } })();

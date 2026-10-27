@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { router } from "expo-router";
 import { ApiClientError, userFacingError } from "@/api/api-error";
@@ -17,6 +17,9 @@ import { queryClient } from "@/query/query-client";
 import { colors, radii, spacing, typography } from "@/theme/tokens";
 import type { FileApiView, ServiceImageApiView, ServiceSkuApiView } from "@/types/api";
 
+import { ServiceCategoryFields, PackageUnits } from "./service-category-fields";
+import { validUnitCount, type BillingUnit } from "@/features/catalog/service-catalog";
+
 const serviceStatusLabel = {
   DRAFT: "草稿",
   PENDING_REVIEW: "审核中",
@@ -30,6 +33,11 @@ const serviceStatusLabel = {
 export function SellerServiceEditScreen({ id }: { id: string }) {
   const query = useSellerService(id);
   const seller = useSellerProfile();
+  const categoryForm = useForm<{ id: string | null; attributes: Record<string, string> }>({ defaultValues: { id: null, attributes: {} } });
+  const categoryId = useWatch({ control: categoryForm.control, name: "id" });
+  const attributes = useWatch({ control: categoryForm.control, name: "attributes" });
+  const [billingUnit, setBillingUnit] = useState<BillingUnit>("SESSION");
+  const [unitCount, setUnitCount] = useState("1");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmingSubmit, setConfirmingSubmit] = useState(false);
@@ -38,8 +46,9 @@ export function SellerServiceEditScreen({ id }: { id: string }) {
 
   useEffect(() => {
     if (!query.data) return;
+    categoryForm.reset({ id: query.data.category_id ?? null, attributes: query.data.attributes ?? {} });
     productForm.reset({ title: query.data.title, description: query.data.description });
-  }, [productForm, query.data]);
+  }, [categoryForm, productForm, query.data]);
 
   if (query.isPending || seller.isPending) return <NativePage title="编辑服务" subtitle="修改展示内容与服务规格"><View style={styles.state}><StateView kind="loading" /></View></NativePage>;
   if (!seller.data || seller.data.status !== "APPROVED") return <NativePage title="编辑服务" subtitle="修改展示内容与服务规格"><NoticeBanner tone="danger" message="G05 权限限制：只有 APPROVED 陪玩可以管理服务。" /><PrimaryButton tone="plain" label="查看陪玩身份" onPress={() => router.replace("/seller/status")} /></NativePage>;
@@ -71,9 +80,10 @@ export function SellerServiceEditScreen({ id }: { id: string }) {
       } else setNotice(userFacingError(error));
     } finally { setBusy(false); }
   };
-  const saveProduct = productForm.handleSubmit(async (values) => run(() => updateSellerService(id, { title: values.title, description: values.description, service_time_description: product.service_time_description, cover_file_id: product.cover_file_id, version: product.version }), "服务资料已保存"));
+  const saveProduct = productForm.handleSubmit(async (values) => run(() => updateSellerService(id, { category_id: categoryId, attributes, title: values.title, description: values.description, service_time_description: product.service_time_description, cover_file_id: product.cover_file_id, version: product.version }), "服务资料已保存"));
   const addSku = newSkuForm.handleSubmit(async (values) => run(async () => {
-    await addSellerSku(id, { sku_name: values.skuName, description: values.description || null, price_cent: yuanToCent(values.priceYuan)!, duration_minutes: Number(values.durationMinutes), sort_order: product.skus.filter((sku) => sku.status !== "DELETED").length });
+    if (!validUnitCount(unitCount)) throw new Error("套餐数量应为 1–1000");
+    await addSellerSku(id, { billing_unit: billingUnit, unit_count: Number(unitCount), sku_name: values.skuName, description: values.description || null, price_cent: yuanToCent(values.priceYuan)!, duration_minutes: Number(values.durationMinutes), sort_order: product.skus.filter((sku) => sku.status !== "DELETED").length });
     newSkuForm.reset({ skuName: "", description: "", priceYuan: "", durationMinutes: "60" });
   }, "规格已添加"));
   const submitReview = () => run(() => submitSellerService(id, product.version), "已提交平台审核");
@@ -131,6 +141,7 @@ export function SellerServiceEditScreen({ id }: { id: string }) {
     {notice ? <NoticeBanner tone={notice.includes("已") ? "success" : "danger"} message={notice} /> : null}
     {!editable ? <NoticeBanner tone="danger" message={product.status === "ON_SALE" ? "出售中的服务需先下架，才能修改展示内容和规格。" : `当前状态为“${serviceStatusLabel[product.status]}”，暂不允许编辑。`} /> : null}
     <View style={styles.formPanel}>
+      <ServiceCategoryFields categoryId={categoryId} snapshot={product.category} attributes={attributes} editable={editable && !busy} onChange={(id, values) => { categoryForm.setValue("id", id); categoryForm.setValue("attributes", values); }} />
       <Controller control={productForm.control} name="title" render={({ field }) => <FormField editable={editable} label="服务标题" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={productForm.formState.errors.title?.message} />} />
       <Controller control={productForm.control} name="description" render={({ field }) => <FormField editable={editable} label="服务详情" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} multiline style={styles.multiline} error={productForm.formState.errors.description?.message} />} />
     </View>
@@ -148,6 +159,7 @@ export function SellerServiceEditScreen({ id }: { id: string }) {
     {product.skus.filter((sku) => sku.status !== "DELETED").map((sku) => <SkuEditor key={`${sku.id}:${sku.version}`} productId={id} sku={sku} editable={editable} busy={busy} run={run} />)}
     {editable ? <View style={styles.card}>
       <Text style={styles.cardTitle}>添加规格</Text>
+      <PackageUnits unit={billingUnit} count={unitCount} onChange={(unit, count) => { setBillingUnit(unit); setUnitCount(count); if (unit === "HOUR") newSkuForm.setValue("durationMinutes", String(Number(count) * 60)); }} />
       <Controller control={newSkuForm.control} name="skuName" render={({ field }) => <FormField label="规格名称" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={newSkuForm.formState.errors.skuName?.message} />} />
       <Controller control={newSkuForm.control} name="description" render={({ field }) => <FormField label="规格说明" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={newSkuForm.formState.errors.description?.message} />} />
       <Controller control={newSkuForm.control} name="priceYuan" render={({ field }) => <FormField label="价格（元）" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} keyboardType="decimal-pad" error={newSkuForm.formState.errors.priceYuan?.message} />} />
@@ -156,7 +168,7 @@ export function SellerServiceEditScreen({ id }: { id: string }) {
     </View> : null}
     {sellerServiceActions(product.status).includes("SUBMIT") ? confirmingSubmit ? <View style={styles.card}>
       <Text style={styles.cardTitle}>确认提交审核</Text>
-      <Text style={styles.confirmText}>提交后审核完成前不能编辑，请确认是否继续。</Text>
+      <Text style={styles.confirmText}>审核使用已保存的内容。请先保存修改，再核对下方信息。</Text><Text>{product.title}</Text><Text>{product.description}</Text><Text>{product.category?.name ?? "旧版未分类服务"}</Text>{product.category?.fields.map((field) => <Text key={field.key}>{field.label}：{product.attributes?.[field.key] || "未填写"}</Text>)}{product.skus.filter((sku) => sku.status === "ACTIVE").map((sku) => <Text key={sku.id}>{sku.sku_name} · {sku.unit_count ?? 1} {({ MATCH: "局", HOUR: "小时", SESSION: "次" })[sku.billing_unit ?? "SESSION"]} · ¥{centToYuanInput(sku.price_cent)}</Text>)}
       <PrimaryButton tone="plain" label="取消" disabled={busy} onPress={() => setConfirmingSubmit(false)} />
       <PrimaryButton label="确认提交" loading={busy} disabled={busy} onPress={() => { setConfirmingSubmit(false); void submitReview(); }} accessibilityLabel="确认提交服务审核" />
     </View> : <PrimaryButton label="提交审核" loading={busy} disabled={busy || !canSubmitSellerService(product.skus) || product.images.length === 0 || !product.images.some((image) => image.is_cover)} onPress={() => setConfirmingSubmit(true)} accessibilityLabel="提交服务审核" /> : null}
@@ -166,9 +178,12 @@ export function SellerServiceEditScreen({ id }: { id: string }) {
 }
 
 function SkuEditor({ productId, sku, editable, busy, run }: { productId: string; sku: ServiceSkuApiView; editable: boolean; busy: boolean; run(action: () => Promise<unknown>, success: string): Promise<void> }) {
+  const [billingUnit, setBillingUnit] = useState<BillingUnit>(sku.billing_unit ?? "SESSION");
+  const [unitCount, setUnitCount] = useState(String(sku.unit_count ?? 1));
   const form = useForm<SellerSkuValues>({ resolver: zodResolver(sellerSkuSchema), defaultValues: { skuName: sku.sku_name, description: sku.description ?? "", priceYuan: centToYuanInput(sku.price_cent), durationMinutes: String(sku.duration_minutes) } });
-  const save = form.handleSubmit(async (values) => run(() => updateSellerSku(productId, sku.id, { sku_name: values.skuName, description: values.description || null, price_cent: yuanToCent(values.priceYuan)!, duration_minutes: Number(values.durationMinutes), sort_order: sku.sort_order, version: sku.version }), "规格已保存"));
+  const save = form.handleSubmit(async (values) => run(() => { if (!validUnitCount(unitCount)) throw new Error("套餐数量应为 1–1000"); return updateSellerSku(productId, sku.id, { billing_unit: billingUnit, unit_count: Number(unitCount), sku_name: values.skuName, description: values.description || null, price_cent: yuanToCent(values.priceYuan)!, duration_minutes: Number(values.durationMinutes), sort_order: sku.sort_order, version: sku.version }); }, "规格已保存"));
   return <View style={styles.card}>
+    <PackageUnits unit={billingUnit} count={unitCount} editable={editable && !busy} onChange={(unit, count) => { setBillingUnit(unit); setUnitCount(count); if (unit === "HOUR") form.setValue("durationMinutes", String(Number(count) * 60)); }} />
     <Text style={styles.cardTitle}>{sku.status === "ACTIVE" ? "有效规格" : "已停用规格"}</Text>
     <Controller control={form.control} name="skuName" render={({ field }) => <FormField editable={editable} label="规格名称" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={form.formState.errors.skuName?.message} />} />
     <Controller control={form.control} name="description" render={({ field }) => <FormField editable={editable} label="规格说明" value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} error={form.formState.errors.description?.message} />} />

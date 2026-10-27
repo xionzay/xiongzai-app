@@ -6,11 +6,12 @@ import styles from "./admin.module.css";
 import { AdminApiError, adminApiBlob, adminApiRequest, adminFailure, subscribeAdminApi } from "./admin-api";
 import { FileManagementModule } from "./file-management";
 import { SellerReviewDrawer } from "./seller-review-drawer";
+import { ServiceCategoriesModule } from "./service-categories";
 import { ServiceReviewDrawer } from "./service-review-drawer";
 import { SupportWorkspace } from "./support-workspace";
 import { useSafeUrlChoice, useSafeUrlDate } from "./url-state";
 
-type ModuleId = "dashboard" | "users" | "phoneChanges" | "dataExports" | "accountCancellations" | "identityReview" | "sellerReview" | "sellers" | "serviceReview" | "services" | "orders" | "payments" | "refunds" | "complaints" | "support" | "notifications" | "reviews" | "finance" | "withdrawals" | "files" | "policies" | "config" | "logs";
+type ModuleId = "serviceCategories" | "dashboard" | "users" | "phoneChanges" | "dataExports" | "accountCancellations" | "identityReview" | "sellerReview" | "sellers" | "serviceReview" | "services" | "orders" | "payments" | "refunds" | "complaints" | "support" | "notifications" | "reviews" | "finance" | "withdrawals" | "files" | "policies" | "config" | "logs";
 type DataState = "loading" | "success" | "empty" | "error" | "offline";
 type Failure = { state: "error" | "offline"; message: string; requestId: string | null };
 type CollectionControls = { hasMore: boolean; loadingMore: boolean; moreFailure: Failure | null; loadMore: () => void };
@@ -71,6 +72,7 @@ const NAV: Array<{ id: ModuleId; label: string; eyebrow: string; icon: string; p
   { id: "sellerReview", label: "陪玩审核", eyebrow: "陪玩审核", icon: "/assets/icon-shield.png", permissions: ["seller_application.read"] },
   { id: "sellers", label: "陪玩管理", eyebrow: "陪玩管理", icon: "/assets/icon-mine.png", permissions: ["seller.read"] },
   { id: "serviceReview", label: "服务审核", eyebrow: "服务审核", icon: "/assets/icon-service.png", permissions: ["product.read"] },
+  { id: "serviceCategories", label: "服务分类", eyebrow: "服务分类", icon: "/assets/icon-service.png", permissions: ["product.read"] },
   { id: "services", label: "服务管理", eyebrow: "服务管理", icon: "/assets/icon-service.png", permissions: ["product.read"] },
   { id: "orders", label: "订单管理", eyebrow: "订单与取证", icon: "/assets/icon-order.png", permissions: ["order.read", "conversation.evidence.read"] },
   { id: "payments", label: "支付管理", eyebrow: "支付只读核验", icon: "/assets/icon-wallet.png", permissions: ["payment.read"] },
@@ -631,6 +633,7 @@ export default function AdminPage() {
       case "sellerReview": return <SellerReviewModule canManage={permissions.has("seller_application.review")} canPreviewMedia={permissions.has("file.read") && permissions.has("file.review")} setModal={setModal} runAction={runAction} />;
       case "sellers": return <CatalogModule<Seller> kind="seller" canManage={permissions.has("seller.status.manage")} setDetail={setDetail} setModal={setModal} runAction={runAction} />;
       case "serviceReview": return <ProductReviewModule canManage={permissions.has("product.review")} canPreviewMedia={permissions.has("file.read")&&permissions.has("file.review")} setModal={setModal} runAction={runAction} />;
+      case "serviceCategories": return <ServiceCategoriesModule canManage={permissions.has("product.review")} />;
       case "services": return <CatalogModule<Product> kind="product" canManage={permissions.has("product.review")} setDetail={setDetail} setModal={setModal} runAction={runAction} />;
       case "orders": return <OrdersModule canReadOrders={permissions.has("order.read")} canReadEvidence={permissions.has("conversation.evidence.read")} setDetail={setDetail} setModal={setModal} runAction={runAction} />;
       case "payments": return <PaymentsModule setDetail={setDetail} />;

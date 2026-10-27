@@ -8,6 +8,7 @@ import {
   files,
   identityVerifications,
   policyVersions,
+  serviceCategories,
   productImages,
   productReviewLogs,
   productSkus,
@@ -41,7 +42,7 @@ type SellerProfileInput = {
   acceptingOrders?: boolean;
 };
 
-type ProductInput = { title: string; description: string; serviceTimeDescription?: string | null; coverFileId?: string | null };
+type ProductInput = { categoryId?: string | null; attributes?: Record<string, string>; title: string; description: string; serviceTimeDescription?: string | null; coverFileId?: string | null };
 type SellerReviewAction = "START_REVIEW" | "REQUEST_SUPPLEMENT" | "APPROVE" | "REJECT";
 type ProductReviewAction = "APPROVE" | "REJECT" | "ADMIN_OFF_SALE" | "ADMIN_RESTORE" | "SOFT_DELETE";
 
@@ -281,12 +282,44 @@ export class SellerProductService {
     });
   }
 
+  async listCategories(includeDisabled: boolean) {
+    const rows = await this.database.db.select().from(serviceCategories).where(includeDisabled ? undefined : eq(serviceCategories.enabled, true)).orderBy(asc(serviceCategories.name));
+    return rows;
+  }
+
+  async saveCategory(adminId: string, id: string | null, input: { name: string; enabled: boolean; fields: Array<{ key: string; label: string; required: boolean }>; reason: string; version?: number }, metadata: RequestMetadata) {
+    return this.database.db.transaction(async (tx) => {
+      const [before] = id ? await tx.select().from(serviceCategories).where(eq(serviceCategories.id, id)).for("update") : [];
+      if (id && !before) throw notFound("CATEGORY_NOT_FOUND", "服务分类不存在");
+      if (before && before.version !== input.version) throw versionConflict();
+      const values = { name: input.name, enabled: input.enabled, fields: input.fields };
+      const [row] = before ? await tx.update(serviceCategories).set({ ...values, version: before.version + 1, updatedAt: new Date() }).where(eq(serviceCategories.id, before.id)).returning()
+        : await tx.insert(serviceCategories).values({ id: uuidv7(), ...values }).returning();
+      await this.audit(tx, adminId, before ? "SERVICE_CATEGORY_UPDATE" : "SERVICE_CATEGORY_CREATE", "PLATFORM", row!.id, input.reason, before ?? null, row, metadata);
+      return row!;
+    });
+  }
+
+  private async categoryDetails(tx: DatabaseTransaction, categoryId: string | null | undefined, attributes: Record<string, string>, requireComplete: boolean) {
+    if (!categoryId) {
+      if (Object.keys(attributes).length) throw validation("attributes", "请先选择服务分类");
+      return { categoryId: null, categorySnapshot: null, attributes };
+    }
+    const [category] = await tx.select().from(serviceCategories).where(eq(serviceCategories.id, categoryId)).for("share");
+    if (!category?.enabled) throw validation("category_id", "服务分类不存在或已停用，请重新选择");
+    const keys = new Set(category.fields.map((field) => field.key));
+    if (Object.keys(attributes).some((key) => !keys.has(key))) throw validation("attributes", "包含当前分类不支持的字段");
+    for (const field of category.fields) if (requireComplete && field.required && !attributes[field.key]?.trim()) throw validation(`attributes.${field.key}`, `请填写${field.label}`);
+    return { categoryId: category.id, categorySnapshot: { id: category.id, name: category.name, version: category.version, fields: category.fields }, attributes };
+  }
+
   async createProduct(userId: string, input: ProductInput) {
     const seller = await this.requireApprovedSeller(userId);
     await this.validateOwnedFiles(userId, input.coverFileId ? [input.coverFileId] : [], "PRODUCT_IMAGE");
     return this.database.db.transaction(async (tx) => {
       const id = uuidv7();
-      const [row] = await tx.insert(products).values({ id, sellerId: seller.id, ...productInsert(input) }).returning();
+      const details = await this.categoryDetails(tx, input.categoryId, input.attributes ?? {}, false);
+      const [row] = await tx.insert(products).values({ id, sellerId: seller.id, ...productInsert(input), ...details }).returning();
       await this.syncProductCoverUsage(tx, id, row!.coverFileId);
       return productView(row!, seller);
     });
@@ -298,8 +331,9 @@ export class SellerProductService {
     if (!["DRAFT", "REVIEW_REJECTED", "OFF_SALE"].includes(product.status)) throw invalidState("当前服务状态不允许编辑");
     await this.validateOwnedFiles(userId, input.coverFileId ? [input.coverFileId] : [], "PRODUCT_IMAGE");
     return this.database.db.transaction(async (tx) => {
-      const [updated] = await tx.update(products).set({ ...productInsert(input), updatedAt: new Date(), version: sql`${products.version} + 1` })
-        .where(and(eq(products.id, productId), eq(products.version, input.version), ne(products.status, "DELETED"))).returning();
+      const details = await this.categoryDetails(tx, input.categoryId === undefined ? product.categoryId : input.categoryId, input.attributes ?? product.attributes, false);
+      const [updated] = await tx.update(products).set({ ...productInsert(input), ...details, updatedAt: new Date(), version: sql`${products.version} + 1` })
+        .where(and(eq(products.id, productId), eq(products.version, input.version), eq(products.status, product.status))).returning();
       if (!updated) throw versionConflict();
       await this.syncProductCoverUsage(tx, productId, updated.coverFileId);
       return productView(updated, seller);
@@ -318,28 +352,39 @@ export class SellerProductService {
     return this.productDetail(product, seller, true);
   }
 
-  async addSku(userId: string, productId: string, input: { skuName: string; description?: string | null; priceCent: bigint; durationMinutes: number; sortOrder: number }) {
-    const seller = await this.requireApprovedSeller(userId);
-    const product = await this.requireOwnedProduct(seller.id, productId);
-    this.ensureProductEditable(product.status);
-    const [sku] = await this.database.db.insert(productSkus).values({ id: uuidv7(), productId, ...input }).returning();
-    await this.recalculateMinPrice(productId);
-    return skuView(sku!);
+  async addSku(userId: string, productId: string, input: { skuName: string; description?: string | null; priceCent: bigint; durationMinutes: number; billingUnit?: "SESSION" | "MATCH" | "HOUR"; unitCount?: number; sortOrder: number }) {
+    return this.database.db.transaction(async (tx) => {
+      const seller = await this.lockApprovedSeller(tx, userId);
+      const [product] = await tx.select().from(products).where(and(eq(products.id, productId), eq(products.sellerId, seller.id))).for("update");
+      if (!product) throw notFound("PRODUCT_NOT_FOUND", "服务不存在");
+      this.ensureProductEditable(product.status);
+      validateBilling(input.billingUnit ?? "SESSION", input.unitCount ?? 1, input.durationMinutes);
+      const [sku] = await tx.insert(productSkus).values({ id: uuidv7(), productId, ...input }).returning();
+      await this.recalculateMinPrice(productId, tx);
+      return skuView(sku!);
+    });
   }
 
-  async updateSku(userId: string, productId: string, skuId: string, input: { skuName?: string; description?: string | null; priceCent?: bigint; durationMinutes?: number; status?: "ACTIVE" | "INACTIVE" | "DELETED"; sortOrder?: number; version: number }) {
-    const seller = await this.requireApprovedSeller(userId);
-    const product = await this.requireOwnedProduct(seller.id, productId);
-    this.ensureProductEditable(product.status);
-    const [updated] = await this.database.db.update(productSkus).set({
-      ...(input.skuName !== undefined ? { skuName: input.skuName } : {}), ...(input.description !== undefined ? { description: input.description } : {}),
-      ...(input.priceCent !== undefined ? { priceCent: input.priceCent } : {}), ...(input.durationMinutes !== undefined ? { durationMinutes: input.durationMinutes } : {}),
-      ...(input.status !== undefined ? { status: input.status, deletedAt: input.status === "DELETED" ? new Date() : null } : {}), ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
-      version: sql`${productSkus.version} + 1`, updatedAt: new Date(),
-    }).where(and(eq(productSkus.id, skuId), eq(productSkus.productId, productId), eq(productSkus.version, input.version))).returning();
-    if (!updated) throw versionConflict();
-    await this.recalculateMinPrice(productId);
-    return skuView(updated);
+  async updateSku(userId: string, productId: string, skuId: string, input: { skuName?: string; description?: string | null; priceCent?: bigint; durationMinutes?: number; billingUnit?: "SESSION" | "MATCH" | "HOUR"; unitCount?: number; status?: "ACTIVE" | "INACTIVE" | "DELETED"; sortOrder?: number; version: number }) {
+    return this.database.db.transaction(async (tx) => {
+      const seller = await this.lockApprovedSeller(tx, userId);
+      const [product] = await tx.select().from(products).where(and(eq(products.id, productId), eq(products.sellerId, seller.id))).for("update");
+      if (!product) throw notFound("PRODUCT_NOT_FOUND", "服务不存在");
+      this.ensureProductEditable(product.status);
+      const [existing] = await tx.select().from(productSkus).where(and(eq(productSkus.id, skuId), eq(productSkus.productId, productId)));
+      if (!existing) throw notFound("SKU_NOT_FOUND", "服务规格不存在");
+      validateBilling(input.billingUnit ?? existing.billingUnit, input.unitCount ?? existing.unitCount, input.durationMinutes ?? existing.durationMinutes);
+      const [updated] = await tx.update(productSkus).set({
+        ...(input.billingUnit !== undefined ? { billingUnit: input.billingUnit } : {}), ...(input.unitCount !== undefined ? { unitCount: input.unitCount } : {}),
+        ...(input.skuName !== undefined ? { skuName: input.skuName } : {}), ...(input.description !== undefined ? { description: input.description } : {}),
+        ...(input.priceCent !== undefined ? { priceCent: input.priceCent } : {}), ...(input.durationMinutes !== undefined ? { durationMinutes: input.durationMinutes } : {}),
+        ...(input.status !== undefined ? { status: input.status, deletedAt: input.status === "DELETED" ? new Date() : null } : {}), ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+        version: sql`${productSkus.version} + 1`, updatedAt: new Date(),
+      }).where(and(eq(productSkus.id, skuId), eq(productSkus.productId, productId), eq(productSkus.version, input.version))).returning();
+      if (!updated) throw versionConflict();
+      await this.recalculateMinPrice(productId, tx);
+      return skuView(updated);
+    });
   }
 
   async replaceImages(userId: string, productId: string, input: { version: number; images: Array<{ fileId: string; sortOrder: number; isCover: boolean }> }) {
@@ -365,6 +410,7 @@ export class SellerProductService {
       if (!product) throw notFound("PRODUCT_NOT_FOUND", "服务不存在");
       if (!["DRAFT", "REVIEW_REJECTED", "OFF_SALE"].includes(product.status)) throw invalidState("当前服务状态不能提交审核");
       if (product.version !== expectedVersion) throw versionConflict();
+      const details = await this.categoryDetails(tx, product.categoryId, product.attributes, true);
       const skus = await tx.select().from(productSkus).where(and(eq(productSkus.productId, productId), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt))).orderBy(asc(productSkus.sortOrder));
       if (!skus.length) throw validation("skus", "至少需要一个启用的服务规格");
       const images = await tx.select().from(productImages).where(and(eq(productImages.productId, productId), isNull(productImages.deletedAt))).orderBy(asc(productImages.sortOrder));
@@ -372,8 +418,8 @@ export class SellerProductService {
         .where(eq(productVersions.productId, productId)).orderBy(desc(productVersions.versionNo)).limit(1);
       const nextVersion = (lastVersion?.versionNo ?? 0) + 1;
       const versionId = uuidv7();
-      await tx.insert(productVersions).values({ id: versionId, productId, versionNo: nextVersion, snapshotJson: productSnapshot(product, skus, images), submittedByUserId: userId });
-      const [updated] = await tx.update(products).set({ status: "PENDING_REVIEW", currentVersionNo: nextVersion, submittedAt: new Date(), rejectionReason: null, minPriceCent: minPrice(skus), version: sql`${products.version} + 1`, updatedAt: new Date() })
+      await tx.insert(productVersions).values({ id: versionId, productId, versionNo: nextVersion, snapshotJson: productSnapshot({ ...product, ...details }, skus, images), submittedByUserId: userId });
+      const [updated] = await tx.update(products).set({ ...details, status: "PENDING_REVIEW", currentVersionNo: nextVersion, submittedAt: new Date(), rejectionReason: null, minPriceCent: minPrice(skus), version: sql`${products.version} + 1`, updatedAt: new Date() })
         .where(and(eq(products.id, productId), eq(products.version, expectedVersion), eq(products.status, product.status))).returning();
       if (!updated) throw versionConflict();
       await tx.insert(productReviewLogs).values({ id: uuidv7(), productId, productVersionId: versionId, action: product.status === "OFF_SALE" ? "SELLER_RESTORE" : "SUBMIT", oldStatus: product.status, newStatus: "PENDING_REVIEW", operatorUserId: userId, requestId: metadata.requestId });
@@ -714,10 +760,10 @@ export class SellerProductService {
     if (fileId) await tx.insert(fileUsages).values({ id: uuidv7(), fileId, usageType: "COVER", targetType: "PRODUCT", targetId: productId });
   }
 
-  private async recalculateMinPrice(productId: string) {
-    const [row] = await this.database.db.select({ value: sql<bigint>`coalesce(min(${productSkus.priceCent}), 0)::bigint` }).from(productSkus)
+  private async recalculateMinPrice(productId: string, tx: DatabaseTransaction) {
+    const [row] = await tx.select({ value: sql<bigint>`coalesce(min(${productSkus.priceCent}), 0)::bigint` }).from(productSkus)
       .where(and(eq(productSkus.productId, productId), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt)));
-    await this.database.db.update(products).set({ minPriceCent: row?.value ?? 0n, version: sql`${products.version} + 1`, updatedAt: new Date() }).where(eq(products.id, productId));
+    await tx.update(products).set({ minPriceCent: row?.value ?? 0n, version: sql`${products.version} + 1`, updatedAt: new Date() }).where(eq(products.id, productId));
   }
 
   private async assertNoOpenSlotOverlap(sellerId: string, startsAt: Date, endsAt: Date, excludeId?: string) {
@@ -728,7 +774,7 @@ export class SellerProductService {
     if (overlap) throw conflict("AVAILABILITY_OVERLAP", "可用时段与现有开放时段重叠");
   }
 
-  private async audit(tx: DatabaseTransaction, adminId: string, action: string, targetType: "SELLER" | "PRODUCT", targetId: string, reason: string, before: unknown, after: unknown, metadata: RequestMetadata) {
+  private async audit(tx: DatabaseTransaction, adminId: string, action: string, targetType: "SELLER" | "PRODUCT" | "PLATFORM", targetId: string, reason: string, before: unknown, after: unknown, metadata: RequestMetadata) {
     await tx.insert(adminOperationLogs).values({ id: uuidv7(), adminId, action, targetType, targetId, reason, beforeJson: safeJson(before), afterJson: safeJson(after), requestId: metadata.requestId, traceId: metadata.traceId, ip: metadata.ip, userAgent: metadata.userAgent });
   }
 }
@@ -762,8 +808,8 @@ function safeJson(value: unknown): Record<string, unknown> { return JSON.parse(J
 function sellerView(row: typeof sellerProfiles.$inferSelect) { return { id: row.id, user_id: row.userId, status: row.status, seller_nickname: row.sellerNickname, seller_avatar_file_id: row.sellerAvatarFileId, cover_file_id: row.coverFileId, introduction: row.introduction, game_rank: row.gameRank, kd: row.kd, preferred_mode: row.preferredMode, play_style: row.playStyle, game_experience: row.gameExperience, voice_file_id: row.voiceFileId, voice_duration_ms: row.voiceDurationMs, voice_authorization_policy_version_id: row.voiceAuthorizationPolicyVersionId, accepting_orders: row.acceptingOrders, rating_avg: row.ratingAvg, review_count: row.reviewCount, completed_order_count: row.completedOrderCount, favorite_count: row.favoriteCount, approved_at: row.approvedAt, suspended_reason: row.suspendedReason, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
 function applicationView(row: typeof sellerApplications.$inferSelect) { return { id: row.id, seller_id: row.sellerId, version_no: row.versionNo, onboarding_policy_version_id: row.onboardingPolicyVersionId, status: row.status, submitted_at: row.submittedAt, reviewed_at: row.reviewedAt, rejection_reason: row.rejectionReason, required_fields: row.requiredFieldsJson, version: row.version, created_at: row.createdAt }; }
 function policyReferenceView(row: typeof policyVersions.$inferSelect) { return { id: row.id, policy_type: row.policyType, title: row.title, version_no: row.versionNo, status: row.status, effective_at: row.effectiveAt }; }
-function productView(row: typeof products.$inferSelect, seller?: typeof sellerProfiles.$inferSelect) { return { id: row.id, seller_id: row.sellerId, title: row.title, description: row.description, service_time_description: row.serviceTimeDescription, cover_file_id: row.coverFileId, status: row.status, rejection_reason: row.rejectionReason, rating_avg: row.ratingAvg, review_count: row.reviewCount, sold_count: row.soldCount, min_price_cent: row.minPriceCent, current_version_no: row.currentVersionNo, submitted_at: row.submittedAt, approved_at: row.approvedAt, deleted_at:row.deletedAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt, ...(seller ? { seller: sellerView(seller) } : {}) }; }
-function skuView(row: typeof productSkus.$inferSelect) { return { id: row.id, product_id: row.productId, sku_name: row.skuName, description: row.description, price_cent: row.priceCent, duration_minutes: row.durationMinutes, status: row.status, sort_order: row.sortOrder, version: row.version }; }
+function productView(row: typeof products.$inferSelect, seller?: typeof sellerProfiles.$inferSelect) { return { id: row.id, seller_id: row.sellerId, title: row.title, description: row.description, category_id: row.categoryId, category: row.categorySnapshot, attributes: row.attributes, service_time_description: row.serviceTimeDescription, cover_file_id: row.coverFileId, status: row.status, rejection_reason: row.rejectionReason, rating_avg: row.ratingAvg, review_count: row.reviewCount, sold_count: row.soldCount, min_price_cent: row.minPriceCent, current_version_no: row.currentVersionNo, submitted_at: row.submittedAt, approved_at: row.approvedAt, deleted_at:row.deletedAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt, ...(seller ? { seller: sellerView(seller) } : {}) }; }
+function skuView(row: typeof productSkus.$inferSelect) { return { id: row.id, product_id: row.productId, sku_name: row.skuName, description: row.description, price_cent: row.priceCent, duration_minutes: row.durationMinutes, billing_unit: row.billingUnit, unit_count: row.unitCount, status: row.status, sort_order: row.sortOrder, version: row.version }; }
 function imageView(row: typeof productImages.$inferSelect) { return { id: row.id, product_id: row.productId, file_id: row.fileId, sort_order: row.sortOrder, is_cover: row.isCover }; }
 function slotView(row: typeof sellerAvailabilitySlots.$inferSelect) { return { id: row.id, starts_at: row.startsAt, ends_at: row.endsAt, status: row.status, version: row.version }; }
 function minPrice(rows: Array<typeof productSkus.$inferSelect>) { return rows.reduce((min, row) => row.priceCent < min ? row.priceCent : min, rows[0]!.priceCent); }
@@ -780,3 +826,7 @@ function conflict(code: `${Uppercase<string>}_${Uppercase<string>}`, message: st
 function invalidState(message: string) { return new AppError({ code: "RESOURCE_STATE_INVALID", message, statusCode: 409 }); }
 function versionConflict() { return new AppError({ code: errorCodes.RESOURCE_VERSION_CONFLICT, message: "数据已被其他操作更新，请刷新后重试", statusCode: 409 }); }
 function validation(field: string, message: string) { return new AppError({ code: errorCodes.VALIDATION_FAILED, message: "请求参数校验失败", statusCode: 400, fieldErrors: [{ field, code: "INVALID", message }] }); }
+
+function validateBilling(unit: string, count: number, duration: number) {
+  if (unit === "HOUR" && duration !== count * 60) throw validation("duration_minutes", "按小时计费的预约时长必须等于小时数 × 60");
+}

@@ -40,7 +40,7 @@ const config = loadApiConfig({
 before(async () => {
   if (!enabled) return;
   migrationClient = new pg.Client({ connectionString: databaseUrl }); await migrationClient.connect(); await migrationClient.query(`CREATE SCHEMA "${schemaName}"`); await migrationClient.query(`SET search_path TO "${schemaName}", public`);
-  await runMigration("0000_initial_schema.sql"); await runMigration("0001_core_invariants.sql"); await runMigration("0004_payment_channels_voice_constraints.sql"); await runMigration("0005_policy_acceptance_context.sql"); await runMigration("0006_policy_version_bindings.sql"); await runMigration("0007_user_lifecycle_requests.sql"); await runMigration("0008_user_lifecycle_invariants.sql"); await runMigration("0009_clear_rhodey.sql");
+  await runMigration("0000_initial_schema.sql"); await runMigration("0001_core_invariants.sql"); await runMigration("0004_payment_channels_voice_constraints.sql"); await runMigration("0005_policy_acceptance_context.sql"); await runMigration("0006_policy_version_bindings.sql"); await runMigration("0007_user_lifecycle_requests.sql"); await runMigration("0008_user_lifecycle_invariants.sql"); await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_versions.sql"); await runMigration("0011_service_categories.sql");
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-after-sale-test", options: `-c search_path=${schemaName},public`, max: 12 });
   paymentProvider = new TrackingPaymentProvider(webhookSecret);
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, paymentProvider, logger: new JsonLogger("after-sale-test", () => {}) });
@@ -205,9 +205,54 @@ async function callbackRequest(payload) { const provider = new MockPaymentProvid
 async function adminAction(complaint, action, reason, result) { return adminRequest(admin, "POST", `/admin-api/v1/complaints/${complaint.id}/actions`, { version: complaint.version, action, reason, ...(result ? { result } : {}) }); }
 async function aggregate() { const result = await migrationClient.query("SELECT rating_count, rating_sum::text, rating_avg::text, star_1_count, star_5_count FROM rating_aggregates WHERE product_id = $1", [productId]); return result.rows[0]; }
 
-async function seedCompletedOrder(amount) {
+
+test("unsupported order refunds reject seller, buyer, admin and callback execution before side effects", { skip: !enabled }, async () => {
+  const { orderId, paymentId } = await seedCompletedOrder(10000n, 2);
+  const refundId = randomUUID();
+  const refundNo = `RULE-RF-${randomUUID()}`;
+  const providerRefundNo = `RULE-PROVIDER-${randomUUID()}`;
+  await migrationClient.query("INSERT INTO refunds(id,refund_no,order_id,payment_id,applicant_id,requested_amount_cent,reason_code,reason_text) VALUES($1,$2,$3,$4,$5,1000,'RULE_TEST','规则隔离测试')", [refundId, refundNo, orderId, paymentId, buyer.id]);
+  const callsBefore = paymentProvider.refundCalls.length;
+  for (const decision of ["APPROVE", "REJECT"]) {
+    const response = await userRequest(seller, "POST", `/api/v1/seller/refunds/${refundId}/decision`, { version: 0, decision, reason: "规则隔离测试" });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().code, "ORDER_RULE_VERSION_UNSUPPORTED");
+  }
+  await migrationClient.query("UPDATE refunds SET status='SELLER_REJECTED',version=version+1 WHERE id=$1", [refundId]);
+  const escalated = await userRequest(buyer, "POST", `/api/v1/refunds/${refundId}/escalate`, { version: 1, reason: "规则隔离测试" });
+  assert.equal(escalated.statusCode, 409, escalated.body);
+  assert.equal(escalated.json().code, "ORDER_RULE_VERSION_UNSUPPORTED");
+  for (const decision of ["APPROVE", "REJECT"]) {
+    const response = await adminRequest(admin, "POST", `/admin-api/v1/refunds/${refundId}/decision`, { version: 1, decision, approved_amount_cent: "1000", reason: "规则隔离测试" });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().code, "ORDER_RULE_VERSION_UNSUPPORTED");
+  }
+  await migrationClient.query("UPDATE refunds SET status='REFUND_PROCESSING',approved_amount_cent=1000,provider_refund_no=$2,version=version+1 WHERE id=$1", [refundId, providerRefundNo]);
+  const before = (await migrationClient.query("SELECT to_jsonb(r) AS row FROM refunds r WHERE id=$1", [refundId])).rows[0];
+  const eventIds = [];
+  for (const event_type of ["REFUND_SUCCEEDED", "REFUND_FAILED"]) {
+    const eventId = randomUUID();
+    eventIds.push(eventId);
+    const response = await callbackRequest({ event_id: eventId, event_type, refund_no: refundNo, provider_refund_no: providerRefundNo, amount_cent: "1000" });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().code, "ORDER_RULE_VERSION_UNSUPPORTED");
+  }
+  const after = (await migrationClient.query("SELECT to_jsonb(r) AS row FROM refunds r WHERE id=$1", [refundId])).rows[0];
+  assert.deepEqual(after, before);
+  assert.equal(paymentProvider.refundCalls.length, callsBefore);
+  const effects = await migrationClient.query(`SELECT
+    (SELECT refunded_amount_cent::text FROM orders WHERE id=$1) AS order_refunded,
+    (SELECT refunded_amount_cent::text FROM payments WHERE id=$2) AS payment_refunded,
+    (SELECT count(*) FROM refund_logs WHERE refund_id=$3)::int AS logs,
+    (SELECT count(*) FROM ledger_transactions WHERE source_id=$3)::int AS ledger,
+    (SELECT count(*) FROM inbox_events WHERE event_id=ANY($4::uuid[]))::int AS events`,
+  [orderId, paymentId, refundId, eventIds]);
+  assert.deepEqual(effects.rows[0], { order_refunded: "0", payment_refunded: "0", logs: 0, ledger: 0, events: 0 });
+});
+
+async function seedCompletedOrder(amount, ruleVersion = 1) {
   const orderId = randomUUID(); const paymentId = randomUUID(); const orderNo = `XZAS${randomUUID().replaceAll("-", "").slice(0, 24)}`; const paymentNo = `PAYAS${randomUUID().replaceAll("-", "").slice(0, 24)}`; const platformFee = amount / 10n;
-  await migrationClient.query("INSERT INTO orders (id, order_no, buyer_id, seller_user_id, seller_id, product_id, sku_id, product_title_snapshot, product_image_snapshot, product_description_snapshot, seller_name_snapshot, sku_name_snapshot, sku_description_snapshot, sku_price_cent_snapshot, sku_duration_minutes_snapshot, quantity, total_amount_cent, discount_cent, payable_amount_cent, paid_amount_cent, commission_rate_bps_snapshot, platform_fee_cent, seller_income_cent, service_starts_at, service_ends_at, expires_at, status, payment_status, after_sale_status, paid_at, completed_at) VALUES ($1,$2,$3,$4,$5,$6,$7,'售后测试服务','','服务快照','售后测试陪玩','一小时服务','测试规格',$8,60,1,$8,0,$8,$8,1000,$9,$10,now()-interval '2 hours',now()-interval '1 hour',now()-interval '3 hours','COMPLETED','PAID','NONE',now()-interval '3 hours',now()-interval '30 minutes')", [orderId, orderNo, buyer.id, seller.id, sellerProfileId, productId, skuId, amount.toString(), platformFee.toString(), (amount - platformFee).toString()]);
+  await migrationClient.query("INSERT INTO orders (id, order_no, buyer_id, seller_user_id, seller_id, product_id, sku_id, product_title_snapshot, product_image_snapshot, product_description_snapshot, seller_name_snapshot, sku_name_snapshot, sku_description_snapshot, sku_price_cent_snapshot, sku_duration_minutes_snapshot, quantity, total_amount_cent, discount_cent, payable_amount_cent, paid_amount_cent, commission_rate_bps_snapshot, platform_fee_cent, seller_income_cent, service_starts_at, service_ends_at, expires_at, status, payment_status, after_sale_status, paid_at, completed_at, transaction_rule_version) VALUES ($1,$2,$3,$4,$5,$6,$7,'售后测试服务','','服务快照','售后测试陪玩','一小时服务','测试规格',$8,60,1,$8,0,$8,$8,1000,$9,$10,now()-interval '2 hours',now()-interval '1 hour',now()-interval '3 hours','COMPLETED','PAID','NONE',now()-interval '3 hours',now()-interval '30 minutes',$11)", [orderId, orderNo, buyer.id, seller.id, sellerProfileId, productId, skuId, amount.toString(), platformFee.toString(), (amount - platformFee).toString(), ruleVersion]);
   await migrationClient.query("INSERT INTO payments (id, order_id, payment_no, channel, provider_transaction_id, idempotency_key, amount_cent, status, paid_at) VALUES ($1,$2,$3,'WECHAT_APP',$4,$5,$6,'PAID',now()-interval '3 hours')", [paymentId, orderId, paymentNo, `tx-${randomUUID()}`, `payment-${randomUUID()}`, amount.toString()]); return { orderId, paymentId };
 }
 

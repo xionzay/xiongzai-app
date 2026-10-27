@@ -49,7 +49,7 @@ before(async () => {
   await runMigration("0003_admin_query_performance.sql");
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
-  await runMigration("0006_policy_version_bindings.sql");
+  await runMigration("0006_policy_version_bindings.sql"); await runMigration("0010_order_rule_versions.sql"); await runMigration("0011_service_categories.sql");
   loginPolicyIds = await seedLoginPolicies();
 
   database = createDatabaseClient({

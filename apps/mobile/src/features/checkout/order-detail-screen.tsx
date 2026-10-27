@@ -1,3 +1,4 @@
+import { packageLabel } from "@/features/catalog/service-catalog";
 import { useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui-icons";
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -157,7 +158,7 @@ export function OrderDetailScreen() {
 
         <Pressable accessibilityRole="button" accessibilityLabel={`查看服务${current.product_title}`} onPress={openService} style={styles.serviceCard}>
           <FileImage fileId={current.product_image || null} style={styles.serviceImage} label={`${current.product_title}图片`} />
-          <View style={styles.serviceCopy}><Text style={styles.serviceTitle} numberOfLines={2}>{current.product_title}</Text><Text style={styles.serviceMeta}>{current.sku_name} · 约 {current.sku_duration_minutes * current.quantity} 分钟</Text><Text style={styles.serviceTime}>{formatServiceTime(current.service_starts_at)}</Text></View>
+          <View style={styles.serviceCopy}><Text style={styles.serviceTitle} numberOfLines={2}>{current.product_title}</Text><Text style={styles.serviceMeta}>{current.sku_name}{current.service_details ? ` · ${packageLabel(current.service_details)} / 份 × ${current.quantity}` : ""} · 约 {current.sku_duration_minutes * current.quantity} 分钟</Text><Text style={styles.serviceTime}>{formatServiceTime(current.service_starts_at)}</Text></View>
           <Text style={styles.servicePrice}>{formatCent(current.payable_amount_cent)}</Text>
         </Pressable>
 

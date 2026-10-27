@@ -47,7 +47,7 @@ before(async () => {
   await migrationClient.connect();
   await migrationClient.query(`CREATE SCHEMA "${schemaName}"`);
   await migrationClient.query(`SET search_path TO "${schemaName}", public`);
-  for (const file of ["0000_initial_schema.sql", "0001_core_invariants.sql", "0002_admin_stage2_permissions.sql", "0003_admin_query_performance.sql", "0004_payment_channels_voice_constraints.sql", "0005_policy_acceptance_context.sql", "0006_policy_version_bindings.sql", "0007_user_lifecycle_requests.sql", "0008_user_lifecycle_invariants.sql"]) await runMigration(file);
+  for (const file of ["0000_initial_schema.sql", "0001_core_invariants.sql", "0002_admin_stage2_permissions.sql", "0003_admin_query_performance.sql", "0004_payment_channels_voice_constraints.sql", "0005_policy_acceptance_context.sql", "0006_policy_version_bindings.sql", "0007_user_lifecycle_requests.sql", "0008_user_lifecycle_invariants.sql", "0010_order_rule_versions.sql", "0011_service_categories.sql"]) await runMigration(file);
   database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-lifecycle-test", options: `-c search_path=${schemaName},public`, max: 4 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async (delivery) => deliveries.push({ ...delivery }) }, objectStorageProvider: storage, logger: new JsonLogger("lifecycle-test", () => {}) });
 });

@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, Req } from "@nestjs/common";
-import { afterSaleStatuses, AppError, errorCodes, orderStatuses, paymentChannels, type PaymentChannel } from "@xiongzai/contracts";
+import { afterSaleStatuses, AppError, errorCodes, LEGACY_APPOINTMENT_RULE_VERSION, orderStatuses, paymentChannels, type PaymentChannel } from "@xiongzai/contracts";
 import { requestContext } from "@xiongzai/observability";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -9,7 +9,7 @@ import type { RequestMetadata } from "./identity-user.service.js";
 import { OrderPaymentService } from "./order-payment.service.js";
 
 const uuid = z.uuid();
-const orderDraftSchema = z.object({ product_id: uuid, sku_id: uuid, slot_id: uuid, quantity: z.number().int().min(1).max(20), service_starts_at: z.coerce.date(), buyer_note: z.string().trim().max(500).nullable().optional(), expected_payable_amount_cent: z.string().regex(/^\d+$/u).optional() });
+const orderDraftSchema = z.object({ transaction_rule_version: z.literal(LEGACY_APPOINTMENT_RULE_VERSION).optional(), product_id: uuid, sku_id: uuid, slot_id: uuid, quantity: z.number().int().min(1).max(20), service_starts_at: z.coerce.date(), buyer_note: z.string().trim().max(500).nullable().optional(), expected_payable_amount_cent: z.string().regex(/^\d+$/u).optional() });
 const versionSchema = z.object({ version: z.number().int().nonnegative() });
 const reasonSchema = versionSchema.extend({ reason: z.string().trim().min(2).max(1000) });
 const listSchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), status: z.enum(orderStatuses).optional(), after_sale_status: z.enum(afterSaleStatuses).optional() });

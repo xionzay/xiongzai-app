@@ -1,0 +1,1190 @@
+{
+  "baseline_date": "2026-10-06",
+  "timezone": "Asia/Shanghai",
+  "head": "8e68a631611e333b08b662faae075cee124335b0",
+  "source_files": [
+    {
+      "file": "Xiongzai-Esports-Platform-Business-Overview-V2.1-English.docx",
+      "sha256": "ff8e56627b12aab9a8b8dd5f9e8b9309d1283d675602d37dfb2619cdc3c6fd37",
+      "bytes": 44060
+    },
+    {
+      "file": "Xiongzai-User-App-PRD-V3.5-English.docx",
+      "sha256": "c292ed7f6a95818193aa3db4213ed1c051c0050725c29000fb0acfc4af967944",
+      "bytes": 94248
+    },
+    {
+      "file": "Xiongzai-Esports-Third-Party-Service-Checklist-Simple-V1.7.xlsx",
+      "sha256": "c295cafc5e5141059e148caed3083cbf0805ff80ff8596090f318fabeb4896e6",
+      "bytes": 25312
+    },
+    {
+      "file": "Xiongzai Esports MVP to Full Product Development Plan.pdf",
+      "sha256": "ecc8e74a060c23aad9b3c6be95d5051f9d4d9e1092ec271581ce1e03ee10a10f",
+      "bytes": 386762
+    }
+  ],
+  "status": "M0 technical audit recorded; source/business/device gates remain open",
+  "framework_v31": {
+    "status": "missing",
+    "unverified_cases": [
+      "K01",
+      "K02",
+      "K03",
+      "K04",
+      "K05",
+      "K06",
+      "K07",
+      "K08",
+      "K09",
+      "K10",
+      "K11",
+      "K12",
+      "K13",
+      "K14",
+      "K15",
+      "K16",
+      "K17",
+      "K18",
+      "K19",
+      "K20",
+      "K21",
+      "K22",
+      "K23",
+      "K24",
+      "K25",
+      "K26",
+      "K27",
+      "K28",
+      "K29",
+      "K30",
+      "K31",
+      "K32",
+      "K33",
+      "K34",
+      "K35",
+      "K36",
+      "K37"
+    ],
+    "unverified_liability_rules": [
+      "J01",
+      "J02",
+      "J03",
+      "J04",
+      "J05",
+      "J06",
+      "J07",
+      "J08",
+      "J09",
+      "J10",
+      "J11",
+      "J12",
+      "J13",
+      "J14",
+      "J15",
+      "J16",
+      "J17",
+      "J18",
+      "J19",
+      "J20"
+    ]
+  },
+  "groups": {
+    "account": {
+      "milestone": "M2/M6",
+      "classification": "Extend",
+      "owner_role": "Mobile + accounts backend",
+      "code": "apps/mobile/src/features/account/account-api.ts; apps/api/src/identity-user.service.ts; apps/api/src/user-lifecycle.service.ts",
+      "api": "/api/v1/auth; /api/v1/me; /api/v1/policies",
+      "schema_symbols": "users, userProfiles, identityVerifications, authSessions, userPolicyAcceptances, phoneChangeRequests, personalDataExportJobs, accountCancellationRequests",
+      "admin": "Identity review; policy publication; lifecycle review",
+      "existing_tests": "identity-user.integration.test.mjs; user-lifecycle.integration.test.mjs; stage-6-account.test.ts",
+      "gap": "Local login and lifecycle paths exist; real identity/SMS and V3.5 adult/role/retention rules need acceptance.",
+      "decisions": "D01, D14, D16, B01, B02"
+    },
+    "catalog": {
+      "milestone": "M2",
+      "classification": "Extend",
+      "owner_role": "Mobile + catalog backend + review operations",
+      "code": "apps/mobile/src/features/home/home-screen.tsx; apps/mobile/src/features/discovery/discovery-api.ts; apps/api/src/seller-product.service.ts",
+      "api": "/api/v1/services; /api/v1/companions; /api/v1/favorites; /api/v1/seller/services",
+      "schema_symbols": "sellerProfiles, sellerApplications, products, productVersions, productSkus, favorites",
+      "admin": "app/admin/seller-review-drawer.tsx; app/admin/service-review-drawer.tsx",
+      "existing_tests": "seller-product.integration.test.mjs; stage-2-domain.test.ts; stage-7-seller.test.ts",
+      "gap": "Catalog and approvals exist; no game/category model or general-item stock/delivery contract; Home and seller navigation differ.",
+      "decisions": "D03, D04, D05, B08, B09"
+    },
+    "purchase": {
+      "milestone": "M1/M3/P3",
+      "classification": "Replace new-rule path; preserve legacy",
+      "owner_role": "Backend transactions + mobile + payments",
+      "code": "apps/api/src/order-payment.controllers.ts; apps/api/src/order-payment.service.ts; apps/mobile/src/features/checkout/order-api.ts; apps/mobile/src/features/checkout/checkout-domain.ts",
+      "api": "/api/v1/orders; /api/v1/payments; /callbacks/v1/payments",
+      "schema_symbols": "orders, orderSlotReservations, sellerAvailabilitySlots, payments, paymentEvents, idempotencyKeys",
+      "admin": "Order/payment query and intervention in existing admin",
+      "existing_tests": "order-payment.integration.test.mjs; stage-3-checkout.test.ts",
+      "gap": "Current contract requires slot_id/service_starts_at and seller accept/reject. Test channels and legacy race coverage exist.",
+      "decisions": "B01, B07, D02, D04, D12, D16"
+    },
+    "fulfillment": {
+      "milestone": "M1/M3",
+      "classification": "Extend with new-rule commands",
+      "owner_role": "Transactions backend + mobile + files",
+      "code": "apps/api/src/order-payment.service.ts; packages/application/src/order-jobs.ts; apps/mobile/src/features/seller/seller-order-api.ts; apps/api/src/file-storage.service.ts",
+      "api": "/api/v1/seller/orders; /api/v1/orders; /api/v1/files",
+      "schema_symbols": "orders, orderStatusLogs, files, fileUsages, scheduledJobs",
+      "admin": "Evidence retrieval and order governance",
+      "existing_tests": "order-payment.integration.test.mjs; stage-3-checkout.test.ts; stage-7-seller.test.ts; file-upload.test.ts",
+      "gap": "Current complete action takes version without fulfillment evidence payload; extension/cooldown/new evidence policy require implementation.",
+      "decisions": "B01, B02, D12, D13, D16"
+    },
+    "cases": {
+      "milestone": "M1/M4",
+      "classification": "Replace new-rule workflow; preserve legacy",
+      "owner_role": "After-sales backend + mobile + support admin",
+      "code": "apps/api/src/after-sale.service.ts; apps/api/src/after-sale.controllers.ts; apps/mobile/src/features/after-sale/after-sale-api.ts; app/admin/support-workspace.tsx",
+      "api": "/api/v1/refunds; /api/v1/seller/refunds; /api/v1/complaints; /admin-api/v1/refunds; /admin-api/v1/complaints",
+      "schema_symbols": "refunds, refundLogs, complaints, complaintEvidences, complaintLogs; target proposals/rulings/appeals/independent holds are missing",
+      "admin": "Support/supervisor rulings, separated appeal review, controlled evidence",
+      "existing_tests": "after-sale.integration.test.mjs; stage-4-after-sale.test.ts",
+      "gap": "Legacy refunds/complaints exist; full case, proposal, supplementary, appeal and source-framework liability behavior is missing.",
+      "decisions": "B01, B02, D06, D12, D13, D16"
+    },
+    "finance": {
+      "milestone": "M1/M4/M5/P3",
+      "classification": "Extend",
+      "owner_role": "Finance backend + finance operations + mobile",
+      "code": "packages/application/src/finance-ledger.ts; apps/api/src/finance.service.ts; apps/api/src/payout-provider.ts; apps/mobile/src/features/seller/seller-finance-api.ts",
+      "api": "/api/v1/seller/finance; /api/v1/seller/payout-accounts; /api/v1/seller/withdrawals; /admin-api/v1/withdrawals",
+      "schema_symbols": "ledgerAccounts, ledgerTransactions, ledgerEntries, sellerIncomes, sellerLiabilities, withdrawals, withdrawalIncomeAllocations, reconciliationRuns",
+      "admin": "Withdrawal approval, reconciliation, liability handling; independent case holds need model",
+      "existing_tests": "finance.integration.test.mjs; stage-8-seller-finance.test.ts",
+      "gap": "Ledger/payout/reconciliation exist. Refund commission is proportional today; V3.5 full waiver and independent holds need implementation.",
+      "decisions": "B01, B07, D10, D11, D16"
+    },
+    "reviews": {
+      "milestone": "M5",
+      "classification": "Extend",
+      "owner_role": "After-sales backend + mobile + review operations",
+      "code": "apps/api/src/after-sale.service.ts; apps/mobile/src/features/after-sale/review-create-screen.tsx; apps/mobile/src/features/after-sale/review-detail-screen.tsx",
+      "api": "/api/v1/reviews; /api/v1/products/:productId/reviews; /admin-api/v1/reviews",
+      "schema_symbols": "reviews, ratingAggregates, orders",
+      "admin": "Review visibility/moderation; public seller replies unresolved",
+      "existing_tests": "after-sale.integration.test.mjs; stage-4-after-sale.test.ts",
+      "gap": "Review paths exist; first-termination window, refunded-order eligibility/labels and public replies need reconciliation.",
+      "decisions": "B01, B04, D09"
+    },
+    "messaging": {
+      "milestone": "M6/P2",
+      "classification": "Extend; replace production transport",
+      "owner_role": "Messaging backend + mobile",
+      "code": "apps/api/src/chat-support-notification.service.ts; apps/mobile/src/features/chat/chat-transport.ts; apps/mobile/src/features/chat/chat-screen.tsx",
+      "api": "/api/v1/conversations; /api/v1/notifications",
+      "schema_symbols": "conversations, conversationMembers, messages, notifications, deliveryLogs",
+      "admin": "Moderation callbacks, archive evidence, reports/appeals",
+      "existing_tests": "chat-support-notification.integration.test.mjs; stage-5-messaging.test.ts",
+      "gap": "HTTP polling text path exists. Tencent integration, authorized product/order cards, role identity, archive and native push are not established.",
+      "decisions": "B02, B03, D07, D13"
+    },
+    "feedback": {
+      "milestone": "M6",
+      "classification": "Add",
+      "owner_role": "Feedback backend + mobile + admin",
+      "code": "app/page.tsx; apps/api/src/chat-support-notification.service.ts (support reference only)",
+      "api": "No dedicated feedback API located; do not substitute /api/v1/support-cases",
+      "schema_symbols": "No dedicated feedback table located",
+      "admin": "New dedicated handling and official-reply view required",
+      "existing_tests": "No feedback-specific suite located; chat-support tests cover separate support",
+      "gap": "Standalone records, history, reply workflow and notification are missing; feedback is not an after-sales case.",
+      "decisions": "D08"
+    },
+    "support": {
+      "milestone": "M4/M6",
+      "classification": "Extend",
+      "owner_role": "Support backend + mobile + operations",
+      "code": "apps/api/src/chat-support-notification.service.ts; apps/mobile/src/features/chat/support-create-screen.tsx; app/admin/support-workspace.tsx",
+      "api": "/api/v1/support-cases; /admin-api/v1/support-cases",
+      "schema_symbols": "supportCases, supportCaseLogs, conversations",
+      "admin": "Existing support workspace; special-claim intake and timestamp evidence need new-rule acceptance",
+      "existing_tests": "chat-support-notification.integration.test.mjs; stage-5-messaging.test.ts",
+      "gap": "Support exists; preserve first qualifying contact, case linkage and restriction exceptions.",
+      "decisions": "B01, B02, D13"
+    },
+    "reliability": {
+      "milestone": "M1/M4/M7",
+      "classification": "Extend",
+      "owner_role": "Application backend + worker/scheduler + QA",
+      "code": "packages/application/src/reliability.ts; packages/application/src/order-jobs.ts; apps/worker/src/main.ts; apps/scheduler/src/main.ts",
+      "api": "Shared command/job paths behind transaction APIs",
+      "schema_symbols": "outboxEvents, inboxEvents, scheduledJobs, idempotencyKeys, orderStatusLogs",
+      "admin": "Job/queue inspection, outage attribution, audit",
+      "existing_tests": "packages/application/tests/reliability.test.mjs; packages/database/tests/migration-rollback.integration.test.mjs; order-payment.integration.test.mjs",
+      "gap": "Durable primitives exist; worker currently uses LoggingPublisher; new-rule stale-job and outage behavior need implementation.",
+      "decisions": "B01, D16"
+    },
+    "files": {
+      "milestone": "M3/M4/P1/P2",
+      "classification": "Extend",
+      "owner_role": "Files backend + mobile + privacy/security",
+      "code": "apps/api/src/file-storage.service.ts; apps/api/src/file-lifecycle.service.ts; apps/api/src/object-storage-provider.ts; apps/mobile/src/features/files/file-upload-api.ts",
+      "api": "/api/v1/files; /api/v1/me/files; /admin-api/v1/files",
+      "schema_symbols": "files, fileUsages, complaintEvidences",
+      "admin": "Original/redacted evidence access, moderation/quarantine, lifecycle holds",
+      "existing_tests": "file-storage.integration.test.mjs (not executed in this batch); file-upload.test.ts; native-voice-media.test.ts",
+      "gap": "Existing file foundation; completion evidence immutability/redaction, OSS adapter and retention conflict remain.",
+      "decisions": "B02, D13"
+    },
+    "quality": {
+      "milestone": "M7",
+      "classification": "Reuse and extend",
+      "owner_role": "Mobile/web + QA",
+      "code": "apps/mobile/src/components/state-view.tsx; apps/mobile/src/query/remote-state.ts; apps/mobile/tests/stage-9-release.test.ts; app/page.tsx",
+      "api": "All affected routes",
+      "schema_symbols": "No independent schema; consumer of current state/action contracts",
+      "admin": "Cross-client consistency and manual device evidence",
+      "existing_tests": "stage-9-release.test.ts; query-lifecycle-sync.test.ts; user-journey.e2e.test.mjs",
+      "gap": "Static/domain checks pass separately from native UI proof; real-device and web behavior remain unverified in M0.",
+      "decisions": "D15"
+    }
+  },
+  "pages": [
+    {
+      "id": "PG-U01",
+      "name": "Sign-in, registration, initial profile",
+      "source_entry": "Guest action or expired session; return to valid source",
+      "source_expected": "SMS code, agreements, avatar/name; login never automatically pays or sends a message",
+      "group": "account",
+      "native_mapping": "(auth)/login.tsx; (auth)/profile-setup.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-U02",
+      "name": "Identity verification and result",
+      "source_entry": "First order, seller application, Settings; return to task",
+      "source_expected": "Submission, review, failure reasons, age result",
+      "group": "account",
+      "native_mapping": "settings/identity.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-U03",
+      "name": "Agreements and Rules Center",
+      "source_entry": "Home Platform Rules, Settings, form agreements; return to source",
+      "source_expected": "Version, full text, effective time, own acceptance records",
+      "group": "account",
+      "native_mapping": "rules.tsx; policies/[id].tsx; settings/policy-acceptances.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-U04",
+      "name": "Profile and Account Security",
+      "source_entry": "My Account to Settings/Profile",
+      "source_expected": "Edit, change bound phone, privacy/permissions, export, close account, sign out",
+      "group": "account",
+      "native_mapping": "settings/index.tsx; settings/profile.tsx; settings/security.tsx; settings/phone-change.tsx; settings/data-export.tsx; settings/account-cancellation.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B01",
+      "name": "Buyer Home",
+      "source_entry": "Buyer bottom bar",
+      "source_expected": "Recommended/Companions/Services, announcements, five shortcuts, best sellers, popular companions",
+      "group": "catalog",
+      "native_mapping": "(buyer-tabs)/index.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B02",
+      "name": "Search, results, category lists",
+      "source_entry": "Home search or View More; return to source",
+      "source_expected": "Products and stores, keyword, game, sorting, pagination",
+      "group": "catalog",
+      "native_mapping": "search.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B03",
+      "name": "Store/companion profile and review list",
+      "source_entry": "Cards/store name; return to source",
+      "source_expected": "Public profile, listed products, reviews, contact, favorite",
+      "group": "catalog",
+      "native_mapping": "companions/[id].tsx; companions/[id]/reviews.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B04",
+      "name": "Product Details",
+      "source_entry": "Home/search/chat card; return to source",
+      "source_expected": "Product, variant prices, fulfillment agreement, contact, favorite, purchase",
+      "group": "catalog",
+      "native_mapping": "services/[id].tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B05",
+      "name": "Variant-selection bottom sheet",
+      "source_entry": "Buy Now on product; close to product",
+      "source_expected": "Required variants, quantity, total; confirm to PG-B06",
+      "group": "purchase",
+      "native_mapping": "No dedicated target bottom-sheet component verified; existing service detail and checkout/schedule.tsx differ",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B06",
+      "name": "Confirm Order",
+      "source_entry": "Variant confirmation; Back preserves choices",
+      "source_expected": "Game delivery details, order snapshot, amount, rules; create unpaid order",
+      "group": "purchase",
+      "native_mapping": "checkout/confirm.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B07",
+      "name": "Checkout and payment result",
+      "source_entry": "PG-B06 or Pay Now; return to order",
+      "source_expected": "Payment initiation, status query, explicit success/failure/unknown result",
+      "group": "purchase",
+      "native_mapping": "orders/[id]/pay.tsx; payments/[id]/processing.tsx; payments/[id]/result.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-O01",
+      "name": "Buyer and seller order lists",
+      "source_entry": "Role-specific Orders or status shortcut",
+      "source_expected": "Role filtering, search, filters, card actions",
+      "group": "purchase",
+      "native_mapping": "(buyer-tabs)/orders.tsx; (seller-tabs)/orders.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-O02",
+      "name": "Buyer and seller order details",
+      "source_entry": "Card body, notification, order message",
+      "source_expected": "Snapshots, timeline, amounts, deadlines, evidence, current actions",
+      "group": "fulfillment",
+      "native_mapping": "orders/[id].tsx; seller/orders/[id].tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-O03",
+      "name": "View or submit fulfillment evidence",
+      "source_entry": "Order or supplementary fulfillment",
+      "source_expected": "Upload, validation, preview, append; refresh order after saving",
+      "group": "files",
+      "native_mapping": "No dedicated fulfillment-evidence route located; existing file components are reusable",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-A01",
+      "name": "Create or edit after-sales request",
+      "source_entry": "Eligible order entry; return to order/case",
+      "source_expected": "Reason, amount, description, evidence; ordinary S01 or original R02 case to P01",
+      "group": "cases",
+      "native_mapping": "refunds/new.tsx; edit/reapplication target is missing",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-A02",
+      "name": "After-sales details and seller handling",
+      "source_entry": "Order or notification",
+      "source_expected": "Request version, proposal, reasons, deadlines, counts, both parties' actions",
+      "group": "cases",
+      "native_mapping": "refunds/[id].tsx; seller/refunds/[id].tsx (legacy)",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-A03",
+      "name": "Submit or respond to a proposal",
+      "source_entry": "PG-A02 or platform case",
+      "source_expected": "Amount or additional fulfillment, obligations, deadline; explicit acceptance/rejection",
+      "group": "cases",
+      "native_mapping": "No proposal screen/route located",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-A04",
+      "name": "Platform handling, evidence, appeals",
+      "source_entry": "Eligible intervention or appeal entry",
+      "source_expected": "Case type, missing materials, stage, evidence, deadlines, progress",
+      "group": "cases",
+      "native_mapping": "complaints/new.tsx; complaints/[id].tsx (legacy, not full appeal handling)",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-A05",
+      "name": "Ruling and review result",
+      "source_entry": "View Resolution",
+      "source_expected": "Full ruling version; accept or appeal",
+      "group": "cases",
+      "native_mapping": "No ruling/review-result route located",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-A06",
+      "name": "Refund Progress",
+      "source_entry": "Order, case, refund card",
+      "source_expected": "Current and cumulative refund, channel status, success time/failure reason",
+      "group": "cases",
+      "native_mapping": "refunds/[id].tsx (legacy)",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B08",
+      "name": "Submit or view own review",
+      "source_entry": "Eligible Write Review/View Review",
+      "source_expected": "Actual experience, rating, content; one submission",
+      "group": "reviews",
+      "native_mapping": "reviews/new.tsx; reviews/[id].tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-B09",
+      "name": "Buyer My Account, Favorites, coupon placeholder",
+      "source_entry": "Buyer bottom bar",
+      "source_expected": "Profile, orders, favorites, seller entry, Settings",
+      "group": "account",
+      "native_mapping": "(buyer-tabs)/mine.tsx; favorites.tsx; coupons.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-M01",
+      "name": "Buyer and seller message lists",
+      "source_entry": "Messages bottom bar",
+      "source_expected": "Counterparty, latest message, unread count, time",
+      "group": "messaging",
+      "native_mapping": "(buyer-tabs)/messages.tsx; seller Messages tab missing",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-M02",
+      "name": "Chat Conversation",
+      "source_entry": "Message list or Contact",
+      "source_expected": "Text, history, sending status, plus panel",
+      "group": "messaging",
+      "native_mapping": "conversations/[id].tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-M03",
+      "name": "Product or order picker",
+      "source_entry": "Chat plus menu; return to conversation",
+      "source_expected": "Authorized candidates; explicitly send selected card",
+      "group": "messaging",
+      "native_mapping": "No product/order picker route located",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-N01",
+      "name": "Official Notices and notification details",
+      "source_entry": "Home Official Notices or existing notification entry",
+      "source_expected": "Order, after-sales, account, platform events and authorized links",
+      "group": "messaging",
+      "native_mapping": "notifications/index.tsx; notifications/[id].tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-C01",
+      "name": "Platform Support and tickets",
+      "source_entry": "Support entries in order/rules/Settings",
+      "source_expected": "Issue, related order, records, supplements, platform reply",
+      "group": "support",
+      "native_mapping": "support/index.tsx; support/new.tsx; support/[id].tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-FDB01",
+      "name": "Feedback, My Feedback, Feedback Details",
+      "source_entry": "Fourth Home shortcut; return to Home",
+      "source_expected": "Category, text, submission result, own records and replies",
+      "group": "feedback",
+      "native_mapping": "No standalone feedback route located",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-S01",
+      "name": "Seller application and review result",
+      "source_entry": "Buyer My Account",
+      "source_expected": "Identity, store information, payout verification, agreements, approval",
+      "group": "catalog",
+      "native_mapping": "seller/apply.tsx; seller/status.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-S02",
+      "name": "Seller Home",
+      "source_entry": "Seller Home bottom bar",
+      "source_expected": "Identity, today's business, order tasks, Product Management",
+      "group": "catalog",
+      "native_mapping": "(seller-tabs)/index.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-S03",
+      "name": "Product Management",
+      "source_entry": "Seller Home; return to Home",
+      "source_expected": "On Sale, Under Review, Delisted, Drafts, rejected submissions",
+      "group": "catalog",
+      "native_mapping": "(seller-tabs)/services.tsx (navigation changes required)",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-S04",
+      "name": "Publish/edit product and review result",
+      "source_entry": "PG-S03; return to Product Management",
+      "source_expected": "Content, variants, fulfillment standards, upload, submit for approval",
+      "group": "catalog",
+      "native_mapping": "seller/services/new.tsx; seller/services/[id]/edit.tsx; seller/services/[id]/review.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-S05",
+      "name": "Seller My Account and business statistics",
+      "source_entry": "Seller My Account bottom bar",
+      "source_expected": "Funds, statistics, store profile, Settings, role switch",
+      "group": "finance",
+      "native_mapping": "(seller-tabs)/earnings.tsx; seller/profile.tsx (target seller My Account missing)",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-S06",
+      "name": "Earnings, settlement, frozen-funds details",
+      "source_entry": "PG-S05 or order View Settlement",
+      "source_expected": "Ledger entries, related orders, freeze reasons, available amount",
+      "group": "finance",
+      "native_mapping": "seller/finance/incomes.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    },
+    {
+      "id": "PG-S07",
+      "name": "Withdrawals, history, payout accounts",
+      "source_entry": "PG-S05; return to entry",
+      "source_expected": "Application, channel progress, verified account, failure recovery",
+      "group": "finance",
+      "native_mapping": "seller/finance/withdraw.tsx; seller/finance/withdrawals/index.tsx; seller/finance/withdrawals/[id].tsx; seller/finance/accounts.tsx",
+      "web_mapping": "app/page.tsx screen dispatcher; new-rule parity not accepted",
+      "acceptance_status": "V3.5 not verified"
+    }
+  ],
+  "acceptance_cases": [
+    {
+      "id": "AC01",
+      "source_action": "Buyer opens Recommended Home",
+      "source_expected": "Five shortcuts in one row/order; Platform Rules and Feedback labels; no Lucky Wheel/leaderboard",
+      "group": "catalog",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC02",
+      "source_action": "Change Companions/Services, game, sort; open details and return",
+      "source_expected": "Filters/sorts affect real results; restore conditions/position",
+      "group": "catalog",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC03",
+      "source_action": "Fewer than four products or load failure",
+      "source_expected": "Distinguish actual count, empty, and failure; no sample filler",
+      "group": "catalog",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC04",
+      "source_action": "Guest attempts favorite/feedback/order, then signs in",
+      "source_expected": "Return to authorized task; no automatic submission/payment",
+      "group": "account",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC05",
+      "source_action": "Unverified or underage user attempts order/seller application",
+      "source_expected": "Server blocks; local approval text cannot grant access",
+      "group": "account",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC06",
+      "source_action": "Approved buyer switches to seller and back",
+      "source_expected": "Both bars Home/Orders/Messages/My Account; correct ownership/permissions",
+      "group": "account",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC07",
+      "source_action": "Seller views Home and My Account",
+      "source_expected": "No withdrawable balance on Home; funds/statistics separate in My Account",
+      "group": "catalog",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC08",
+      "source_action": "Direct purchase/relist call for unapproved/platform-delisted product",
+      "source_expected": "Server rejects; existing-order snapshots remain accessible",
+      "group": "catalog",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC09",
+      "source_action": "Buy Now, select variants/quantity, close/reopen",
+      "source_expected": "Bottom sheet; no order on close; preserve/revalidate choices",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC10",
+      "source_action": "Server price changes during order creation",
+      "source_expected": "Display old/new prices and require confirmation before higher charge",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC11",
+      "source_action": "Double-submit order/repeat payment callback",
+      "source_expected": "One effective order/payment; consistent state/amount",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC12",
+      "source_action": "Payment returns but channel outcome unknown",
+      "source_expected": "Query original, show confirmation pending; not automatically paid/failed",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC13",
+      "source_action": "Cancellation/payment race or late funds after closure",
+      "source_expected": "Backend resolves and tracks real funds; never ignore received money",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC14",
+      "source_action": "Seller tries immediate completion after payment, then normal start",
+      "source_expected": "Direct completion rejected; start gives T02 without deadline reset/buyer reconfirmation",
+      "group": "fulfillment",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC15",
+      "source_action": "Four images; RMB 199.99 with five; RMB 200 with five but no recording",
+      "source_expected": "Four fail; 199.99 meets count threshold; 200 requires recording",
+      "group": "fulfillment",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC16",
+      "source_action": "Completion upload partially fails",
+      "source_expected": "Retain draft/uploaded references; still In Service; no 72-hour clock",
+      "group": "fulfillment",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC17",
+      "source_action": "Tap image/amount/blank area, store, action, More",
+      "source_expected": "Body opens details, store opens store, child actions independent; no redundant detail button",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC18",
+      "source_action": "Same order in All and a status list",
+      "source_expected": "Identical state/deadline/actions; filter label does not manufacture actions",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC19",
+      "source_action": "More than three valid actions or no additional actions",
+      "source_expected": "At most three direct buttons; overflow in More; no empty menu/duplicates",
+      "group": "purchase",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC20",
+      "source_action": "Remind in T01/T02 immediately after success and after 24 hours",
+      "source_expected": "No repeat notice during cooldown; correct next time; success only after interval",
+      "group": "fulfillment",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC21",
+      "source_action": "Ordinary request from T01/T02/T03",
+      "source_expected": "Eligible entry in each; S01 whole-order freeze and paused normal actions",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC22",
+      "source_action": "Confirmation and ordinary after-sales submitted together",
+      "source_expected": "Only first valid transition commits; refresh loser, no duplicate settlement/overwrite",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC23",
+      "source_action": "Ordinary extension used, then attempt in R02",
+      "source_expected": "Only one successful 24-hour extension per order; no reset",
+      "group": "fulfillment",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC24",
+      "source_action": "Withdraw request with original 60/two hours left, or undelivered stage",
+      "source_expected": "Delivered restores 60/24 hours; undelivered returns T01/T02 without acceptance clock",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC25",
+      "source_action": "Third edit or edit/withdraw after intervention",
+      "source_expected": "Block; first two edits reset S01 to 24 hours and invalidate old proposal/jobs",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC26",
+      "source_action": "Reapply after three self-service cases ended",
+      "source_expected": "No further self-service creation; support verification for new issues remains",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC27",
+      "source_action": "S01 seller only chats/adds evidence for 24 hours; nobody intervenes",
+      "source_expected": "Not effective response; deem requested amount agreed; Pending Execution before dispatch",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC28",
+      "source_action": "Intervention races with timeout agreement; both parties intervene",
+      "source_expected": "One legal outcome/case, no duplicate freeze/refund",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC29",
+      "source_action": "First rejection/silence; second-wait expiry or second rejection",
+      "source_expected": "First to S05; second/wait expiry to P01; silence never acceptance/automatic full refund",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC30",
+      "source_action": "S03 intervention within 48 hours or unattended expiry",
+      "source_expected": "Intervention stops closure; unattended expiry restores stage, not automatic sale completion",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC31",
+      "source_action": "Open card before accepting refund/supplementary proposal",
+      "source_expected": "Read full proposal; no automatic acceptance; reject stale-version action",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC32",
+      "source_action": "Accept supplementary proposal then miss deadline",
+      "source_expected": "Original freeze persists; overdue to P01, not automatic full refund",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC33",
+      "source_action": "Confirm/append/unused extension in R02 with original case open",
+      "source_expected": "Allowed; renewed dispute blocks confirmation, not blanket blocking for original case",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC34",
+      "source_action": "R02 buyer disputes or seller intervenes; platform denies refund",
+      "source_expected": "Original case P01, no new-case/round reset; restore R02/freeze and max(remaining,24h)",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC35",
+      "source_action": "P01 mediation after seller used two pre-intervention rounds",
+      "source_expected": "Valid proposal still permitted, 24-hour validity, review SLA continues",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC36",
+      "source_action": "Missing evidence at deadline; second supervisor extension at same level",
+      "source_expected": "Decide on available materials within 24 hours; reject second extension",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC37",
+      "source_action": "One party accepts ruling, other validly appeals",
+      "source_expected": "No early execution; cancel old execution; keep freeze",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC38",
+      "source_action": "Both accept current same-version ruling, or accept old version",
+      "source_expected": "Execute current version once with no appeal; reject stale version and refresh",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC39",
+      "source_action": "Second appeal without new evidence or appeal after final ruling",
+      "source_expected": "Block second without new evidence; no third internal appeal",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC40",
+      "source_action": "Effective refund not dispatched or dispatched without success receipt",
+      "source_expected": "Pending Execution/Refund Processing respectively; neither claims funds received",
+      "group": "finance",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC41",
+      "source_action": "Refund timeout, retry, duplicate success callback",
+      "source_expected": "Query original; refund/ledger once only, no over-refund",
+      "group": "finance",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC42",
+      "source_action": "RMB 100 refunds of 60, 0.01, or full; duplicate-payment correction",
+      "source_expected": "Commission zero, income 40/99.99/0; correction does not waive valid-order commission",
+      "group": "finance",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC43",
+      "source_action": "Confirm without reviewing, seven-day expiry, review after full refund",
+      "source_expected": "Settlement independent; no automatic positive review; full refund stays Refunded",
+      "group": "reviews",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC44",
+      "source_action": "Serious issue reported on day 6; staff starts review on day 8",
+      "source_expected": "Use valid day 6 contact; delayed intake does not lose eligibility",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC45",
+      "source_action": "Special case denied or later additional refund",
+      "source_expected": "Preserve transaction/review deadline; no return to acceptance/new seven-day window",
+      "group": "cases",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC46",
+      "source_action": "Insufficient funds or recovery and advance arrive together",
+      "source_expected": "Genuine Pending Execution/progress; no false receipt or duplicate compensation",
+      "group": "finance",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC47",
+      "source_action": "Ordinary-case release with independent risk freeze",
+      "source_expected": "Release only case freeze; risk funds still unavailable",
+      "group": "finance",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC48",
+      "source_action": "Withdrawal races with freeze or channel outcome unknown",
+      "source_expected": "Atomic reservation checks; query original, no duplicate payout/incorrect release",
+      "group": "finance",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC49",
+      "source_action": "Both message lists and plus panel",
+      "source_expected": "No fixed notification/support rows; Product and Order available",
+      "group": "messaging",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC50",
+      "source_action": "Buyer sends current-store product or seller sends own product",
+      "source_expected": "Explicit send gives both parties card; correct product details; no order creation",
+      "group": "messaging",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC51",
+      "source_action": "Send shared order; substitute third-party order ID",
+      "source_expected": "Authorized card opens viewer-role details; unauthorized send/read fails",
+      "group": "messaging",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC52",
+      "source_action": "Delist product/change order after sending; weak-network resend",
+      "source_expected": "Retain history, read current state, one message only",
+      "group": "messaging",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC53",
+      "source_action": "Tap Home Feedback",
+      "source_expected": "Independent official-message page; no support redirect/conversation/empty ticket",
+      "group": "feedback",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC54",
+      "source_action": "Blank message/missing type/valid submission/rapid repeated taps",
+      "source_expected": "Required fields enforced; persist ID/time; repeated request gives one record",
+      "group": "feedback",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC55",
+      "source_action": "Feedback fails or result unknown, then retry",
+      "source_expected": "Retain input/query original; no false success/duplicate record",
+      "group": "feedback",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC56",
+      "source_action": "My Feedback and substituted other-user feedback ID",
+      "source_expected": "Own history/details available; other user's content/replies inaccessible",
+      "group": "feedback",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC57",
+      "source_action": "Staff replies to feedback",
+      "source_expected": "Replied with text/time; one notice opens details; not automatically Adopted",
+      "group": "feedback",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC58",
+      "source_action": "Feedback text requests a refund",
+      "source_expected": "No after-sales case/freeze/paused deadline; order-help guidance remains",
+      "group": "feedback",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC59",
+      "source_action": "Four-game category-specific checkout and item-only store",
+      "source_expected": "Correct fields, no mandatory voice/rank or physical address",
+      "group": "catalog",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC60",
+      "source_action": "Old/new rule orders; exit and reopen client",
+      "source_expected": "Each keeps snapshot; persisted state/counts/deadlines do not reset",
+      "group": "reliability",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC61",
+      "source_action": "Cross-day payment/refund and statistics spanning pages",
+      "source_expected": "Same Home/My Account definition; full-data reconciliation; errors not zero",
+      "group": "finance",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC62",
+      "source_action": "Deadline occurs during downtime preventing action",
+      "source_expected": "Record/extend by impact duration, reschedule, no erroneous closure",
+      "group": "reliability",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC63",
+      "source_action": "Nonparticipant requests evidence/unredacted original",
+      "source_expected": "Reject unauthorized access; counterparties receive authorized redacted information",
+      "group": "files",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    },
+    {
+      "id": "AC64",
+      "source_action": "Long titles/amounts, 375/390/430 widths, keyboard, Back",
+      "source_expected": "Main information/actions visible, no horizontal overflow, source restored",
+      "group": "quality",
+      "status": "V3.5 not verified; existing suite is reuse/regression evidence only"
+    }
+  ],
+  "sections": [
+    {
+      "id": 1,
+      "title": "1 How to Use This Document",
+      "group": "account"
+    },
+    {
+      "id": 2,
+      "title": "2 Product Positioning Roles and Scope",
+      "group": "catalog"
+    },
+    {
+      "id": 3,
+      "title": "3 Page Structure and Navigation",
+      "group": "quality"
+    },
+    {
+      "id": 4,
+      "title": "4 Shared Account Requirements U-01 to U-05",
+      "group": "account"
+    },
+    {
+      "id": 5,
+      "title": "5 Buyer Home Search and Products B-01 to B-05",
+      "group": "catalog"
+    },
+    {
+      "id": 6,
+      "title": "6 Variants Order Creation and Payment BUY-01 to BUY-04",
+      "group": "purchase"
+    },
+    {
+      "id": 7,
+      "title": "7 Order After-Sales Review and Funds State Model",
+      "group": "reliability"
+    },
+    {
+      "id": 8,
+      "title": "8 Buyer Order Cards and Complete Action Matrix ORD-B",
+      "group": "purchase"
+    },
+    {
+      "id": 9,
+      "title": "9 Seller Onboarding Home and Products SELL-01 to SELL-04",
+      "group": "catalog"
+    },
+    {
+      "id": 10,
+      "title": "10 Seller Order Cards and Action Matrix ORD-S",
+      "group": "fulfillment"
+    },
+    {
+      "id": 11,
+      "title": "11 After-Sales Forms Negotiation Intervention and Special Appeals AFT-01 to AFT-08",
+      "group": "cases"
+    },
+    {
+      "id": 12,
+      "title": "12 Shared Button Contracts and Confirmation Copy ACT",
+      "group": "reliability"
+    },
+    {
+      "id": 13,
+      "title": "13 Timers Pauses Restoration and Notifications TIME",
+      "group": "reliability"
+    },
+    {
+      "id": 14,
+      "title": "14 Messages Send Product and Send Order MSG-01 to MSG-04",
+      "group": "messaging"
+    },
+    {
+      "id": 15,
+      "title": "15 Standalone Feedback Notices and Support FDB NOTICE CS",
+      "group": "feedback"
+    },
+    {
+      "id": 16,
+      "title": "16 Reviews Funds Withdrawals and Business Statistics FIN REV",
+      "group": "finance"
+    },
+    {
+      "id": 17,
+      "title": "17 Data Objects and API Contracts DATA API",
+      "group": "reliability"
+    },
+    {
+      "id": 18,
+      "title": "18 Errors Uploads Navigation and Visual Quality QA",
+      "group": "quality"
+    },
+    {
+      "id": 19,
+      "title": "19 Server Consistency Security and Job Requirements SRV",
+      "group": "reliability"
+    },
+    {
+      "id": 20,
+      "title": "20 Implementation Gaps and Development Order",
+      "group": "quality"
+    },
+    {
+      "id": 21,
+      "title": "21 Acceptance Cases AC",
+      "group": "quality"
+    },
+    {
+      "id": 22,
+      "title": "22 Pending Decisions and Blocked Scope D",
+      "group": "quality"
+    },
+    {
+      "id": 23,
+      "title": "23 Definition of Implementation Completion and Launch Acceptance",
+      "group": "quality"
+    }
+  ],
+  "implementation_progress": [
+    {
+      "slice": "M1a",
+      "status": "COMPLETE",
+      "report": "2026-10-06-xiongzai-m1a-order-rule-compatibility.md",
+      "scope": "Persisted immutable legacy execution-rule version and fail-closed legacy command/job/ledger guards",
+      "proof": {
+        "integration_passed": 53,
+        "contract_application_schema_passed": 29,
+        "failed": 0,
+        "skipped": 0,
+        "typecheck": "PASS",
+        "migration_metadata": "PASS",
+        "local_migration": "0010_order_rule_versions applied; no pending migrations"
+      },
+      "related_acceptance_cases": [
+        "AC60"
+      ],
+      "acceptance_boundary": "AC60 and full M1 remain unverified until actual old/new business workflows and persisted facts pass; fixtures with versions 2/99 are unsupported, not implemented direct-purchase versions"
+    }
+  ]
+}

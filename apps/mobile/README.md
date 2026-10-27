@@ -23,6 +23,8 @@ pnpm mobile:ios
 pnpm mobile:android
 ```
 
+VPN/Clash 开启时，在 iOS 模拟器上使用 `pnpm mobile:ios:simulator` 构建安装；它固定本机 Metro 地址为 `127.0.0.1`，避免开发客户端收到虚拟网卡地址。模拟器的 `EXPO_PUBLIC_API_BASE_URL` 同样应为 `http://127.0.0.1:3002/api/v1`。
+
 首次生成原生工程也可以执行：
 
 ```bash
@@ -34,6 +36,8 @@ pnpm --filter @xiongzai/mobile prebuild
 ```bash
 pnpm mobile:start
 ```
+
+已安装的 iOS 模拟器 Development Build 在 VPN/Clash 环境下使用 `pnpm mobile:start:simulator`，然后在 Expo 终端按 `i` 打开 App。实体手机仍使用局域网地址与普通 `mobile:start` 命令。
 
 ## 验证
 

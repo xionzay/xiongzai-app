@@ -27,6 +27,8 @@
 
 # misc
 .DS_Store
+__pycache__/
+*.py[cod]
 *.pem
 *.key
 *.crt

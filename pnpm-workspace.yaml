@@ -30,3 +30,4 @@ minimumReleaseAgeExclude:
   - expo-dev-launcher@57.0.14
   - expo-dev-menu@57.0.14
   - expo-image-picker@57.0.12
+  - expo-build-properties@57.0.20

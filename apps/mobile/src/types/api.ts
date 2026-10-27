@@ -142,6 +142,7 @@ export interface CompanionDetailApiView extends CompanionApiView {
 }
 
 export interface ServiceApiView {
+  category_id?: string | null; category?: import("@/features/catalog/service-catalog").CategorySnapshot | null; attributes?: Record<string, string>;
   id: string;
   seller_id: string;
   title: string;
@@ -158,6 +159,7 @@ export interface ServiceApiView {
 }
 
 export interface ServiceSkuApiView {
+  billing_unit?: "SESSION" | "MATCH" | "HOUR"; unit_count?: number;
   id: string;
   product_id: string;
   sku_name: string;
@@ -287,6 +289,7 @@ export interface OrderDraftApi {
 }
 
 export interface OrderPreviewApiView {
+  billing_unit?: string; unit_count?: number;
   product_id: string;
   product_title: string;
   product_image_file_id: string | null;
@@ -334,6 +337,7 @@ export interface OrderApiView {
   product_title: string;
   product_image: string;
   product_description: string;
+  service_details?: { category: import("@/features/catalog/service-catalog").CategorySnapshot | null; attributes: Record<string, string>; billing_unit: string; unit_count: number } | null;
   seller_name: string;
   seller_avatar: string | null;
   sku_name: string;
@@ -413,7 +417,7 @@ export type SellerProductStatus = "DRAFT" | "PENDING_REVIEW" | "ON_SALE" | "REVI
 export interface SellerApplicationApiView { id: string; seller_id: string; version_no: number; status: SellerApplicationStatus; submitted_at: string | null; reviewed_at: string | null; rejection_reason: string | null; required_fields: string[] | null; version: number; created_at: string; revision_kind?: "INITIAL_ONBOARDING" | "PROFILE_UPDATE" }
 export interface SellerProfileRevisionApiView extends SellerApplicationApiView { revision_kind: "PROFILE_UPDATE"; snapshot: { seller_nickname: string; seller_avatar_file_id: string | null; cover_file_id: string | null; introduction: string | null; game_rank: string | null; kd: string | null; preferred_mode: string | null; play_style: string | null; game_experience: string | null; voice_file_id: string | null; voice_duration_ms: number | null } }
 export interface SellerProfileApiView { id: string; user_id: string; status: SellerStatus; seller_nickname: string; seller_avatar_file_id: string | null; cover_file_id: string | null; introduction: string | null; game_rank: string | null; kd: string | null; preferred_mode: string | null; play_style: string | null; game_experience: string | null; voice_file_id: string | null; voice_duration_ms: number | null; accepting_orders: boolean; rating_avg: string; review_count: number; completed_order_count: number; favorite_count: number; approved_at: string | null; suspended_reason: string | null; version: number; created_at: string; updated_at: string; latest_application?: SellerApplicationApiView | null; pending_profile_revision?: SellerProfileRevisionApiView | null }
-export interface SellerServiceApiView { id: string; seller_id: string; title: string; description: string; service_time_description: string | null; cover_file_id: string | null; status: SellerProductStatus; rejection_reason: string | null; rating_avg: string; review_count: number; sold_count: number; min_price_cent: string; current_version_no: number; submitted_at: string | null; approved_at: string | null; version: number; created_at: string; updated_at: string }
+export interface SellerServiceApiView { category_id?: string | null; category?: import("@/features/catalog/service-catalog").CategorySnapshot | null; attributes?: Record<string, string>; id: string; seller_id: string; title: string; description: string; service_time_description: string | null; cover_file_id: string | null; status: SellerProductStatus; rejection_reason: string | null; rating_avg: string; review_count: number; sold_count: number; min_price_cent: string; current_version_no: number; submitted_at: string | null; approved_at: string | null; version: number; created_at: string; updated_at: string }
 export interface SellerServiceDetailApiView extends SellerServiceApiView { seller: SellerProfileApiView; skus: ServiceSkuApiView[]; images: ServiceImageApiView[] }
 export interface SellerFinanceSummaryApiView { seller_id: string; total_earned_cent: string; pending_cent: string; available_cent: string; locked_cent: string; withdrawn_cent: string; liability_cent: string; withdrawal_paused: boolean; withdrawal_pause_reason: "LIABILITY" | "RISK" | null }
 export interface SellerOverviewApiView { seller: SellerProfileApiView; service_counts: Partial<Record<SellerProductStatus, number>>; order_counts: Partial<Record<OrderStatus, number>>; finance: SellerFinanceSummaryApiView }

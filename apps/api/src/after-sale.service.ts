@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { FinanceLedgerEngine, IdempotencyService, InboxService, OutboxService } from "@xiongzai/application";
-import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize, toApiJson, type PaymentChannel } from "@xiongzai/contracts";
+import { AppError, assertLegacyOrderRules, decodeCursor, encodeCursor, errorCodes, normalizePageSize, toApiJson, type PaymentChannel } from "@xiongzai/contracts";
 import {
   adminOperationLogs,
   complaintEvidences,
@@ -52,6 +52,7 @@ export class AfterSaleService {
         if (reservation.replay?.body) return reservation.replay.body;
         const [order] = await tx.select().from(orders).where(eq(orders.id, input.orderId)).limit(1).for("update");
         if (!order || order.buyerId !== userId) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+        assertLegacyOrderRules(order);
         if (!["PENDING_ACCEPT", "ACCEPTED", "IN_SERVICE", "PENDING_BUYER_CONFIRM", "COMPLETED", "SELLER_REJECTED", "CLOSED"].includes(order.status)) throw conflict("REFUND_ORDER_STATE_INVALID", "当前订单状态不能申请退款");
         if (input.amountCent <= 0n || input.amountCent > order.paidAmountCent - order.refundedAmountCent) throw conflict("REFUND_AMOUNT_EXCEEDS_REMAINING", "退款金额超过订单剩余可退金额");
         const [payment] = await tx.select().from(payments).where(and(eq(payments.orderId, order.id), or(eq(payments.status, "PAID"), eq(payments.status, "PARTIALLY_REFUNDED")))).orderBy(desc(payments.createdAt)).limit(1).for("update");
@@ -90,6 +91,7 @@ export class AfterSaleService {
     return this.database.db.transaction(async (tx) => {
       const row = await this.lockRefund(tx, refundId); const [order] = await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1).for("update");
       if (!order || order.sellerUserId !== userId) throw notFound("REFUND_NOT_FOUND", "退款申请不存在");
+      assertLegacyOrderRules(order);
       if (row.status !== "REQUESTED") throw invalidRefundState(row.status, "陪玩处理");
       if (row.version !== input.version) throw versionConflict("退款申请");
       if (input.decision === "REJECT") {
@@ -119,6 +121,9 @@ export class AfterSaleService {
   async escalateRefund(userId: string, refundId: string, version: number, reason: string, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
       const row = await this.lockRefund(tx, refundId); if (row.applicantId !== userId) throw notFound("REFUND_NOT_FOUND", "退款申请不存在");
+      const [order] = await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1).for("update");
+      if (!order) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+      assertLegacyOrderRules(order);
       if (!inStatus(row.status, ["SELLER_REJECTED", "NEGOTIATING"])) throw invalidRefundState(row.status, "申请平台介入");
       if (row.version !== version) throw versionConflict("退款申请");
       const [updated] = await tx.update(refunds).set({ status: "PLATFORM_REVIEW", escalatedAt: new Date(), version: sql`${refunds.version} + 1`, updatedAt: new Date() }).where(and(eq(refunds.id, row.id), eq(refunds.status, row.status), eq(refunds.version, version))).returning();
@@ -140,6 +145,7 @@ export class AfterSaleService {
     return this.database.db.transaction(async (tx) => {
       const row = await this.lockRefund(tx, refundId); const [order] = await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1).for("update");
       if (!order) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+      assertLegacyOrderRules(order);
       if (!inStatus(row.status, ["PLATFORM_REVIEW", "SELLER_REJECTED", "NEGOTIATING"])) throw invalidRefundState(row.status, "平台处理");
       if (row.version !== input.version) throw versionConflict("退款申请");
       if (input.decision === "REJECT") {
@@ -184,6 +190,7 @@ export class AfterSaleService {
       const [order] = await tx.select().from(orders).where(eq(orders.id, row.orderId)).limit(1).for("update");
       const [payment] = await tx.select().from(payments).where(eq(payments.id, row.paymentId)).limit(1).for("update");
       if (!order || !payment) throw notFound("REFUND_PAYMENT_UNAVAILABLE", "订单支付记录不存在");
+      assertLegacyOrderRules(order);
       if (payload.event_type === "REFUND_FAILED") {
         const [failed] = await tx.update(refunds).set({ status: "PLATFORM_REVIEW", version: sql`${refunds.version} + 1`, updatedAt: new Date() }).where(and(eq(refunds.id, row.id), eq(refunds.status, "REFUND_PROCESSING"), eq(refunds.version, row.version))).returning();
         await tx.update(payments).set({ status: payment.refundedAmountCent > 0n ? "PARTIALLY_REFUNDED" : "PAID", version: sql`${payments.version} + 1`, updatedAt: new Date() }).where(eq(payments.id, payment.id));
@@ -272,6 +279,7 @@ export class AfterSaleService {
     try {
       return await this.database.db.transaction(async (tx) => {
         const [order] = await tx.select().from(orders).where(eq(orders.id, input.orderId)).limit(1).for("update"); if (!order || order.buyerId !== userId) throw notFound("ORDER_NOT_FOUND", "订单不存在");
+        assertLegacyOrderRules(order);
         if (order.status !== "COMPLETED") throw conflict("REVIEW_ORDER_STATE_INVALID", "只有已完成订单可以评价");
         const [profile] = await tx.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1);
         const [created] = await tx.insert(reviews).values({ id: uuidv7(), orderId: order.id, productId: order.productId, sellerId: order.sellerId, buyerId: userId, rating: input.rating, content: input.content, anonymous: input.anonymous, status: "PUBLIC", displayNicknameSnapshot: input.anonymous ? "匿名玩家" : profile?.nickname ?? "熊崽玩家", serviceTitleSnapshot: order.productTitleSnapshot, skuNameSnapshot: order.skuNameSnapshot }).returning();

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.vercel/
+.env
+.env.*
+!.env.example
+!tests/fixtures/video.mp4
+.local/
+.neon

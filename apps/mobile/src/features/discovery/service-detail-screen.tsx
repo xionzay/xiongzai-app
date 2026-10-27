@@ -1,3 +1,4 @@
+import { packageLabel } from "@/features/catalog/service-catalog";
 import { useMemo, useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -109,7 +110,7 @@ export function ServiceDetailScreen() {
           <SectionTitle title="选择服务规格" note="价格由陪玩自主设置" />
           {activeSkus.length ? <View style={styles.skuGrid}>{activeSkus.map((sku) => {
             const active = selected?.id === sku.id;
-            return <Pressable key={sku.id} accessibilityRole="radio" accessibilityState={{ checked: active }} onPress={() => setSelectedSku(sku.id)} style={[styles.skuCard, active && styles.skuActive]}><FileImage fileId={coverFileId} style={styles.skuImage} label={`${sku.sku_name}规格图片`} />{active ? <Text style={styles.skuCheck}>✓</Text> : null}<Text style={styles.skuName} numberOfLines={1}>{sku.sku_name}</Text><View style={styles.skuMeta}><Text style={styles.skuPrice}>{formatCent(sku.price_cent)}</Text><Text style={styles.skuDuration}>约 {sku.duration_minutes} 分钟</Text></View></Pressable>;
+            return <Pressable key={sku.id} accessibilityRole="radio" accessibilityState={{ checked: active }} onPress={() => setSelectedSku(sku.id)} style={[styles.skuCard, active && styles.skuActive]}><FileImage fileId={coverFileId} style={styles.skuImage} label={`${sku.sku_name}规格图片`} />{active ? <Text style={styles.skuCheck}>✓</Text> : null}<Text style={styles.skuName} numberOfLines={1}>{sku.sku_name}</Text><View style={styles.skuMeta}><Text style={styles.skuPrice}>{formatCent(sku.price_cent)}</Text><Text style={styles.skuDuration}>{packageLabel(sku)} · 约 {sku.duration_minutes} 分钟</Text></View></Pressable>;
           })}</View> : <Text style={styles.empty}>暂无可选规格</Text>}
         </View>
 
@@ -123,6 +124,7 @@ export function ServiceDetailScreen() {
           <SectionTitle title="服务说明" />
           <View style={styles.facts}><Fact label="沟通方式" value="平台文字聊天" /><Fact label="平台保障" value="退款与平台介入" /></View>
           <Text style={styles.description}>{service.description}</Text>
+          {service.category ? <View><Text>{service.category.name}</Text>{service.category.fields.map((field) => service.attributes?.[field.key] ? <Text key={field.key}>{field.label}：{service.attributes[field.key]}</Text> : null)}</View> : null}
         </View>
 
         {block ? <NoticeBanner tone="danger" message={purchaseBlockCopy[block]} /> : null}

@@ -558,11 +558,25 @@ export const sellerReviewLogs = pgTable(
   (table) => [index("seller_review_logs_application_idx").on(table.applicationId, table.createdAt)],
 );
 
+export type ServiceCategoryField = { key: string; label: string; required: boolean };
+export type ServiceCategorySnapshot = { id: string; name: string; version: number; fields: ServiceCategoryField[] };
+export const serviceCategories = pgTable("service_categories", {
+  id: uuid("id").primaryKey(),
+  name: varchar("name", { length: 80 }).notNull(),
+  fields: jsonb("fields").$type<ServiceCategoryField[]>().default([]).notNull(),
+  enabled: boolean("enabled").default(true).notNull(),
+  version: integer("version").default(0).notNull(),
+  createdAt: createdAt(), updatedAt: updatedAt(),
+}, (table) => [uniqueIndex("service_categories_name_uq").on(table.name)]);
+
 export const products = pgTable(
   "products",
   {
     id: uuid("id").primaryKey(),
     sellerId: uuid("seller_id").notNull().references(() => sellerProfiles.id, { onDelete: "restrict" }),
+    categoryId: uuid("category_id").references(() => serviceCategories.id, { onDelete: "restrict" }),
+    categorySnapshot: jsonb("category_snapshot").$type<ServiceCategorySnapshot>(),
+    attributes: jsonb("attributes").$type<Record<string, string>>().default({}).notNull(),
     title: varchar("title", { length: 120 }).notNull(),
     description: text("description").notNull(),
     serviceTimeDescription: varchar("service_time_description", { length: 200 }),
@@ -633,6 +647,8 @@ export const productSkus = pgTable(
     description: varchar("description", { length: 500 }),
     priceCent: money("price_cent").notNull(),
     durationMinutes: integer("duration_minutes").notNull(),
+    billingUnit: varchar("billing_unit", { length: 16 }).$type<"SESSION" | "MATCH" | "HOUR">().default("SESSION").notNull(),
+    unitCount: integer("unit_count").default(1).notNull(),
     status: skuStatusEnum("status").default("ACTIVE").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -643,6 +659,7 @@ export const productSkus = pgTable(
   (table) => [
     index("product_skus_product_status_idx").on(table.productId, table.status, table.sortOrder),
     check("product_skus_price_positive", sql`${table.priceCent} > 0`),
+    check("product_skus_billing_valid", sql`${table.billingUnit} IN ('SESSION', 'MATCH', 'HOUR') AND ${table.unitCount} BETWEEN 1 AND 1000 AND (${table.billingUnit} <> 'HOUR' OR ${table.durationMinutes} = ${table.unitCount} * 60)`),
     check("product_skus_duration_positive", sql`${table.durationMinutes} > 0`),
   ],
 );
@@ -711,9 +728,11 @@ export const orders = pgTable(
     skuId: uuid("sku_id").notNull().references(() => productSkus.id, { onDelete: "restrict" }),
     transactionPolicyVersionId: uuid("transaction_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
     refundPolicyVersionId: uuid("refund_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
+    transactionRuleVersion: integer("transaction_rule_version").default(1).notNull(),
     productTitleSnapshot: varchar("product_title_snapshot", { length: 120 }).notNull(),
     productImageSnapshot: text("product_image_snapshot").notNull(),
     productDescriptionSnapshot: text("product_description_snapshot").notNull(),
+    serviceDetailsSnapshot: jsonb("service_details_snapshot").$type<{ category: ServiceCategorySnapshot | null; attributes: Record<string, string>; billing_unit: string; unit_count: number }>(),
     sellerNameSnapshot: varchar("seller_name_snapshot", { length: 32 }).notNull(),
     sellerAvatarSnapshot: text("seller_avatar_snapshot"),
     skuNameSnapshot: varchar("sku_name_snapshot", { length: 100 }).notNull(),
@@ -758,6 +777,7 @@ export const orders = pgTable(
     index("orders_payment_status_idx").on(table.paymentStatus, table.createdAt),
     index("orders_service_time_idx").on(table.sellerId, table.serviceStartsAt),
     check("orders_distinct_parties", sql`${table.buyerId} <> ${table.sellerUserId}`),
+    check("orders_rule_version_positive", sql`${table.transactionRuleVersion} > 0`),
     check("orders_quantity_positive", sql`${table.quantity} > 0`),
     check("orders_sku_price_positive", sql`${table.skuPriceCentSnapshot} > 0`),
     check("orders_discount_disabled", sql`${table.discountCent} = 0`),

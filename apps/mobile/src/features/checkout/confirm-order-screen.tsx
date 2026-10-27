@@ -1,3 +1,4 @@
+import { packageLabel } from "@/features/catalog/service-catalog";
 import * as Crypto from "expo-crypto";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -107,7 +108,7 @@ export function ConfirmOrderScreen() {
 
         <View style={styles.serviceCard}>
           <FileImage fileId={currentPreview.product_image_file_id} style={styles.image} label={`${currentPreview.product_title}图片`} />
-          <View style={styles.serviceCopy}><Text style={styles.serviceTitle} numberOfLines={2}>{currentPreview.product_title}</Text><Text style={styles.serviceSku}>{currentPreview.sku_name} · 约 {currentPreview.sku_duration_minutes} 分钟</Text><Text style={styles.seller}>陪玩：{currentPreview.seller_name}</Text></View>
+          <View style={styles.serviceCopy}><Text style={styles.serviceTitle} numberOfLines={2}>{currentPreview.product_title}</Text><Text style={styles.serviceSku}>{currentPreview.sku_name} · {packageLabel(currentPreview)} / 份 · 约 {currentPreview.sku_duration_minutes} 分钟</Text><Text style={styles.seller}>陪玩：{currentPreview.seller_name}</Text></View>
           <Text style={styles.servicePrice}>{formatCent(currentPreview.sku_price_cent)}</Text>
         </View>
 

@@ -1,15 +1,20 @@
 import { access, readFile } from "node:fs/promises";
-import { spawn } from "node:child_process";
+import { execFile as execFileCallback, spawn } from "node:child_process";
 import { resolve } from "node:path";
+import { promisify } from "node:util";
 
+const execFile = promisify(execFileCallback);
 const workspaceRoot = resolve(import.meta.dirname, "../../..");
 const clientPath = resolve(workspaceRoot, ".local/minio/bin/mc");
+const serverPath = resolve(workspaceRoot, ".local/minio/bin/minio");
 const corsPath = resolve(import.meta.dirname, "minio-quarantine-cors.xml");
 const config = parseEnv(await readFile(resolve(workspaceRoot, ".env.backend.local"), "utf8"));
 const required = ["FILE_STORAGE_ENDPOINT", "FILE_STORAGE_ACCESS_KEY_ID", "FILE_STORAGE_SECRET_ACCESS_KEY", "FILE_PUBLIC_BUCKET", "FILE_PRIVATE_BUCKET", "FILE_QUARANTINE_BUCKET"];
 for (const key of required) if (!config[key]) throw new Error(`Missing ${key} in the ignored backend environment file.`);
 if (config.FILE_STORAGE_PROVIDER !== "minio") throw new Error("FILE_STORAGE_PROVIDER must be minio before local configuration.");
 await access(clientPath);
+const { stdout: serverVersion } = await execFile(serverPath, ["--version"]);
+const communityServer = serverVersion.includes("GNU AGPLv3");
 
 const health = await fetch(`${config.FILE_STORAGE_ENDPOINT.replace(/\/+$/u, "")}/minio/health/ready`).catch(() => null);
 if (!health?.ok) throw new Error("Local MinIO is not ready on the configured loopback endpoint.");
@@ -23,10 +28,12 @@ for (const bucket of buckets) {
   await run(["mb", "--ignore-existing", `xiongzai/${bucket}`], commandEnv);
   await run(["anonymous", "set", "none", `xiongzai/${bucket}`], commandEnv);
 }
-await run(["cors", "set", `xiongzai/${config.FILE_QUARANTINE_BUCKET}`, corsPath], commandEnv);
-await run(["cors", "get", `xiongzai/${config.FILE_QUARANTINE_BUCKET}`], commandEnv);
+if (!communityServer) {
+  await run(["cors", "set", `xiongzai/${config.FILE_QUARANTINE_BUCKET}`, corsPath], commandEnv);
+  await run(["cors", "get", `xiongzai/${config.FILE_QUARANTINE_BUCKET}`], commandEnv);
+}
 
-console.log(JSON.stringify({ minio: "ready", buckets, quarantine_cors: "configured", anonymous_access: "disabled" }, null, 2));
+console.log(JSON.stringify({ minio: "ready", buckets, quarantine_cors: communityServer ? "unsupported by community server" : "configured", anonymous_access: "disabled" }, null, 2));
 
 async function run(args, env) {
   await new Promise((resolvePromise, reject) => {

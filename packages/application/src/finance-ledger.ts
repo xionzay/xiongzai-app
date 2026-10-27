@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { assertLegacyOrderRules } from "@xiongzai/contracts";
 import {
   ledgerAccounts,
   ledgerEntries,
@@ -11,7 +12,7 @@ import {
   uuidv7,
   type Database,
   type DatabaseTransaction,
-  type orders,
+  orders,
   type refunds,
 } from "@xiongzai/database";
 
@@ -29,6 +30,7 @@ export class FinanceLedgerEngine {
   constructor(private readonly database: Database) {}
 
   async recordOrderCompleted(executor: DatabaseTransaction, order: OrderRow, traceId?: string): Promise<typeof sellerIncomes.$inferSelect> {
+    assertLegacyOrderRules(order);
     const existing = await executor.select().from(sellerIncomes).where(eq(sellerIncomes.orderId, order.id)).limit(1);
     if (existing[0]) return existing[0];
     const settlementSeconds = await configInteger(executor, "finance.settlement_delay_seconds");
@@ -61,6 +63,9 @@ export class FinanceLedgerEngine {
     return this.database.transaction(async (tx) => {
       const [income] = await tx.select().from(sellerIncomes).where(eq(sellerIncomes.id, incomeId)).limit(1).for("update");
       if (!income || income.status !== "PENDING_SETTLEMENT" || income.settlementAvailableAt > new Date()) return false;
+      const [order] = await tx.select().from(orders).where(eq(orders.id, income.orderId)).limit(1);
+      if (!order) throw new Error("Order income has no associated order.");
+      assertLegacyOrderRules(order);
       const pending = await ensureSellerAccount(tx, income.sellerId, "SELLER_PENDING");
       const available = await ensureSellerAccount(tx, income.sellerId, "SELLER_AVAILABLE");
       await post(tx, { transactionType:"INCOME_AVAILABLE", sourceType:"ORDER", sourceId:income.orderId, idempotencyKey:`finance:income-available:${income.id}`, description:"待结算收益转为可提现", traceId, entries:[{accountId:pending.id,side:"DEBIT",amountCent:income.sellerAmountCent,memo:"减少待结算"},{accountId:available.id,side:"CREDIT",amountCent:income.sellerAmountCent,memo:"增加可提现"}] });
@@ -71,6 +76,7 @@ export class FinanceLedgerEngine {
   }
 
   async recordRefund(executor: DatabaseTransaction, refund: RefundRow, order: OrderRow, amountCent: bigint, previousOrderRefundedCent: bigint, traceId?: string): Promise<{ liabilityCent: bigint }> {
+    assertLegacyOrderRules(order);
     const [income] = await executor.select().from(sellerIncomes).where(eq(sellerIncomes.orderId, order.id)).limit(1).for("update");
     if (!income) return { liabilityCent: 0n };
     const cumulativeSellerRefund = (previousOrderRefundedCent + amountCent) * order.sellerIncomeCent / order.paidAmountCent;
