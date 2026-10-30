@@ -1,9 +1,23 @@
+import { JellyLabel, JellyIcon } from "../../components/jelly-icon";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { FileImage } from "@/components/file-image";
 import { colors, radii, shadows, spacing, typography } from "@/theme/tokens";
 import type { CompanionApiView, ServiceApiView } from "@/types/api";
 import { formatCent } from "@/utils/money";
+import { productGameLabels } from "@xiongzai/contracts/commerce";
+import { shopFacts } from "./home-domain";
+
+export function ShopCard({ item }: { item: CompanionApiView }) {
+  const facts = shopFacts(item);
+  return <Pressable accessibilityRole="button" accessibilityLabel={`查看${item.seller_nickname}的店铺主页`} onPress={() => router.push(`/companions/${item.id}`)} style={({ pressed }) => [styles.shop, pressed && { opacity: 0.72 }]}>
+    <FileImage fileId={item.seller_avatar_file_id} style={styles.shopAvatar} label={`${item.seller_nickname}头像`} />
+    <View style={styles.shopCopy}><View style={styles.shopHeading}><Text style={styles.shopName} numberOfLines={1}>{item.seller_nickname}</Text><Text style={styles.shopRating}>{facts.rating}</Text></View>
+      {facts.games.length ? <View style={styles.tags}>{facts.games.map(game => <Text key={game} style={styles.shopGame}>{game}</Text>)}</View> : null}
+      <Text style={styles.shopIntro} numberOfLines={2}>{facts.introduction}</Text><Text style={styles.shopStats}>{[facts.productCount, facts.completed].filter(Boolean).join("   ")}</Text>
+    </View>
+  </Pressable>;
+}
 
 export function CompanionCard({ item, pressable = false, grid = false, wide = false, actionLabel }: { item: CompanionApiView; pressable?: boolean; grid?: boolean; wide?: boolean; actionLabel?: string }) {
   const content = (
@@ -15,7 +29,7 @@ export function CompanionCard({ item, pressable = false, grid = false, wide = fa
       <View style={[styles.copy, grid && styles.gridCopy, wide && styles.wideCopy]}>
         <View style={styles.titleRow}>
           <Text style={[styles.title, (grid || wide) && styles.compactTitle]} numberOfLines={1}>{item.seller_nickname}</Text>
-          <Text style={[styles.rating, (grid || wide) && styles.compactRating]}>★ {item.rating_avg}</Text>
+          <Text style={[styles.rating, (grid || wide) && styles.compactRating]}><JellyIcon kind="star" label="星级" />{item.rating_avg}</Text>
         </View>
         <Text style={[styles.subtitle, (grid || wide) && styles.compactSubtitle]} numberOfLines={1}>{item.game_rank ?? "和平精英陪玩"}</Text>
         <View style={styles.tags}>
@@ -23,7 +37,7 @@ export function CompanionCard({ item, pressable = false, grid = false, wide = fa
         </View>
         <Text style={[styles.meta, (grid || wide) && styles.compactMeta]}>{item.completed_order_count} 单 · {item.accepting_orders ? "在线接单" : "暂不接单"}</Text>
       </View>
-      {actionLabel ? <View style={styles.wideAction}><Text style={styles.wideActionText} numberOfLines={1}>{actionLabel}</Text></View> : null}
+      {actionLabel ? <View style={styles.wideAction}><Text style={styles.wideActionText} numberOfLines={1}><JellyLabel text={actionLabel} /></Text></View> : null}
     </>
   );
   const cardStyle = [styles.card, grid && styles.gridCard, wide && styles.wideCard];
@@ -40,20 +54,22 @@ export function ServiceCard({ item, pressable = false, grid = false }: { item: S
       <FileImage fileId={item.cover_file_id} resizeMode="cover" style={[styles.serviceImage, grid && styles.gridServiceImage]} label={`${item.title}封面`} />
       <View style={[styles.copy, grid && styles.gridCopy]}>
         <Text style={[styles.title, grid && styles.serviceGridTitle]} numberOfLines={grid ? 1 : 2} ellipsizeMode="tail">{item.title}</Text>
-        <Text style={[styles.subtitle, grid && styles.serviceGridSubtitle]} numberOfLines={grid ? 1 : 2} ellipsizeMode="tail">{item.service_time_description ?? item.description}</Text>
-        <View style={styles.priceRow}>
+        <Text style={[styles.subtitle, grid && styles.serviceGridSubtitle]} numberOfLines={grid ? 1 : 2} ellipsizeMode="tail">{item.game ? productGameLabels[item.game] : "预约商品"}{item.fulfillment_seconds != null ? ` · ${item.fulfillment_seconds / 3600} 小时内完成` : ""}</Text>
+        <View style={[styles.priceRow, grid && styles.gridPriceRow]}>
           <Text style={[styles.price, grid && styles.gridPrice]}>{formatCent(item.min_price_cent)}<Text style={[styles.priceSuffix, grid && styles.gridPriceSuffix]}> 起</Text></Text>
-          <Text style={[styles.meta, grid && styles.compactMeta]}>已售 {item.sold_count} · ★ {item.rating_avg}</Text>
+          <Text style={[styles.meta, grid && styles.compactMeta]}>已售 {item.sold_count} · {item.review_count > 0 ? `评分 ${item.rating_avg}` : "暂无评价"}</Text>
         </View>
-        {grid && item.seller ? <View style={styles.seller}><FileImage fileId={item.seller.seller_avatar_file_id} style={styles.sellerAvatar} label={`${item.seller.seller_nickname}头像`} /><Text style={styles.sellerName} numberOfLines={1}>{item.seller.seller_nickname}</Text><Text style={styles.sellerRating}>★ {item.rating_avg}</Text></View> : null}
+        {grid && item.seller ? <View style={styles.seller}><FileImage fileId={item.seller.seller_avatar_file_id} style={styles.sellerAvatar} label={`${item.seller.seller_nickname}头像`} /><Text style={styles.sellerName} numberOfLines={1}>{item.seller.seller_nickname}</Text></View> : null}
       </View>
     </>;
   const cardStyle = [styles.serviceCard, grid && styles.serviceGridCard];
-  if (pressable) return <Pressable accessibilityRole="button" accessibilityLabel={`查看服务${item.title}，${formatCent(item.min_price_cent)}起`} onPress={() => router.push(`/services/${item.id}`)} style={cardStyle}>{content}</Pressable>;
+  if (pressable) return <Pressable accessibilityRole="button" accessibilityLabel={`查看商品${item.title}，${formatCent(item.min_price_cent)}起`} onPress={() => router.push(`/services/${item.id}`)} style={({ pressed }) => [cardStyle, pressed && { opacity: 0.72 }]}>{content}</Pressable>;
   return <View accessibilityRole="summary" accessibilityLabel={`${item.title}，${formatCent(item.min_price_cent)}起`} style={cardStyle}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
+  shop: { minHeight: 108, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  shopAvatar: { width: 92, height: 92, borderRadius: 10 }, shopCopy: { flex: 1, gap: 3 }, shopHeading: { flexDirection: "row", gap: 6, alignItems: "center" }, shopName: { flex: 1, color: colors.text, fontSize: 16, fontWeight: "700" }, shopRating: { color: colors.textSecondary, fontSize: 12 }, shopIntro: { color: colors.textSecondary, fontSize: 14, lineHeight: 20 }, shopStats: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 }, shopGame: { color: colors.brandDeep, fontSize: 12, paddingHorizontal: 5, paddingVertical: 2, backgroundColor: "#2585BF12", borderRadius: 5 },
   card: { width: 170, overflow: "hidden", borderWidth: 1, borderColor: colors.border, borderRadius: 15, backgroundColor: "#FFFDF8", ...shadows.card },
   gridCard: { width: "100%" },
   wideCard: { width: "100%", minHeight: 112, flexDirection: "row", alignItems: "stretch" },
@@ -63,7 +79,7 @@ const styles = StyleSheet.create({
   companionImage: { width: "100%", height: "100%", backgroundColor: colors.surfaceBlue },
   online: { position: "absolute", right: 7, bottom: 7, overflow: "hidden", paddingHorizontal: 7, paddingVertical: 3, borderRadius: 7, backgroundColor: colors.lime, color: "#33420D", fontSize: 12, fontWeight: "900" },
   serviceCard: { overflow: "hidden", flexDirection: "row", borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: colors.surfaceCard, ...shadows.card },
-  serviceGridCard: { width: "100%", flexDirection: "column", borderRadius: 15, backgroundColor: "#FFFDF8" },
+  serviceGridCard: { width: "100%", flexDirection: "column", borderRadius: 8, backgroundColor: "#FFFFFFBA", shadowOpacity: 0, elevation: 0 },
   serviceImage: { width: 118, minHeight: 134, backgroundColor: colors.surfaceBlue },
   gridServiceImage: { width: "100%", minHeight: 0, aspectRatio: 1 },
   copy: { flex: 1, padding: spacing.md, gap: spacing.xs },
@@ -76,7 +92,7 @@ const styles = StyleSheet.create({
   rating: { ...typography.caption, color: colors.warning, fontWeight: "800" },
   subtitle: { ...typography.caption, color: colors.textSecondary },
   compactTitle: { fontSize: 13, lineHeight: 18 },
-  serviceGridTitle: { height: 18, fontSize: 12, lineHeight: 18 },
+  serviceGridTitle: { minHeight: 20, fontSize: 14, lineHeight: 20 },
   serviceGridSubtitle: { height: 18, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   compactRating: { fontSize: 12, lineHeight: 16 },
   compactSubtitle: { fontSize: 12, lineHeight: 16 },
@@ -86,6 +102,7 @@ const styles = StyleSheet.create({
   meta: { ...typography.caption, color: colors.textSecondary },
   compactMeta: { fontSize: 12, lineHeight: 16 },
   priceRow: { marginTop: "auto", flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.sm },
+  gridPriceRow: { alignItems: "flex-start", flexDirection: "column", gap: 4 },
   price: { color: colors.accent, fontSize: 20, fontWeight: "900" },
   gridPrice: { fontSize: 16 },
   priceSuffix: { fontSize: 12, fontWeight: "600" },

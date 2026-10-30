@@ -1,3 +1,4 @@
+import { JellyLabel } from "./jelly-icon";
 import type { ReactNode } from "react";
 import {
   KeyboardAvoidingView,
@@ -11,22 +12,14 @@ import {
   type StyleProp,
   type ViewStyle
 } from "react-native";
-import { router } from "expo-router";
+import { router, useSegments } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui-icons";
 import { colors } from "@/theme/tokens";
-
-const backgroundBands = Array.from({ length: 48 }, (_, index) => {
-  const ratio = index / 47;
-  const transition = Math.max(0, Math.min(1, (ratio - 0.19) / 0.34));
-  const from = [222, 240, 255];
-  const to = [249, 244, 235];
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * transition);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+import { BrandBackdrop } from "@/components/brand-backdrop";
 
 export const nativeShadow = {
-  shadowColor: "#4B3920",
+  shadowColor: "#326BA5",
   shadowOffset: { width: 0, height: 5 },
   shadowOpacity: 0.08,
   shadowRadius: 14,
@@ -62,6 +55,7 @@ export function NativePage({
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
       >
+        <NativeHeader title={title} subtitle={subtitle} action={action} onBack={onBack} />
         <ScrollView
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
@@ -69,7 +63,6 @@ export function NativePage({
           contentContainerStyle={[styles.content, contentStyle]}
           refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} /> : undefined}
         >
-          <NativeHeader title={title} subtitle={subtitle} action={action} onBack={onBack} />
           {children}
         </ScrollView>
         {footer ? <View style={styles.footer}>{footer}</View> : null}
@@ -79,11 +72,8 @@ export function NativePage({
 }
 
 export function NativeBackdrop() {
-  return (
-    <View pointerEvents="none" style={styles.backdrop}>
-      {backgroundBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}
-    </View>
-  );
+  const segments: readonly string[] = useSegments();
+  return <BrandBackdrop seller={segments.includes("seller") || segments.includes("(seller-tabs)")} />;
 }
 
 export function NativeHeader({ title, subtitle, action, onBack = () => router.back() }: {
@@ -94,14 +84,14 @@ export function NativeHeader({ title, subtitle, action, onBack = () => router.ba
 }) {
   return (
     <View style={styles.header}>
-      <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={onBack} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
+      <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={onBack} style={({ pressed }) => [styles.back, Boolean(action) && styles.wideBack, pressed && styles.pressed]}>
         <ChevronLeftIcon size={23} />
       </Pressable>
       <View style={styles.headerCopy}>
-        <Text style={styles.pageTitle}>{title}</Text>
-        <Text style={styles.pageSubtitle}>{subtitle}</Text>
+        <Text accessibilityRole="header" style={styles.pageTitle}>{title}</Text>
+        {subtitle ? <Text style={styles.pageSubtitle}>{subtitle}</Text> : null}
       </View>
-      {action ? <View style={styles.headerAction}>{action}</View> : null}
+      <View style={[styles.headerAction, Boolean(action) && styles.wideAction]}>{action}</View>
     </View>
   );
 }
@@ -135,7 +125,7 @@ export function NativeRow({
     <>
       {leading}
       <View style={styles.rowCopy}>
-        <Text style={[styles.rowLabel, danger && styles.dangerText]}>{label}</Text>
+        <Text style={[styles.rowLabel, danger && styles.dangerText]}><JellyLabel text={label} /></Text>
         {note ? <Text style={styles.rowNote}>{note}</Text> : null}
       </View>
       {value ? <Text style={styles.rowValue}>{value}</Text> : null}
@@ -171,7 +161,7 @@ export function NativeButton({ label, onPress, disabled = false, tone = "primary
       onPress={onPress}
       style={({ pressed }) => [styles.button, tone === "secondary" && styles.secondaryButton, tone === "danger" && styles.dangerButton, disabled && styles.disabled, pressed && styles.pressed]}
     >
-      <Text style={[styles.buttonText, tone === "secondary" && styles.secondaryButtonText]}>{label}</Text>
+      <Text style={[styles.buttonText, tone === "secondary" && styles.secondaryButtonText]}><JellyLabel text={label} /></Text>
     </Pressable>
   );
 }
@@ -186,23 +176,25 @@ const styles = StyleSheet.create({
   backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   band: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 12, paddingBottom: 24 },
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center" },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 14, backgroundColor: "#FFFDF8", ...nativeShadow },
-  headerCopy: { flex: 1, marginLeft: 11 },
-  pageTitle: { color: colors.text, fontSize: 24, lineHeight: 29, fontWeight: "800" },
-  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
-  headerAction: { marginLeft: 8 },
-  footer: { borderTopWidth: 1, borderTopColor: "rgba(62,57,47,0.11)", backgroundColor: "rgba(255,252,245,0.98)" },
-  paper: { overflow: "hidden", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  header: { minHeight: 60, flexDirection: "row", alignItems: "center", paddingHorizontal: 8, paddingVertical: 4 },
+  back: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
+  headerCopy: { flex: 1, minWidth: 0 },
+  pageTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 18, textAlign: "center" },
+  headerAction: { width: 48, alignItems: "flex-end" },
+  wideAction: { width: 96 },
+  wideBack: { width: 96, alignItems: "flex-start", paddingLeft: 12 },
+  footer: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider, backgroundColor: colors.dock },
+  paper: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, backgroundColor: "transparent" },
   row: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14 },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.12)" },
+  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
   rowCopy: { flex: 1 },
-  rowLabel: { color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: "800" },
+  rowLabel: { color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: "600" },
   rowNote: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
   rowValue: { maxWidth: "34%", color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: "700", textAlign: "right" },
   dangerText: { color: colors.danger },
-  button: { minHeight: 48, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, borderRadius: 14, backgroundColor: colors.brand, ...nativeShadow },
-  secondaryButton: { borderWidth: 1, borderColor: "rgba(62,57,47,0.14)", backgroundColor: "#FFFDF8" },
+  button: { minHeight: 48, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, paddingVertical: 10, borderRadius: 10, backgroundColor: colors.brand },
+  secondaryButton: { borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: "transparent" },
   dangerButton: { backgroundColor: colors.danger },
   buttonText: { color: colors.white, fontSize: 15, lineHeight: 20, fontWeight: "900" },
   secondaryButtonText: { color: colors.text },

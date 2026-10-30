@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellySymbol } from "../../components/jelly-icon";
 import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -22,15 +24,7 @@ const copy: Record<PaymentOutcome, { mark: string; title: string; message: strin
   processing: { mark: "…", title: "支付确认中", message: "暂未获取最终结果，请勿重复付款", tone: "processing" }
 };
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function PaymentResultScreen() {
   const { id = "", orderId = "" } = useLocalSearchParams<{ id: string; orderId: string }>();
@@ -87,7 +81,7 @@ export function PaymentResultScreen() {
       <ResultBackdrop />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero} accessibilityRole="summary" accessibilityLabel={current.title}>
-          <View style={[styles.mark, current.tone === "success" ? styles.markSuccess : current.tone === "danger" ? styles.markDanger : styles.markProcessing]}><Text style={[styles.markText, current.tone === "success" ? styles.markTextSuccess : current.tone === "danger" ? styles.markTextDanger : styles.markTextProcessing]}>{current.mark}</Text></View>
+          <View style={[styles.mark, current.tone === "success" ? styles.markSuccess : current.tone === "danger" ? styles.markDanger : styles.markProcessing]}><Text style={[styles.markText, current.tone === "success" ? styles.markTextSuccess : current.tone === "danger" ? styles.markTextDanger : styles.markTextProcessing]}><JellySymbol symbol={current.mark} size={37} /></Text></View>
           <Text style={styles.title}>{current.title}</Text>
           <Text style={styles.message}>{current.message}</Text>
           <Text style={styles.amount}>{formatCent(currentOrder.payable_amount_cent)}</Text>
@@ -124,14 +118,14 @@ export function PaymentResultScreen() {
   );
 }
 
-function ResultBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ResultBackdrop() { return <BrandBackdrop />; }
 
 function InfoRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) { return <View style={[styles.infoRow, last && styles.infoRowLast]}><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue} numberOfLines={3}>{value}</Text></View>; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingHorizontal: 12, paddingBottom: 30 },

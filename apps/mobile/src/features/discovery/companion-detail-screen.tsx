@@ -1,5 +1,7 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
+import { JellyIcon } from "@/components/jelly-icon";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -19,15 +21,8 @@ import { ServiceCard } from "@/features/home/catalog-card";
 import { colors } from "@/theme/tokens";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { MessageActionIcon } from "@/components/tab-icons";
+import { productGameLabels } from "@xiongzai/contracts/commerce";
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const from = ratio <= 0.56 ? [255, 250, 240] : [255, 253, 247];
-  const to = ratio <= 0.56 ? [255, 253, 247] : [248, 241, 231];
-  const progress = ratio <= 0.56 ? ratio / 0.56 : (ratio - 0.56) / 0.44;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
 
 export function CompanionDetailScreen({ preview = false, sellerId }: { preview?: boolean; sellerId?: string } = {}) {
   const params = useLocalSearchParams<{ id: string }>();
@@ -95,32 +90,31 @@ export function CompanionDetailScreen({ preview = false, sellerId }: { preview?:
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <CompanionBackdrop />
       <ScrollView contentContainerStyle={[styles.content, preview && styles.previewContent]} refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.accent} />}>
-        <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={() => router.back()} style={[styles.headerButton, styles.backButton]}><ChevronLeftIcon size={28} /></Pressable><Text style={styles.headerTitle}>陪玩主页</Text><Pressable accessibilityRole="button" accessibilityLabel="分享陪玩主页" onPress={() => void Share.share({ message: `熊崽电竞陪玩：${item.seller_nickname}` })} style={styles.headerButton}><Text style={styles.share}>↗</Text></Pressable></View>
+        <View style={styles.header}><Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={() => router.back()} style={[styles.headerButton, styles.backButton]}><ChevronLeftIcon size={28} /></Pressable><Text style={styles.headerTitle}>店铺主页</Text><Pressable accessibilityRole="button" accessibilityLabel="分享店铺主页" onPress={() => void Share.share({ message: `熊崽电竞店铺：${item.seller_nickname}` })} style={styles.headerButton}><JellyIcon kind="share" size={26} /></Pressable></View>
         {preview ? <NoticeBanner message="这是买家看到的公开主页效果；预览模式不会显示收藏或购买操作。" /> : null}
         {notice ? <NoticeBanner tone="danger" message={notice} /> : null}
         <View style={styles.hero}>
           <FileImage fileId={item.cover_file_id ?? item.seller_avatar_file_id} style={styles.heroImage} label={`${item.seller_nickname}封面`} />
           <Text style={[styles.online, !item.accepting_orders && styles.offline]}>{item.accepting_orders ? "在线接单" : "暂停接单"}</Text>
-          <View style={styles.identity}><Text style={styles.nickname}>{item.seller_nickname}</Text><Text style={styles.rank}>{item.game_rank ?? "和平精英陪玩"}</Text>{tags.length ? <View style={styles.tags}>{tags.map((tag) => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View> : null}</View>
+          <View style={styles.identity}><Text style={styles.nickname}>{item.seller_nickname}</Text><Text style={styles.rank}>{(item.main_games ?? []).map(game => productGameLabels[game]).join(" · ") || item.game_rank || "暂未填写游戏资料"}</Text>{tags.length ? <View style={styles.tags}>{tags.map((tag) => <Text key={tag} style={styles.tag}>{tag}</Text>)}</View> : null}</View>
         </View>
 
-        <View style={styles.stats}><Stat value={item.rating_avg} label="综合评分" /><Stat value={item.completed_order_count} label="完成订单" /><Stat value={item.services.length} label="在售服务" /><Stat value={item.favorite_count} label="被收藏" last /></View>
+        <View style={styles.stats}><Stat value={item.review_count > 0 ? item.rating_avg : "暂无"} label="综合评分" /><Stat value={item.completed_order_count} label="完成订单" /><Stat value={item.services.length} label="在售商品" /><Stat value={item.favorite_count} label="被收藏" last /></View>
 
-        {item.voice_file_id ? <><Pressable accessibilityRole="button" accessibilityLabel={voiceLoading ? "正在申请试听地址" : "试听声音名片"} disabled={voiceLoading} onPress={() => void loadVoice()} style={({ pressed }) => [styles.voiceCard, pressed && styles.pressed]}><View style={styles.voiceCopy}><Text style={styles.voiceTitle}>声音名片 · {item.voice_duration_ms ? `${Math.round(item.voice_duration_ms / 1_000)} 秒` : "10–30 秒"}</Text></View><View style={styles.play}><Text style={styles.playText}>{voiceLoading ? "…" : "▶"}</Text></View><View style={styles.wave}>{Array.from({ length: 18 }, (_, index) => <View key={index} style={[styles.waveBar, { height: 8 + (index % 5) * 3 }]} />)}</View></Pressable>{voiceUrl ? <View style={styles.voiceControls}><VoiceAudioControls url={voiceUrl} label={`${item.seller_nickname}声音名片`} /></View> : null}</> : null}
+        {item.voice_file_id ? <><Pressable accessibilityRole="button" accessibilityLabel={voiceLoading ? "正在申请试听地址" : "试听声音名片"} disabled={voiceLoading} onPress={() => void loadVoice()} style={({ pressed }) => [styles.voiceCard, pressed && styles.pressed]}><View style={styles.voiceCopy}><Text style={styles.voiceTitle}>声音名片 · {item.voice_duration_ms ? `${Math.round(item.voice_duration_ms / 1_000)} 秒` : "10–30 秒"}</Text></View><View style={styles.play}><Text style={styles.playText}>{voiceLoading ? "…" : <JellyIcon kind="play" size={20} />}</Text></View><View style={styles.wave}>{Array.from({ length: 18 }, (_, index) => <View key={index} style={[styles.waveBar, { height: 8 + (index % 5) * 3 }]} />)}</View></Pressable>{voiceUrl ? <View style={styles.voiceControls}><VoiceAudioControls url={voiceUrl} label={`${item.seller_nickname}声音名片`} /></View> : null}</> : null}
 
-        <View style={styles.panel}><SectionTitle title="关于我" note="主页介绍" /><Text style={styles.introduction}>{item.introduction ?? "该陪玩暂未填写介绍"}</Text><View style={styles.gameInfo}><View style={styles.gameCopy}><Text style={styles.gameTitle}>和平精英资料</Text><Text style={styles.gameMeta}>{[item.game_rank, item.preferred_mode, item.play_style].filter(Boolean).join(" · ") || "暂未填写游戏资料"}</Text></View><Text style={styles.verified}>已认证</Text></View></View>
+        <View style={styles.panel}><SectionTitle title="关于我" note="主页介绍" /><Text style={styles.introduction}>{item.introduction ?? "该店铺暂未填写介绍"}</Text><View style={styles.gameInfo}><View style={styles.gameCopy}><Text style={styles.gameTitle}>主营游戏</Text><Text style={styles.gameMeta}>{(item.main_games ?? []).map(game => productGameLabels[game]).join(" · ") || "暂无新规则在售商品"}</Text></View></View></View>
 
-        <View style={styles.section}><SectionTitle title="全部服务" note={`${item.services.length} 个服务在售`} />{item.services.length ? <View style={styles.serviceGrid}>{item.services.map((service) => <View key={service.id} style={styles.serviceItem}><ServiceCard item={service} pressable={!preview} grid /></View>)}</View> : <Text style={styles.empty}>暂无在售服务</Text>}</View>
+        <View style={styles.section}><SectionTitle title="全部商品" note={`${item.services.length} 件商品在售`} />{item.services.length ? <View style={styles.serviceGrid}>{item.services.map((service) => <View key={service.id} style={styles.serviceItem}><ServiceCard item={service} pressable={!preview} grid /></View>)}</View> : <Text style={styles.empty}>暂无在售商品</Text>}</View>
 
-        <View style={styles.panel}><SectionTitle title="买家评价" note={`${item.review_count} 条真实订单评价`} action="全部 ›" onAction={() => router.push(`/companions/${item.id}/reviews`)} /><Text style={styles.reviewText}>{item.review_count > 0 ? `综合评分 ★ ${item.rating_avg}，评价内容均来自平台真实订单。` : "完成订单并提交评价后会显示在这里。"}</Text></View>
+        <View style={styles.panel}><SectionTitle title="买家评价" note={`${item.review_count} 条真实订单评价`} action="全部 ›" onAction={() => router.push(`/companions/${item.id}/reviews`)} /><Text style={styles.reviewText}>{item.review_count > 0 ? <>综合评分 <JellyIcon kind="star" /> {item.rating_avg}，评价内容均来自平台真实订单。</> : "完成订单并提交评价后会显示在这里。"}</Text></View>
       </ScrollView>
       {!preview ? <SafeAreaView edges={["bottom"]} style={styles.bottomSafe}><View style={styles.actions}><FavoriteButton type="SELLER" id={item.id} returnTo={`/companions/${item.id}`} onError={setNotice} appearance="companion-action" /><Pressable accessibilityRole="button" disabled={consulting} onPress={() => void consult()} style={styles.consult}><MessageActionIcon size={34} /><Text style={styles.consultLabel}>{consulting ? "正在连接…" : "咨询陪玩"}</Text></Pressable></View></SafeAreaView> : null}
     </SafeAreaView>
   );
 }
 
-function CompanionBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
-
+function CompanionBackdrop() { return <BrandBackdrop />; }
 function Stat({ value, label, last = false }: { value: string | number; label: string; last?: boolean }) { return <View style={[styles.stat, !last && styles.statBorder]}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>; }
 
 function SectionTitle({ title, note, action, onAction }: { title: string; note?: string; action?: string; onAction?: () => void }) { return <View style={styles.sectionHead}><View style={styles.sectionCopy}><Text style={styles.sectionTitle}>{title}</Text>{note ? <Text style={styles.sectionNote}>{note}</Text> : null}</View>{action && onAction ? <Pressable accessibilityRole="button" onPress={onAction} style={styles.sectionAction}><Text style={styles.sectionActionText}>{action}</Text></Pressable> : null}</View>; }
@@ -128,18 +122,18 @@ function SectionTitle({ title, note, action, onAction }: { title: string; note?:
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFAF0" },
-  bottomSafe: { backgroundColor: "#FFFCF5" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  bottomSafe: { backgroundColor: colors.dock, shadowOpacity: 0, elevation: 0, borderTopColor: colors.divider },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 20 },
   previewContent: { paddingBottom: 32 },
-  header: { height: 67, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9, paddingBottom: 10 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  backButton: { width: 48, height: 48, borderWidth: 1, borderColor: "rgba(102,92,76,0.1)", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.8)", shadowColor: "#4C3D28", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 2 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
+  backButton: { shadowColor: "#4C3D28", shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
   share: { color: colors.text, fontSize: 25, lineHeight: 30, fontWeight: "700" },
-  headerTitle: { flex: 1, color: colors.text, fontSize: 25, lineHeight: 31, fontWeight: "800", textAlign: "center" },
+  headerTitle: { flex: 1, color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
   hero: { position: "relative", aspectRatio: 1, overflow: "hidden", marginHorizontal: 13, marginBottom: 11, borderRadius: 23, backgroundColor: "#A9C9E8", shadowColor: "#4B3920", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.11, shadowRadius: 24, elevation: 5 },
   heroImage: { width: "100%", height: "100%" },
   online: { position: "absolute", left: 11, top: 13, overflow: "hidden", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 9, backgroundColor: colors.lime, color: "#2D3E0B", fontSize: 12, fontWeight: "900" },
@@ -154,7 +148,7 @@ const styles = StyleSheet.create({
   statBorder: { borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: "rgba(62,57,47,0.11)" },
   statValue: { color: colors.text, fontSize: 14, fontWeight: "800" },
   statLabel: { marginTop: 2, color: "#7B7D83", fontSize: 12 },
-  voiceCard: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 9, marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 13, paddingVertical: 11, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "#FFFDF8", ...softShadow },
+  voiceCard: { minHeight: 74, flexDirection: "row", alignItems: "center", gap: 9, marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 13, paddingVertical: 11, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   voiceCopy: { minWidth: 120 },
   voiceTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "800" },
   play: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: "#7D62F2", shadowColor: "#7754E7", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 3 },
@@ -162,7 +156,7 @@ const styles = StyleSheet.create({
   wave: { flex: 1, height: 30, flexDirection: "row", alignItems: "center", gap: 3, overflow: "hidden" },
   waveBar: { width: 3, borderRadius: 2, backgroundColor: "#B9B8B5" },
   voiceControls: { marginHorizontal: 12, marginTop: -3, marginBottom: 10, padding: 12, borderRadius: 15, backgroundColor: "#FFFDF8" },
-  panel: { marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  panel: { marginHorizontal: 12, marginBottom: 10, padding: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   section: { marginHorizontal: 12, marginBottom: 11, paddingHorizontal: 12, paddingVertical: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.94)", ...softShadow },
   sectionHead: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   sectionCopy: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },

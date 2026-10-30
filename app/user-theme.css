@@ -306,6 +306,10 @@
 .preview-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .preview-tags > span { background: #e5f4ff; color: #1d659c; border-radius: 6px; padding: 3px 6px; font-size: 11px; }
 .local-catalog-preview .store-stats { margin: 10px 14px; grid-template-columns: repeat(3,1fr); }
+.local-catalog-preview .preview-rating-entry { min-height: 44px; padding: 0 6px; border: 0; border-right: 1px solid var(--line); border-radius: 10px 0 0 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.local-catalog-preview .preview-rating-entry:hover { background: rgb(255 255 255 / 25%); }
+.local-catalog-preview .preview-rating-entry:active { background: rgb(102 180 235 / 16%); }
+.local-catalog-preview .preview-rating-entry:focus-visible { outline: 2px solid var(--toon-action); outline-offset: -2px; }
 .preview-section-title small { color: #74899b; font-size: 12px; font-weight: 400; }
 .preview-product-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .preview-product-grid > button { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0 0 8px; text-align: left; border: 0; background: #f6fbff; border-radius: 10px; overflow: hidden; color: #173453; }

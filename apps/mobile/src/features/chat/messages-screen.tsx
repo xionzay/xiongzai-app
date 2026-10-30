@@ -1,154 +1,113 @@
-import { router } from "expo-router";
-import type { ReactNode } from "react";
-import { Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { router, useSegments } from "expo-router";
+import { FlatList, Keyboard, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/auth/auth-provider";
+import { BrandBackdrop } from "@/components/brand-backdrop";
 import { FileImage } from "@/components/file-image";
-import { OrderTabIcon } from "@/components/tab-icons";
-import { ChevronRightIcon } from "@/components/ui-icons";
+import { JellyIcon } from "@/components/jelly-icon";
+import { ApprovedIllustration } from "@/components/approved-illustration";
+import { StateView } from "@/components/state-view";
 import { useAppActivity } from "@/hooks/use-app-activity";
 import { useOnlineStatus } from "@/hooks/use-online-status";
-import { shouldPollChat } from "@/features/chat/chat-domain";
-import { useConversations, useConversationUnread, useNotificationUnread } from "@/features/chat/chat-api";
-import { useServiceDetail } from "@/features/discovery/discovery-api";
+import { shouldPollChat } from "./chat-domain";
+import { useConversations, useConversationUnread } from "./chat-api";
+import { inboxRows, inboxTime, supportInboxSummary } from "./inbox-presentation";
 import { colors } from "@/theme/tokens";
 import type { ConversationApiView } from "@/types/api";
-import xiongzaiIcon from "../../../assets/xiongzai-icon.png";
-
-const messageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const from = ratio <= 0.56 ? [255, 250, 240] : [255, 253, 247];
-  const to = ratio <= 0.56 ? [255, 253, 247] : [248, 241, 231];
-  const progress = ratio <= 0.56 ? ratio / 0.56 : (ratio - 0.56) / 0.44;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
 
 export function MessagesScreen() {
   const { status, user } = useAuth();
+  const segments: readonly string[] = useSegments();
+  const seller = segments.includes("(seller-tabs)");
   const online = useOnlineStatus();
   const polling = shouldPollChat(useAppActivity(), online);
   const conversations = useConversations(Boolean(user), polling);
-  const chatUnread = useConversationUnread(Boolean(user), polling);
-  const notificationUnread = useNotificationUnread(Boolean(user), polling);
-  const items = conversations.data?.pages.flatMap((page) => page.items) ?? [];
-  const refresh = () => void Promise.all([conversations.refetch(), chatUnread.refetch(), notificationUnread.refetch()]);
-
-  const conversationContent = () => {
-    if (status === "booting") return <MessagePanel title="正在加载消息…" message="请稍候，正在恢复账号会话。" />;
-    if (!user) return <MessagePanel title="登录后查看消息" message="会话、通知和客服工单属于账号数据" action="去登录" onPress={() => router.push({ pathname: "/(auth)/required", params: { returnTo: "/(buyer-tabs)/messages", action: "查看消息" } })} />;
-    if (conversations.isPending) return <MessagePanel title="正在加载会话…" message="正在同步最新文字消息。" />;
-    if (conversations.isError) return <MessagePanel failed title="会话加载失败" message="暂时无法连接服务，请稍后重试" action="重试" onPress={() => void conversations.refetch()} />;
-    return (
-      <>
-        <View style={styles.messageList}>{items.map((item, index) => <ConversationRow key={item.id} item={item} last={index === items.length - 1} />)}</View>
-        {items.length === 0 ? <MessagePanel title="暂无会话" message="从服务详情发起咨询，或从订单详情进入订单会话。" /> : null}
-        {conversations.hasNextPage ? <Pressable accessibilityRole="button" disabled={conversations.isFetchingNextPage} onPress={() => void conversations.fetchNextPage()} style={styles.loadMore}><Text style={styles.loadMoreText}>{conversations.isFetchingNextPage ? "正在加载…" : "加载更多会话"}</Text></Pressable> : null}
-      </>
-    );
-  };
-
-  return (
-    <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
-      <MessageBackdrop />
-      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={conversations.isRefetching && !conversations.isFetchingNextPage} onRefresh={refresh} tintColor={colors.accent} />}>
-        <View style={styles.header}><Text style={styles.pageTitle}>消息</Text><Text style={styles.pageSubtitle}>第一阶段仅支持文字聊天</Text></View>
-        <MessageEntry icon={<OrderTabIcon color="#FFFFFF" size={36} />} title="系统通知" note="订单、账户与平台消息统一查看" tail={notificationUnread.data?.unread_count ? `${notificationUnread.data.unread_count}` : ""} tone="system" onPress={() => router.push("/notifications")} />
-        <MessageEntry icon={<Image source={xiongzaiIcon} style={styles.supportIcon} />} title="平台客服" note="订单、退款、投诉与账号问题" tail="在线" tone="support" onPress={() => router.push("/support")} />
-        {!online ? <Text style={styles.offline}>当前离线，恢复网络后会自动同步</Text> : null}
-        {conversationContent()}
-        <MessagePanel title="交易安全提醒" message="请在平台内沟通与下单，聊天第一阶段仅支持文字，避免发送联系方式或线下交易。" />
-      </ScrollView>
-    </SafeAreaView>
-  );
+  const unread = useConversationUnread(Boolean(user), polling);
+  const [searching, setSearching] = useState(false);
+  const [keyword, setKeyword] = useState("");
+  const items = conversations.data?.pages.flatMap(page => page.items) ?? [];
+  const rows = inboxRows(items, seller, keyword);
+  const support = supportInboxSummary(items);
+  const refresh = () => { if (user) void Promise.all([conversations.refetch(), unread.refetch()]); };
+  const closeSearch = () => { setSearching(false); Keyboard.dismiss(); };
+  const empty = status === "booting" || (Boolean(user) && conversations.isPending)
+    ? <StateView kind="loading" />
+    : !user
+      ? <StateView kind="empty" title="登录后查看消息" message="会话属于账号数据" actionLabel="去登录" onRetry={() => router.push({ pathname: "/(auth)/required", params: { returnTo: seller ? "/(seller-tabs)/messages" : "/(buyer-tabs)/messages", action: "查看消息" } })} />
+      : conversations.isError && !conversations.data
+        ? <StateView kind="error" title="会话加载失败" onRetry={() => void conversations.refetch()} />
+        : <View style={styles.emptyCopy}>
+          <Text accessibilityLiveRegion="polite" style={styles.emptyText}>{keyword.trim() ? "没有找到相关会话。仅搜索已加载会话的名称和最近消息摘要，可继续加载或换个关键词。" : "暂无会话，从服务或订单详情发起聊天。"}</Text>
+          {!keyword.trim() ? <Text style={styles.mediaHint}>支持文字、平台表情及审核通过的图片和语音；不支持实时通话，请勿引导线下交易。</Text> : null}
+        </View>;
+  return <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
+    <BrandBackdrop seller={seller} />
+    <View style={styles.header}>
+      <View style={styles.headerSlot} />
+      <Text accessibilityRole="header" style={styles.title}>聊天</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={searching ? "关闭会话搜索" : "搜索会话"} accessibilityState={{ expanded: searching }} style={({ pressed }) => [styles.headerSlot, pressed && styles.pressed]} onPress={() => searching ? closeSearch() : setSearching(true)}>
+        <JellyIcon kind="search" size={24} /><Text style={styles.searchLabel}>搜索</Text>
+      </Pressable>
+    </View>
+    {searching ? <View style={styles.searchForm}>
+      <TextInput autoFocus accessibilityLabel="搜索已加载会话的名称或最近消息摘要" placeholder="对方名称、最近消息" placeholderTextColor={colors.textSecondary} value={keyword} onChangeText={setKeyword} maxLength={100} returnKeyType="search" onSubmitEditing={() => Keyboard.dismiss()} style={styles.input} />
+      <Pressable accessibilityRole="button" accessibilityLabel="收起会话搜索" style={styles.textButton} onPress={closeSearch}><Text style={styles.link}>收起</Text></Pressable>
+    </View> : null}
+    {keyword ? <View style={styles.searchSummary}><Text style={styles.hint}>已加载会话搜索：{keyword}</Text><Pressable accessibilityRole="button" accessibilityLabel="清除会话搜索" onPress={() => setKeyword("")} style={styles.textButton}><Text style={styles.link}>清除</Text></Pressable></View> : null}
+    {!online ? <Text accessibilityRole="alert" style={styles.offline}>当前离线，恢复网络后会自动同步</Text> : null}
+    <FlatList data={user && !conversations.isPending ? rows : []} keyExtractor={item => item.id} renderItem={({ item }) => <ConversationRow item={item} />} ListEmptyComponent={empty}
+      ListHeaderComponent={<>
+        <Pressable accessibilityRole="button" accessibilityLabel={`进入平台客服${support.unread ? `，${support.unread}条未读` : ''}`} onPress={() => router.push({ pathname: '/support', params: { role: seller ? 'seller' : 'buyer' } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+          <View style={styles.avatarWrap}><ApprovedIllustration kind="service" size={48} />{support.unread > 0 ? <Text style={styles.badge}>{support.unread > 99 ? '99+' : support.unread}</Text> : null}</View>
+          <View style={styles.rowCopy}><View style={styles.rowTop}><View style={styles.supportTitle}><Text style={styles.supportName}>平台客服</Text><Text style={styles.official}>官方</Text></View><Text style={styles.time}>{inboxTime(support.latest?.last_message_at ?? null)}</Text></View><Text style={styles.preview} numberOfLines={1}>{support.latest?.last_message_preview || '订单咨询与问题反馈'}</Text></View>
+        </Pressable>
+        {user && conversations.isError && conversations.data && !conversations.isFetchNextPageError ? <Pressable accessibilityRole="button" accessibilityLabel="会话同步失败，点击重试" style={styles.loadMore} onPress={() => void conversations.refetch()}><Text style={styles.offline}>同步失败，保留已加载会话，点击重试</Text></Pressable> : null}
+      </>}
+      contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag"
+      refreshControl={<RefreshControl refreshing={conversations.isRefetching && !conversations.isFetchingNextPage} onRefresh={refresh} tintColor={colors.brand} />}
+      ListFooterComponent={user && conversations.hasNextPage ? <Pressable accessibilityRole="button" disabled={conversations.isFetchingNextPage} style={styles.loadMore} onPress={() => { if (!conversations.isFetchingNextPage) void conversations.fetchNextPage({ cancelRefetch: false }); }}><Text style={styles.link}>{conversations.isFetchingNextPage ? "正在加载…" : conversations.isFetchNextPageError ? "加载失败，重试更多会话" : "加载更多会话"}</Text></Pressable> : null} />
+  </SafeAreaView>;
 }
 
-function MessageBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{messageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
-
-function MessageEntry({ icon, title, note, tail, tone, onPress }: { icon: ReactNode; title: string; note: string; tail: string; tone: "system" | "support"; onPress(): void }) {
-  const system = tone === "system";
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${title}，${note}`} onPress={onPress} style={({ pressed }) => [styles.entry, system ? styles.systemEntry : styles.supportEntry, pressed && styles.pressed]}>
-      <View style={[styles.entryIconWrap, system ? styles.systemIconWrap : styles.supportIconWrap]}>{icon}</View>
-      <View style={styles.entryCopy}><Text style={styles.entryTitle}>{title}</Text><Text style={styles.entryNote} numberOfLines={1}>{note}</Text></View>
-      <View style={styles.entryTrailing}><Text style={[styles.entryTail, system ? styles.systemTail : styles.supportTail]}>{tail}</Text><ChevronRightIcon size={18} color={system ? colors.accent : "#2C7AB8"} /></View>
-    </Pressable>
-  );
-}
-
-function ConversationRow({ item, last }: { item: ConversationApiView; last: boolean }) {
-  const label = item.conversation_type === "ORDER" ? "订单会话" : item.conversation_type === "SUPPORT" ? "平台客服" : "服务咨询";
-  const time = item.last_message_at ? new Date(item.last_message_at).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" }) : "新会话";
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${label}，${item.unread_count}条未读`} onPress={() => router.push({ pathname: "/conversations/[id]", params: { id: item.id } })} style={[styles.row, item.unread_count > 0 && styles.rowUnread, !last && styles.rowBorder]}>
-      <ConversationThumbnail item={item} />
-      <View style={styles.rowCopy}><View style={styles.rowTop}><Text style={styles.rowTitle} numberOfLines={1}>{label}</Text><Text style={styles.time}>{time}</Text></View><Text style={styles.preview} numberOfLines={1}>{item.last_message_preview ?? "会话已创建"}</Text><Text style={styles.counterpart} numberOfLines={1}>{item.counterpart.nickname}</Text></View>
+function ConversationRow({ item }: { item: ConversationApiView }) {
+  const label = item.counterpart.nickname || (item.conversation_type === "ORDER" ? "订单会话" : "商品咨询");
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${label}，${item.unread_count}条未读`} onPress={() => router.push({ pathname: "/conversations/[id]", params: { id: item.id } })} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
+    <View style={styles.avatarWrap}>
+      <FileImage fileId={item.counterpart.avatar_file_id} style={styles.avatar} label={`${label}头像`} />
       {item.unread_count > 0 ? <Text style={styles.badge}>{item.unread_count > 99 ? "99+" : item.unread_count}</Text> : null}
-    </Pressable>
-  );
+    </View>
+    <View style={styles.rowCopy}><View style={styles.rowTop}><Text style={styles.rowTitle} numberOfLines={1}>{label}</Text><Text style={styles.time}>{inboxTime(item.last_message_at)}</Text></View><Text style={styles.preview} numberOfLines={1}>{item.last_message_preview ?? "会话已创建"}</Text></View>
+  </Pressable>;
 }
-
-function ConversationThumbnail({ item }: { item: ConversationApiView }) {
-  const service = useServiceDetail(item.product_id ?? "", Boolean(item.product_id));
-  const serviceImageFileId = service.data?.cover_file_id
-    ?? service.data?.images.find((image) => image.is_cover)?.file_id
-    ?? service.data?.images[0]?.file_id
-    ?? null;
-  const fileId = serviceImageFileId ?? item.counterpart.avatar_file_id;
-  if (item.counterpart.kind === "PLATFORM" && !item.product_id) {
-    return <Image source={xiongzaiIcon} style={styles.avatar} accessibilityLabel="熊崽平台客服头像" />;
-  }
-  return <FileImage fileId={fileId} style={styles.avatar} label={item.product_id ? "会话商品图片" : `${item.counterpart.nickname}头像`} />;
-}
-
-function MessagePanel({ title, message, failed = false, action, onPress }: { title: string; message: string; failed?: boolean; action?: string; onPress?: () => void }) {
-  return <View style={[styles.panel, failed && styles.panelFailed]}><Text style={styles.panelTitle}>{title}</Text><Text style={styles.panelMessage}>{message}</Text>{action && onPress ? <Pressable accessibilityRole="button" onPress={onPress} style={styles.panelAction}><Text style={styles.panelActionText}>{action}</Text></Pressable> : null}</View>;
-}
-
-const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFAF0" },
-  backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
-  band: { flex: 1 },
-  content: { paddingBottom: 22 },
-  header: { height: 76, justifyContent: "center", paddingHorizontal: 15, paddingBottom: 10 },
-  pageTitle: { color: colors.text, fontSize: 26, lineHeight: 32, fontWeight: "800" },
-  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
-  entry: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderRadius: 18, ...softShadow },
-  systemEntry: { borderColor: "rgba(62,57,47,0.11)", backgroundColor: "#EEF8FF" },
-  supportEntry: { borderColor: "#B9D9EF", backgroundColor: "#FFF2CF" },
-  entryIconWrap: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 14 },
-  systemIconWrap: { backgroundColor: "#4A9BEA" },
-  supportIconWrap: { backgroundColor: colors.white },
-  supportIcon: { width: 40, height: 40, borderRadius: 12, resizeMode: "cover" },
-  entryCopy: { flex: 1 },
-  entryTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "800" },
-  entryNote: { marginTop: 4, color: "#7B7D83", fontSize: 12, lineHeight: 16 },
-  entryTail: { fontSize: 12, fontWeight: "900" },
-  entryTrailing: { flexDirection: "row", alignItems: "center", gap: 7 },
-  systemTail: { color: colors.accent },
-  supportTail: { color: "#2C7AB8" },
-  messageList: { overflow: "hidden", marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "#FFFDF8", ...softShadow },
-  row: { position: "relative", minHeight: 88, flexDirection: "row", alignItems: "center", gap: 10 },
-  rowUnread: { backgroundColor: "#FFF5ED" },
-  rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)" },
-  avatar: { width: 58, height: 58, borderRadius: 15 },
-  rowCopy: { flex: 1, minWidth: 0 },
-  rowTop: { flexDirection: "row", alignItems: "center", gap: 8 },
-  rowTitle: { flex: 1, color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "800" },
-  time: { color: "#7B7D83", fontSize: 12 },
-  preview: { marginTop: 7, color: "#7B7D83", fontSize: 12, lineHeight: 16 },
-  counterpart: { marginTop: 3, color: "#4A9BEA", fontSize: 12, lineHeight: 16 },
-  badge: { position: "absolute", right: 0, bottom: 18, minWidth: 20, height: 20, overflow: "hidden", paddingHorizontal: 4, borderRadius: 10, backgroundColor: colors.accent, color: colors.white, fontSize: 12, lineHeight: 20, textAlign: "center" },
-  panel: { marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
-  panelFailed: { borderColor: "#F2A18A", backgroundColor: "#FFF7F3" },
-  panelTitle: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800" },
-  panelMessage: { marginTop: 6, color: "#7B7D83", fontSize: 12, lineHeight: 16 },
-  panelAction: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center", marginTop: 10, paddingHorizontal: 17, borderRadius: 17, backgroundColor: colors.accent },
-  panelActionText: { color: colors.white, fontSize: 12, fontWeight: "800" },
-  offline: { marginHorizontal: 12, marginBottom: 10, color: colors.danger, fontSize: 12, textAlign: "center" },
-  loadMore: { minHeight: 44, alignItems: "center", justifyContent: "center", marginHorizontal: 12, marginBottom: 10, borderRadius: 14, backgroundColor: "#EAF6FF" },
-  loadMoreText: { color: "#2C7AB8", fontSize: 12, fontWeight: "800" },
-  pressed: { opacity: 0.76 }
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  header: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  headerSlot: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 2 },
+  title: { flex: 1, color: colors.text, textAlign: "center", fontSize: 19, lineHeight: 26, fontWeight: "600" },
+  searchLabel: { color: colors.text, fontSize: 11 },
+  searchForm: { flexDirection: "row", alignItems: "center", paddingHorizontal: 12, gap: 6 },
+  input: { flex: 1, minWidth: 0, minHeight: 48, paddingVertical: 10, paddingHorizontal: 13, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.90)", color: colors.text, fontSize: 14 },
+  textButton: { minWidth: 48, minHeight: 48, justifyContent: "center", alignItems: "center" },
+  searchSummary: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16 },
+  hint: { flex: 1, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  link: { color: colors.brandDeep, fontSize: 14 },
+  content: { flexGrow: 1, paddingBottom: 12 },
+  emptyCopy: { paddingVertical: 24, paddingHorizontal: 16, gap: 8 },
+  emptyText: { color: colors.textSecondary, fontSize: 13, lineHeight: 22, textAlign: "center" },
+  mediaHint: { color: colors.textSecondary, fontSize: 12, lineHeight: 20, textAlign: "center" },
+  row: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  avatarWrap: { width: 48, height: 48 }, avatar: { width: 48, height: 48, borderRadius: 10 },
+  rowCopy: { flex: 1, minWidth: 0 }, rowTop: { flexDirection: "row", alignItems: "baseline", gap: 12 },
+  rowTitle: { flex: 1, color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: "600" },
+  supportTitle: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 7 },
+  supportName: { color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: '600' },
+  official: { color: '#2365a3', backgroundColor: '#d8edfd', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 5, fontSize: 11, lineHeight: 17 },
+  time: { color: colors.textSecondary, fontSize: 11, fontVariant: ["tabular-nums"] },
+  preview: { marginTop: 6, color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+  badge: { position: "absolute", right: -5, top: -4, minWidth: 18, paddingHorizontal: 4, borderRadius: 10, overflow: "hidden", backgroundColor: "#EE5B62", color: colors.white, fontSize: 10, lineHeight: 18, textAlign: "center" },
+  offline: { paddingHorizontal: 16, paddingVertical: 8, color: colors.danger, fontSize: 12, textAlign: "center" },
+  loadMore: { minHeight: 48, justifyContent: "center", alignItems: "center", padding: 12 },
+  pressed: { backgroundColor: "rgba(255,255,255,0.27)" }
 });

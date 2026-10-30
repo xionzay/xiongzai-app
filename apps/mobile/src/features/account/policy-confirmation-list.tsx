@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { NoticeBanner } from "@/components/notice-banner";
@@ -48,7 +49,7 @@ export function PolicyConfirmationList({
               onPress={() => onChange(togglePolicyConfirmation(confirmedIds, policy.id))}
               style={({ pressed }) => [styles.checkTarget, pressed && styles.pressed]}
             >
-              <View style={[styles.checkbox, checked && styles.checkboxChecked]}>{checked ? <Text style={styles.checkmark}>✓</Text> : null}</View>
+              <View style={[styles.checkbox, checked && styles.checkboxChecked]}>{checked ? <Text style={styles.checkmark}><JellyIcon kind="check" label="已选" /></Text> : null}</View>
             </Pressable>
             <View style={styles.copy}>
               <Text style={styles.confirmCopy}>在线确认并同意</Text>
@@ -69,7 +70,7 @@ const styles = StyleSheet.create({
   hint: { ...typography.caption, color: colors.textSecondary },
   state: { minHeight: 150, justifyContent: "center" },
   row: { minHeight: 58, flexDirection: "row", alignItems: "center", gap: spacing.sm, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(62,57,47,0.12)" },
-  checkTarget: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  checkTarget: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   checkbox: { width: 22, height: 22, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: colors.textSecondary, borderRadius: 7, backgroundColor: colors.white },
   checkboxChecked: { borderColor: colors.brand, backgroundColor: colors.brand },
   checkmark: { color: colors.white, fontSize: 13, fontWeight: "900" },

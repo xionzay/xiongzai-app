@@ -9,8 +9,10 @@ import { NativeBackdrop } from "@/components/native-page";
 import { OrderTabIcon } from "@/components/tab-icons";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui-icons";
 import { chatOutboxStore, chatTransport, createSupportCase, useMessages, useSupportCases } from "@/features/chat/chat-api";
-import { maxSequence, mergeServerMessages, shouldPollChat, type LocalMessage } from "@/features/chat/chat-domain";
+import { maxSequence, mergeServerMessages, recoverPendingMessage, shouldPollChat, type LocalMessage } from "@/features/chat/chat-domain";
 import { supportStatusCopy } from "@/features/chat/support-domain";
+import type { ChatSendScope } from "@/features/chat/chat-send-scope";
+import { useChatSendScope } from "@/features/chat/use-chat-send-scope";
 import { useOrderDetail } from "@/features/checkout/order-api";
 import { useAppActivity } from "@/hooks/use-app-activity";
 import { useOnlineStatus } from "@/hooks/use-online-status";
@@ -25,6 +27,7 @@ const orderStatusCopy: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "待付款",
   PENDING_ACCEPT: "待陪玩接单",
   ACCEPTED: "待开始",
+  PENDING_SERVICE: "待服务",
   IN_SERVICE: "服务中",
   PENDING_BUYER_CONFIRM: "待确认完成",
   COMPLETED: "已完成",
@@ -35,6 +38,7 @@ const orderStatusCopy: Record<OrderStatus, string> = {
 
 export function SupportListScreen() {
   const { user } = useAuth();
+  const sendScope = useChatSendScope(user?.id ?? "guest");
   const online = useOnlineStatus();
   const polling = shouldPollChat(useAppActivity(), online);
   const cases = useSupportCases(Boolean(user));
@@ -48,17 +52,20 @@ export function SupportListScreen() {
   const orderId = selectedCase?.related_type === "ORDER" ? selectedCase.related_id ?? "" : "";
   const order = useOrderDetail(orderId, Boolean(orderId));
   const [text, setText] = useState("");
-  const [localRecord, setLocalRecord] = useState<{ conversationId: string; item: LocalMessage } | null>(null);
-  const local = localRecord?.conversationId === conversationId ? localRecord.item : null;
-  const [busy, setBusy] = useState(false);
+  const [localRecord, setLocalRecord] = useState<{ scope: ChatSendScope; conversationId: string; item: LocalMessage } | null>(null);
+  const local = localRecord?.scope === sendScope && localRecord.conversationId === conversationId ? localRecord.item : null;
+  const [busyScope, setBusyScope] = useState<ChatSendScope | null>(null);
+  const busy = busyScope === sendScope;
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (!conversationId) return;
     let live = true;
-    void chatOutboxStore.read(conversationId).then((value) => { if (live) setLocalRecord(value ? { conversationId, item: value } : null); });
+    void chatOutboxStore.read(conversationId)
+      .then((value) => { const recovered = recoverPendingMessage(value); if (live) setLocalRecord(recovered ? { scope: sendScope, conversationId, item: recovered } : null); })
+      .catch(() => { if (live) setNotice("无法读取待发送记录，请解锁设备后重试。"); });
     return () => { live = false; };
-  }, [conversationId]);
+  }, [conversationId, sendScope]);
 
   useEffect(() => {
     if (!polling || !conversationId || serverMessages.length === 0) return;
@@ -73,33 +80,49 @@ export function SupportListScreen() {
   const send = async (raw = text, retry?: LocalMessage) => {
     const content = retry?.content ?? raw.trim();
     if (!user || content.length < 2 || busy || !online || selectedCase?.status === "CLOSED") return;
-    setBusy(true);
+    const operation = sendScope.begin();
+    if (!operation) return;
+    setBusyScope(sendScope);
     setNotice(null);
+    let pending: LocalMessage | undefined;
+    let acknowledged = false;
     try {
       if (!selectedCase) {
-        const created = await createSupportCase({ topic: content.slice(0, 100), priority: "NORMAL", initial_message: content, source_page: "mobile/support" });
+        const created = await createSupportCase({ topic: content.slice(0, 100), priority: "NORMAL", initial_message: content, source_page: "mobile/support" }, user.id, operation.isCurrent);
+        acknowledged = true;
+        if (!operation.isCurrent()) return;
         setCreatedCase(created);
         setText("");
         await cases.refetch();
       } else {
-        const pending = retry ? { ...retry, state: "SENDING" as const } : await chatOutboxStore.prepare(conversationId, content);
-        setLocalRecord({ conversationId, item: pending });
-        try {
-          await chatTransport.sendMessage(conversationId, pending.clientMessageId, pending.content);
-          await chatOutboxStore.clear(conversationId);
-          setLocalRecord(null);
-          setText("");
-          await Promise.all([messages.refetch(), cases.refetch(), queryClient.invalidateQueries({ queryKey: ["conversations"] })]);
-        } catch (error) {
-          const failed = await chatOutboxStore.failed(conversationId, pending);
-          setLocalRecord({ conversationId, item: failed });
-          throw error;
-        }
+        pending = await chatOutboxStore.prepare(conversationId, content);
+        if (!operation.isCurrent()) return;
+        setLocalRecord({ scope: sendScope, conversationId, item: pending });
+        await chatTransport.sendMessage(conversationId, pending.clientMessageId, pending.content);
+        acknowledged = true;
+        if (!operation.isCurrent()) return;
+        setLocalRecord(null);
+        setText("");
+        await chatOutboxStore.clear(conversationId, pending.clientMessageId);
+        if (!operation.isCurrent()) return;
+        await Promise.all([messages.refetch(), cases.refetch(), queryClient.invalidateQueries({ queryKey: ["conversations"] })]);
       }
     } catch (error) {
+      if (!operation.isCurrent()) return;
+      if (acknowledged) {
+        setNotice("客服已收到请求，暂未完成本地同步；请勿重复发送，可返回后重新查看。");
+        return;
+      }
+      if (pending) {
+        const fallback: LocalMessage = { ...pending, state: "FAILED" };
+        const failed = await chatOutboxStore.failed(conversationId, pending).catch(() => fallback);
+        if (!operation.isCurrent()) return;
+        setLocalRecord({ scope: sendScope, conversationId, item: failed });
+      }
       setNotice(error instanceof ApiClientError ? error.message : "客服消息发送失败，请稍后重试");
     } finally {
-      setBusy(false);
+      operation.finish();
+      if (operation.isCurrent()) setBusyScope(null);
     }
   };
 
@@ -118,12 +141,13 @@ export function SupportListScreen() {
   const waiting = selectedCase?.status === "WAITING" || selectedCase?.status === "TRANSFERRED";
   const serving = selectedCase?.status === "SERVING";
   const sendDisabled = !user || text.trim().length < 2 || busy || !online || closed;
+  const visibleLocal = local && !serverMessages.some((item) => item.client_message_id === local.clientMessageId) ? local : null;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <NativeBackdrop />
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === "ios" ? "padding" : "height"} keyboardVerticalOffset={0}>
-        <SupportHeader subtitle={serving ? "人工客服 · 服务中" : waiting ? "工单排队中" : "在线帮助 · 预计 1 分钟响应"} onRecords={openRecords} />
+        <SupportHeader subtitle={serving ? "人工客服 · 服务中" : waiting ? "工单排队中" : "订单咨询与问题反馈"} onRecords={openRecords} />
         <SupportStatus supportCase={selectedCase} />
         {notice ? <View accessibilityRole="alert" style={styles.notice}><Text style={styles.noticeText}>{notice}</Text></View> : null}
         {!online ? <View accessibilityRole="alert" style={styles.notice}><Text style={styles.noticeText}>当前离线，恢复网络后才能发送客服消息。</Text></View> : null}
@@ -144,7 +168,7 @@ export function SupportListScreen() {
             refreshControl={<RefreshControl refreshing={messages.isRefetching && !messages.isFetchingNextPage} onRefresh={() => void Promise.all([messages.refetch(), cases.refetch()])} tintColor={colors.brand} />}
             onEndReached={() => messages.hasNextPage && !messages.isFetchingNextPage && void messages.fetchNextPage()}
             onEndReachedThreshold={0.2}
-            ListHeaderComponent={local ? <SupportLocalMessage item={local} ownAvatarId={user?.profile?.avatar_file_id ?? null} ownInitial={user?.profile?.nickname?.slice(0, 1) || "我"} onRetry={() => void send(local.content, local)} /> : null}
+            ListHeaderComponent={visibleLocal ? <SupportLocalMessage item={visibleLocal} ownAvatarId={user?.profile?.avatar_file_id ?? null} ownInitial={user?.profile?.nickname?.slice(0, 1) || "我"} onRetry={() => void send(visibleLocal.content, visibleLocal)} /> : null}
             ListFooterComponent={messages.isFetchingNextPage ? <Text style={styles.history}>正在加载历史客服消息…</Text> : null}
           />
         )}
@@ -155,7 +179,7 @@ export function SupportListScreen() {
           </View>
           <View style={styles.composer}>
             <TextInput value={text} onChangeText={setText} editable={!busy && !closed} maxLength={500} multiline placeholder={closed ? "请先重新打开客服工单" : "输入问题或订单号…"} placeholderTextColor="#88837B" style={styles.input} accessibilityLabel="客服问题" />
-            <Pressable accessibilityRole="button" accessibilityLabel="发送客服消息" accessibilityState={{ disabled: sendDisabled }} disabled={sendDisabled} onPress={() => void send()} style={({ pressed }) => [styles.send, sendDisabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.sendText}>发送</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="发送客服消息" accessibilityState={{ disabled: sendDisabled, busy }} disabled={sendDisabled} onPress={() => void send()} style={({ pressed }) => [styles.send, sendDisabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.sendText}>{busy ? "发送中…" : "发送"}</Text></Pressable>
           </View>
         </SafeAreaView>
       </KeyboardAvoidingView>
@@ -235,13 +259,13 @@ function flattenCases(pages: CursorPage<SupportCaseApiView>[]) {
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#D6ECFF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   keyboard: { flex: 1 },
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center", marginHorizontal: 12, paddingBottom: 7 },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 14, backgroundColor: "#FFFDF8", ...softShadow },
-  headerCopy: { flex: 1, marginLeft: 11 },
-  pageTitle: { color: colors.text, fontSize: 24, lineHeight: 29, fontWeight: "800" },
-  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
+  header: { flexDirection: "row", alignItems: "center", marginHorizontal: 12, minHeight: 60, paddingBottom: 4, height: undefined },
+  back: { alignItems: "center", justifyContent: "center", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
+  headerCopy: { flex: 1, marginLeft: 0, minWidth: 0 },
+  pageTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  pageSubtitle: { marginTop: 3, fontSize: 13, lineHeight: 18, textAlign: "center", color: colors.textSecondary },
   records: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   statusCard: { minHeight: 78, flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 12, marginBottom: 9, padding: 10, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "#FFF2CF", ...softShadow },
   supportIcon: { width: 48, height: 48, borderRadius: 14 },
@@ -251,7 +275,7 @@ const styles = StyleSheet.create({
   statusBadge: { overflow: "hidden", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10, backgroundColor: "#EAF6D7", color: "#4D7B1D", fontSize: 12, fontWeight: "800" },
   notice: { marginHorizontal: 12, marginBottom: 7, padding: 9, borderWidth: 1, borderColor: "#F2A18A", borderRadius: 12, backgroundColor: "#FFF7F3" },
   noticeText: { color: colors.danger, fontSize: 12, lineHeight: 17, textAlign: "center" },
-  orderCard: { marginHorizontal: 12, marginBottom: 9, padding: 10, borderWidth: 1, borderColor: "rgba(62,57,47,0.12)", borderRadius: 17, backgroundColor: "#FFFDF8", ...softShadow },
+  orderCard: { marginHorizontal: 12, marginBottom: 9, padding: 10, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   orderHeading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 9 },
   orderHeadingText: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "800" },
   orderHeadingMeta: { color: colors.textSecondary, fontSize: 12 },
@@ -268,7 +292,7 @@ const styles = StyleSheet.create({
   quickButton: { width: "48.9%", minHeight: 46, alignItems: "center", justifyContent: "center", paddingHorizontal: 7, borderWidth: 1, borderColor: "#B7D2E8", borderRadius: 11, backgroundColor: "#F2F8FC" },
   quickText: { color: "#2C638E", fontSize: 12, lineHeight: 17, fontWeight: "700", textAlign: "center" },
   messageScroller: { flex: 1, minHeight: 0 },
-  messageList: { flexGrow: 1, paddingHorizontal: 12, paddingVertical: 4 },
+  messageList: { flexGrow: 1, paddingHorizontal: 12, paddingVertical: 4, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   messageState: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   messageStateText: { color: colors.textSecondary, fontSize: 12 },
   messageRow: { flexDirection: "row", alignItems: "flex-end", gap: 7, marginVertical: 5 },
@@ -287,14 +311,14 @@ const styles = StyleSheet.create({
   retryMessage: { minHeight: 44, paddingTop: 7, color: colors.danger, fontSize: 12, fontWeight: "800", textAlign: "right" },
   sendingMessage: { marginTop: 3, color: colors.textSecondary, fontSize: 12, textAlign: "right" },
   history: { paddingVertical: 12, color: colors.textSecondary, fontSize: 12, textAlign: "center" },
-  bottomSafe: { backgroundColor: "rgba(255,252,245,0.98)" },
-  transferRow: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(62,57,47,0.10)", backgroundColor: "rgba(255,252,245,0.96)" },
+  bottomSafe: { backgroundColor: colors.dock, shadowOpacity: 0, elevation: 0, borderTopColor: colors.divider },
+  transferRow: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 12, borderTopWidth: StyleSheet.hairlineWidth, backgroundColor: colors.dock, shadowOpacity: 0, elevation: 0, borderTopColor: colors.divider },
   transferButton: { minWidth: 110, height: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, borderWidth: 1, borderColor: "#8FB8D9", borderRadius: 11, backgroundColor: "#F2F8FC" },
   transferConnected: { borderColor: "#A7CD74", backgroundColor: "#EAF6D7" },
   transferText: { color: "#2C638E", fontSize: 12, fontWeight: "800" },
   transferNote: { flex: 1, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  composer: { minHeight: 68, flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 9, paddingBottom: 10, backgroundColor: "rgba(255,252,245,0.98)", shadowColor: "#4B3A23", shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.07, shadowRadius: 18, elevation: 8 },
-  input: { flex: 1, minHeight: 47, maxHeight: 92, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, borderColor: "rgba(62,57,47,0.14)", borderRadius: 14, backgroundColor: "#F5F1EA", color: colors.text, fontSize: 14, lineHeight: 20 },
+  composer: { minHeight: 68, flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 9, paddingBottom: 10, shadowColor: "#4B3A23", shadowOffset: { width: 0, height: -6 }, shadowRadius: 18, backgroundColor: colors.dock, shadowOpacity: 0, elevation: 0, borderTopColor: colors.divider },
+  input: { flex: 1, maxHeight: 92, paddingHorizontal: 12, paddingVertical: 11, borderWidth: 1, color: colors.text, lineHeight: 20, backgroundColor: colors.input, borderColor: colors.controlBorder, borderRadius: 10, fontSize: 16, minHeight: 48, shadowOpacity: 0, elevation: 0 },
   send: { width: 66, height: 47, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.brand },
   sendText: { color: colors.white, fontSize: 14, fontWeight: "900" },
   disabled: { opacity: 0.45 },

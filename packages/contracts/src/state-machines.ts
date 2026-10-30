@@ -8,6 +8,8 @@ export interface StateTransition<TState extends string> {
 }
 
 export const orderStatusTransitions = [
+  { from: "PENDING_PAYMENT", to: "PENDING_SERVICE", action: "PAYMENT_SUCCEEDED_V31" },
+  { from: "PENDING_SERVICE", to: "IN_SERVICE", action: "SELLER_START" },
   { from: "PENDING_PAYMENT", to: "PENDING_ACCEPT", action: "PAYMENT_SUCCEEDED" },
   { from: "PENDING_PAYMENT", to: "CANCELLED", action: "BUYER_CANCEL" },
   { from: "PENDING_PAYMENT", to: "CLOSED", action: "PAYMENT_TIMEOUT" },

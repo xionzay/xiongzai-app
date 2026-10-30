@@ -1,5 +1,6 @@
+import { JellyLabel } from "./jelly-icon";
 import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
-import { colors, radii, typography } from "@/theme/tokens";
+import { colors, typography } from "@/theme/tokens";
 
 interface PrimaryButtonProps {
   label: string;
@@ -21,16 +22,16 @@ export function PrimaryButton({ label, onPress, loading = false, disabled = fals
       onPress={onPress}
       style={({ pressed }) => [styles.button, styles[tone], inactive && styles.disabled, pressed && !inactive && styles.pressed]}
     >
-      {loading ? <ActivityIndicator color={tone === "plain" ? colors.text : colors.white} /> : <Text style={[styles.label, tone === "plain" && styles.plainLabel]}>{label}</Text>}
+      {loading ? <ActivityIndicator color={tone === "plain" ? colors.text : colors.white} /> : <Text style={[styles.label, tone === "plain" && styles.plainLabel]}><JellyLabel text={label} /></Text>}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  button: { minHeight: 50, borderRadius: radii.md, alignItems: "center", justifyContent: "center", paddingHorizontal: 18 },
+  button: { minHeight: 48, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 18, paddingVertical: 10 },
   accent: { backgroundColor: colors.accent },
   brand: { backgroundColor: colors.brand },
-  plain: { backgroundColor: colors.surfaceBlue },
+  plain: { backgroundColor: "transparent", borderWidth: 1, borderColor: colors.controlBorder },
   disabled: { backgroundColor: colors.disabled },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
   label: { ...typography.body, color: colors.white, fontWeight: "800" },

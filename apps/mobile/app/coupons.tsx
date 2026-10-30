@@ -1,3 +1,4 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { CouponActionIcon } from "@/components/tab-icons";
@@ -5,14 +6,6 @@ import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "@/theme/tokens";
 
-const backgroundBands = Array.from({ length: 52 }, (_, index) => {
-  const ratio = index / 51;
-  const from = ratio < 0.20 ? [222, 240, 255] : [255, 252, 246];
-  const to = ratio < 0.20 ? [255, 252, 246] : [249, 244, 235];
-  const progress = ratio < 0.20 ? ratio / 0.20 : (ratio - 0.20) / 0.80;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
 
 export default function CouponsRoute() {
   return (
@@ -21,28 +14,26 @@ export default function CouponsRoute() {
       <View style={styles.content}>
         <View style={styles.header}>
           <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={() => router.back()} style={({ pressed }) => [styles.back, pressed && styles.pressed]}><ChevronLeftIcon size={23} /></Pressable>
-          <View style={styles.headerCopy}><Text style={styles.pageTitle}>优惠券</Text><Text style={styles.pageSubtitle}>第一阶段暂不开放使用</Text></View>
+          <View style={styles.headerCopy}><Text style={styles.pageTitle}>领券中心</Text><Text style={styles.pageSubtitle}>领取与核销尚未开放</Text></View>
         </View>
 
         <View style={styles.summaryCard}>
-          <Text style={styles.available}><Text style={styles.availableNumber}>0</Text> 张可用</Text>
+          <Text style={styles.available}>优惠券业务尚未接通</Text>
           <Text style={styles.summaryNote}>优惠券入口保留，后续版本开放领取与核销</Text>
         </View>
 
         <View style={styles.empty}>
           <View style={styles.couponIcon}><CouponActionIcon color="#2F8FE5" surfaceColor="#DDECFF" size={64} /></View>
-          <Text style={styles.emptyTitle}>暂无可用优惠券</Text>
-          <Text style={styles.emptyText}>第一阶段订单按服务实际价格结算，不展示虚假优惠信息。</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="去看看服务" onPress={() => router.replace("/(buyer-tabs)")} style={({ pressed }) => [styles.exploreButton, pressed && styles.pressed]}><Text style={styles.exploreText}>去看看服务</Text></Pressable>
+          <Text style={styles.emptyTitle}>领券功能尚未开放</Text>
+          <Text style={styles.emptyText}>优惠券接口尚未接通，当前不能领取或核销；订单金额以服务端核算为准。</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="去看看商品" onPress={() => router.replace("/(buyer-tabs)")} style={({ pressed }) => [styles.exploreButton, pressed && styles.pressed]}><Text style={styles.exploreText}>去看看商品</Text></Pressable>
         </View>
       </View>
     </SafeAreaView>
   );
 }
 
-function CouponBackdrop() {
-  return <View pointerEvents="none" style={styles.backdrop}>{backgroundBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>;
-}
+function CouponBackdrop() { return <BrandBackdrop />; }
 
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 

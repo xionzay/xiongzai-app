@@ -53,7 +53,9 @@
     "mobile:typecheck": "pnpm --filter @xiongzai/mobile typecheck",
     "mobile:test": "pnpm --filter @xiongzai/mobile test",
     "mobile:lint": "pnpm --filter @xiongzai/mobile lint",
-    "mobile:doctor": "pnpm --filter @xiongzai/mobile run expo:doctor"
+    "mobile:doctor": "pnpm --filter @xiongzai/mobile run expo:doctor",
+    "mobile:lan": "node --env-file=.env.backend.local --env-file=.env.minio.local scripts/mobile-local-lan.mjs",
+    "mobile:metro:private": "node scripts/mobile-metro-private.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

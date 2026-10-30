@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { router, useLocalSearchParams } from "expo-router";
@@ -11,14 +13,7 @@ import { usePublicUser } from "@/features/chat/chat-api";
 import { colors } from "@/theme/tokens";
 import type { PublicUserApiView } from "@/types/api";
 
-const backgroundBands = Array.from({ length: 52 }, (_, index) => {
-  const ratio = index / 51;
-  const from = ratio < 0.20 ? [222, 240, 255] : [255, 252, 246];
-  const to = ratio < 0.20 ? [255, 252, 246] : [249, 244, 235];
-  const progress = ratio < 0.20 ? ratio / 0.20 : (ratio - 0.20) / 0.80;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function PublicUserScreen() {
   const { id = "" } = useLocalSearchParams<{ id: string }>();
@@ -78,9 +73,7 @@ export function PublicUserScreen() {
   );
 }
 
-function ProfileBackdrop() {
-  return <View pointerEvents="none" style={styles.backdrop}>{backgroundBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>;
-}
+function ProfileBackdrop() { return <BrandBackdrop />; }
 
 function ProfileStat({ value, label, suffix }: { value: string; label: string; suffix?: string }) {
   return <View style={styles.stat}><Text style={styles.statValue}>{value}{suffix ? <Text style={styles.statSuffix}> {suffix}</Text> : null}</Text><Text style={styles.statLabel}>{label}</Text></View>;
@@ -90,7 +83,7 @@ function PublicReview({ review }: { review: PublicUserApiView["public_reviews"][
   const rating = Math.max(0, Math.min(5, review.rating));
   return (
     <View style={styles.reviewCard}>
-      <Text style={styles.reviewTitle}><Text style={styles.stars}>{"★".repeat(rating)}{"☆".repeat(5 - rating)}</Text> {ratingLabel(rating)}</Text>
+      <Text style={styles.reviewTitle}><Text style={styles.stars}>{Array.from({ length: rating }, (_, index) => <JellyIcon key={`star-${index}`} kind="star" />)}{Array.from({ length: 5 - rating }, (_, index) => <JellyIcon key={`outline-${index}`} kind="outline" />)}</Text> {ratingLabel(rating)}</Text>
       <Text style={styles.reviewBody}>{review.content || "该用户只留下了星级评价"}</Text>
       <Text style={styles.reviewContext}>评价了 {review.seller_name} 的{review.service_title}</Text>
     </View>
@@ -114,17 +107,17 @@ function joinedDays(createdAt: string) {
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#DEF0FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   band: { flex: 1 },
   content: { flexGrow: 1, gap: 11, paddingHorizontal: 12, paddingBottom: 24 },
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center" },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 14, backgroundColor: "#FFFDF8", ...softShadow },
+  header: { flexDirection: "row", alignItems: "center", minHeight: 60, paddingBottom: 4, height: undefined },
+  back: { alignItems: "center", justifyContent: "center", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   backText: { marginTop: -3, color: colors.text, fontSize: 34, lineHeight: 38, fontWeight: "500" },
-  headerCopy: { marginLeft: 11 },
-  pageTitle: { color: colors.text, fontSize: 24, lineHeight: 29, fontWeight: "800" },
-  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  profileCard: { minHeight: 110, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 19, backgroundColor: "rgba(255,253,248,0.90)", ...softShadow },
+  headerCopy: { marginLeft: 0, minWidth: 0 },
+  pageTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  pageSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
+  profileCard: { minHeight: 110, flexDirection: "row", alignItems: "center", gap: 14, paddingHorizontal: 16, paddingVertical: 14, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   avatarWrap: { position: "relative" },
   avatar: { width: 82, height: 82, borderWidth: 3, borderColor: "#FFFFFF", borderRadius: 41 },
   onlineDot: { position: "absolute", right: 2, bottom: 5, width: 16, height: 16, borderWidth: 3, borderColor: "#FFFFFF", borderRadius: 8, backgroundColor: "#45C86B" },
@@ -133,7 +126,7 @@ const styles = StyleSheet.create({
   nickname: { color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: "800" },
   userNo: { marginTop: 5, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
   bio: { marginTop: 9, color: colors.text, fontSize: 12, lineHeight: 16 },
-  statsCard: { minHeight: 70, flexDirection: "row", alignItems: "center", paddingVertical: 10, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.94)", ...softShadow },
+  statsCard: { minHeight: 70, flexDirection: "row", alignItems: "center", paddingVertical: 10, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   stat: { flex: 1, alignItems: "center", justifyContent: "center" },
   statValue: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "900" },
   statSuffix: { fontSize: 12, fontWeight: "800" },
@@ -143,7 +136,7 @@ const styles = StyleSheet.create({
   sectionHeading: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 11 },
   sectionTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontWeight: "900" },
   sectionMeta: { color: colors.textSecondary, fontSize: 12 },
-  reviewCard: { marginTop: 7, padding: 13, borderRadius: 13, backgroundColor: "#F6F1E9" },
+  reviewCard: { marginTop: 7, padding: 13, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   reviewTitle: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800" },
   stars: { color: "#121212", letterSpacing: 1 },
   reviewBody: { marginTop: 8, color: colors.text, fontSize: 12, lineHeight: 16 },

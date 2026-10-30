@@ -88,14 +88,14 @@ export function ProfileSetupScreen() {
 const styles = StyleSheet.create({
   content: { gap: spacing.md },
   subtitle: { ...typography.body, color: colors.textSecondary, marginTop: -20, marginLeft: 56 },
-  avatarCard: { alignItems: "center", gap: spacing.sm, padding: spacing.xl },
+  avatarCard: { alignItems: "center", gap: spacing.sm, padding: spacing.xl, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   avatar: { width: 96, height: 96, borderRadius: 28 },
   changeAvatar: { minHeight: 44, minWidth: 112, alignItems: "center", justifyContent: "center" },
   changeAvatarText: { ...typography.body, color: colors.brand, fontWeight: "900" },
   avatarNote: { ...typography.caption, color: colors.textSecondary, textAlign: "center", lineHeight: 19 },
-  formCard: { padding: spacing.lg },
+  formCard: { padding: spacing.lg, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   counter: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.sm, textAlign: "right" },
-  privacyCard: { gap: spacing.xs, padding: spacing.lg, backgroundColor: "#FFF2CF" },
+  privacyCard: { gap: spacing.xs, padding: spacing.lg, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   privacyTitle: { ...typography.cardTitle, color: colors.text },
   privacyText: { ...typography.caption, color: colors.textSecondary, lineHeight: 19 }
 });

@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellySymbol, JellyIcon } from "../../components/jelly-icon";
 import { useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -11,13 +13,7 @@ import { sellerEntry, type SellerEntry } from "@/features/seller/seller-domain";
 import { colors } from "@/theme/tokens";
 import type { SellerApplicationApiView } from "@/types/api";
 
-const backgroundBands = Array.from({ length: 52 }, (_, index) => {
-  const ratio = index / 51;
-  const from = [255, 252, 246];
-  const to = [249, 244, 235];
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * ratio);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 const statusCopy: Record<SellerEntry, { symbol: string; title: string; description: string; tone: "success" | "warning" | "danger" | "plain" }> = {
   APPLY: { symbol: "1", title: "尚未申请陪玩身份", description: "完成陪玩资料并提交平台审核后，当前买家账号会增加陪玩能力。", tone: "plain" },
@@ -82,7 +78,7 @@ export function SellerStatusScreen() {
         ) : (
           <>
             <View style={styles.resultCard}>
-              <View style={[styles.resultIcon, styles[`resultIcon_${presentation.tone}`]]}><Text style={styles.resultSymbol}>{presentation.symbol}</Text></View>
+              <View style={[styles.resultIcon, styles[`resultIcon_${presentation.tone}`]]}><Text style={styles.resultSymbol}><JellySymbol symbol={presentation.symbol} size={30} /></Text></View>
               <Text style={styles.resultTitle}>{presentation.title}</Text>
               <Text style={styles.resultDescription}>{presentation.description}</Text>
               {latest?.rejection_reason ? <View style={styles.reasonBox}><Text style={styles.reasonText}>审核原因：{latest.rejection_reason}</Text></View> : null}
@@ -117,12 +113,10 @@ export function SellerStatusScreen() {
   );
 }
 
-function StatusBackdrop() {
-  return <View pointerEvents="none" style={styles.backdrop}>{backgroundBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>;
-}
+function StatusBackdrop() { return <BrandBackdrop seller />; }
 
 function StatusStep({ complete, active, value, label }: { complete: boolean; active: boolean; value: string; label: string }) {
-  return <View style={styles.step}><View style={[styles.stepCircle, complete && styles.stepComplete, active && styles.stepActive]}><Text style={styles.stepValue}>{complete ? "✓" : value}</Text></View><Text style={styles.stepLabel}>{label}</Text></View>;
+  return <View style={styles.step}><View style={[styles.stepCircle, complete && styles.stepComplete, active && styles.stepActive]}><Text style={styles.stepValue}>{complete ? <JellyIcon kind="check" label="已选" /> : value}</Text></View><Text style={styles.stepLabel}>{label}</Text></View>;
 }
 
 function MaterialRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) {
@@ -167,16 +161,16 @@ function applicationStatusCopy(status: SellerApplicationApiView["status"]) {
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFCF6" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   band: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 12, paddingBottom: 24 },
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center" },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 14, backgroundColor: "#FFFDF8", ...softShadow },
+  header: { flexDirection: "row", alignItems: "center", minHeight: 60, paddingBottom: 4, height: undefined },
+  back: { alignItems: "center", justifyContent: "center", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   backText: { marginTop: -3, color: colors.text, fontSize: 34, lineHeight: 38, fontWeight: "500" },
-  headerCopy: { flex: 1, marginLeft: 11 },
-  pageTitle: { color: colors.text, fontSize: 24, lineHeight: 29, fontWeight: "800" },
-  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
+  headerCopy: { flex: 1, marginLeft: 0, minWidth: 0 },
+  pageTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  pageSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   steps: { height: 86, flexDirection: "row", alignItems: "flex-start", paddingHorizontal: 18, paddingTop: 7 },
   step: { width: 70, alignItems: "center" },
   stepCircle: { width: 34, height: 34, alignItems: "center", justifyContent: "center", borderRadius: 17, backgroundColor: "#C7C1B8" },
@@ -185,7 +179,7 @@ const styles = StyleSheet.create({
   stepValue: { color: colors.white, fontSize: 12, lineHeight: 16, fontWeight: "800" },
   stepLabel: { marginTop: 8, color: colors.textSecondary, fontSize: 12, lineHeight: 16, textAlign: "center" },
   stepLine: { flex: 1, height: 1, marginTop: 17, backgroundColor: "rgba(62,57,47,0.20)" },
-  stateCard: { minHeight: 220, justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  stateCard: { minHeight: 220, justifyContent: "center", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   resultCard: { alignItems: "center", padding: 20, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
   resultIcon: { width: 62, height: 62, alignItems: "center", justifyContent: "center", borderRadius: 31 },
   resultIcon_success: { backgroundColor: colors.lime },
@@ -199,7 +193,7 @@ const styles = StyleSheet.create({
   reasonText: { color: colors.danger, fontSize: 12, lineHeight: 16 },
   primaryButton: { minHeight: 44, justifyContent: "center", marginTop: 15, paddingHorizontal: 18, borderRadius: 12, backgroundColor: colors.accent },
   primaryText: { color: colors.white, fontSize: 12, lineHeight: 16, fontWeight: "800" },
-  materialCard: { marginTop: 13, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  materialCard: { marginTop: 13, paddingHorizontal: 14, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   materialHeader: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.12)" },
   materialTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "800" },
   version: { color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
@@ -212,7 +206,7 @@ const styles = StyleSheet.create({
   historyError: { marginTop: 10, color: colors.danger, fontSize: 12, lineHeight: 16, textAlign: "center" },
   historyButton: { minHeight: 50, alignItems: "center", justifyContent: "center", marginTop: 13, borderWidth: 1, borderColor: "rgba(39,143,232,0.35)", borderRadius: 14, backgroundColor: "rgba(234,246,255,0.92)" },
   historyButtonText: { color: colors.brandDeep, fontSize: 12, lineHeight: 16, fontWeight: "800" },
-  historyCard: { marginTop: 10, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  historyCard: { marginTop: 10, paddingHorizontal: 14, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   historyTitle: { paddingTop: 15, color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "800" },
   historyRow: { paddingVertical: 14 },
   historyRowTop: { flexDirection: "row", alignItems: "center" },

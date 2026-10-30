@@ -85,7 +85,7 @@ test("收藏乐观更新支持添加、删除，调用方可用原快照回滚",
 
 test("服务详情按原 UI 保留商品卡、双列规格、陪玩入口和三段底部操作", () => {
   assert.match(serviceDetailSource, /aspectRatio: 1/u);
-  for (const label of ["选择服务规格", "价格由陪玩自主设置", "服务说明", "服务评价", "平台保障", "在线接单", "收藏服务", "选择规格"]) assert.match(`${serviceDetailSource}\n${favoriteButtonSource}`, new RegExp(label, "u"));
+  for (const label of ["商品详情", "选择商品规格", "价格由卖家自主设置", "商品说明", "服务评价", "平台保障", "在线接单", "收藏服务", "选择规格"]) assert.match(`${serviceDetailSource}\n${favoriteButtonSource}`, new RegExp(label, "u"));
   assert.match(serviceDetailSource, /activeSkus\.map[\s\S]*skuGrid/u);
   assert.match(serviceDetailSource, /appearance="service-action"/u);
   assert.match(serviceDetailSource, /createConsultation\(service\.id\)/u);

@@ -1,4 +1,6 @@
 "use client";
+import { RevenueDashboard } from "./seller-workbench/RevenueDashboard";
+import type { RevenueRow } from "./seller-workbench/revenue-model";
 import { localAccountLifecycleEnabled } from "./local-test-capabilities";
 import { ConnectedProductForm } from "./seller-workbench/ConnectedProductForm";
 import { FulfillmentOrderPanel } from "./FulfillmentOrderPanel";
@@ -6,10 +8,15 @@ import { ConnectedPayment } from "./ConnectedTransaction";
 import { isFulfillmentOrder, productGameLabels, type ProductGame } from "../packages/contracts/src/commerce";
 
 import { PRODUCT_GAMES, publicGames, offersCompanion, noticeGroup } from "./product-decisions";
-import { FeedbackPage, CouponCenter, GameFilter } from "./ProductDecisionPages";
+import { CouponCenter, GameFilter } from "./ProductDecisionPages";
+import { HomeAnnouncementCarousel } from "./HomeAnnouncementCarousel";
+import { ConnectedFeedbackPage, PublicAnnouncements, PublicAnnouncementDetail } from "./ConnectedCommunity";
 import { CartoonSelect } from "./ui/CartoonSelect";
 import { usePanelDismiss } from "./ui/usePanelDismiss";
+import { HomeFeedFooter } from "./HomeFeedFooter";
 import { BuyerIdentity } from "./BuyerIdentity";
+import { MineOrderStrip } from "./MineOrderStrip";
+import { IdentitySwitchScreen } from "./IdentitySwitchScreen";
 import { mineOrderIcon } from "./buyer-mine-model";
 import { CartoonIcon, creamJellyIconUrl, JellyLabel } from "./ui/CartoonIcon";
 import { createSamples } from "./trade-v31/model";
@@ -20,6 +27,7 @@ import { ChatHeader } from "./ChatHeader";
 import { ChatAvatar } from "./ChatAvatar";
 import { ChatIcon } from "./ChatIcon";
 import { ChatDesignInbox, ChatDesignPreview } from "./ChatDesignPreview";
+import { summarizeSupportInbox } from "./SupportInboxEntry";
 import { ConversationList, type InboxEntry, type InboxSearchState } from "./ConversationList";
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
@@ -33,7 +41,7 @@ import { previewCompanions, previewServices, previewHotServices, type PreviewEnt
 import { buyerOrderTabs, sellerOrderTabs, buyerOrderEntries, commerceOrderLabel, paymentStatusLabel, matchesOrderTab, sellerFulfillmentAction } from "./commerce-model";
 import { merchantPeriods, merchantMetrics, type MerchantPeriod } from "./merchant-model";
 import { UI_REFINEMENT } from "./ui-refinement";
-import { HomeAnnouncementCarousel } from "./HomeAnnouncementCarousel";
+
 import { HomeShopCard } from "./HomeShopCard";
 import { HomeProductCard } from "./HomeProductCard";
 import { SearchDiscovery, SearchToolbar } from "./SearchDiscovery";
@@ -57,21 +65,20 @@ import { BearStickerImage, PendingBearStickers, useBearStickerSender } from "./c
 import type { BearSticker } from "../packages/contracts/src/bear-stickers";
 import { StickerChatPreview, useStickerChat } from "./chat-stickers/StickerChat";
 
-type BuyerPage = "feedback" | "quickMatch" | "buyerSellerIdentity" | "splash" | "auth" | "profileSetup" | "agreementDetail" | "policyCenter" | "policyAcceptances" | "sellerPolicyConfirm" | "authGuard" | "home" | "announcementDetail" | "search" | "searchResults" | "companion" | "service" | "serviceUnavailable" | "specs" | "bookingSchedule" | "checkout" | "payment" | "paymentProcessing" | "paymentResult" | "paymentFailure" | "paymentCancelled" | "paymentClosed" | "paymentTimeout" | "paymentExceptions" | "orders" | "orderPendingPayment" | "orderDetail" | "orderAccepted" | "orderInService" | "orderPendingConfirm" | "orderCompleted" | "orderReviewed" | "orderCancelled" | "orderSellerRejected" | "orderAfterSale" | "orderRefunded" | "refundApply" | "refundDetail" | "refundRejected" | "refundPlatform" | "refundProcessing" | "refundCompleted" | "refundClosed" | "complaint" | "complaintDetail" | "complaintEvidence" | "complaintCompleted" | "complaintClosed" | "review" | "allReviews" | "reviewDetail" | "reviewStates" | "messages" | "notifications" | "notificationDetail" | "chat" | "chatStates" | "customerService" | "mine" | "buyerProfile" | "favorites" | "coupons" | "editProfile" | "privacySecurity" | "phoneSecurity" | "privacySettings" | "dataExport" | "accountCancellation" | "rules" | "settings" | "transactionStates" | "globalStates" | "mediaWorkflow" | "permissionCenter" | "emptySearch" | "emptyOrders" | "emptyMessages" | "emptyFavorites" | "emptyIncome" | "restrictedAccess" | "apply" | "sellerApplyForm" | "sellerApplyStatus" | "sellerApplyReview" | "sellerApplySupplement" | "sellerApplyRejected" | "sellerApplySuspended";
-type SellerPage = "sellerMine" | "sellerMessages" | "sellerChat" | "seller" | "sellerProfile" | "sellerServices" | "sellerPublish" | "sellerServiceEdit" | "serviceAuditDetail" | "sellerOrders" | "sellerOrderDetail" | "sellerOrderAccepted" | "sellerOrderInService" | "sellerOrderPendingConfirm" | "sellerOrderCompleted" | "sellerOrderClosed" | "sellerOrderRefunded" | "sellerRefund" | "sellerEarnings" | "incomeDetails" | "withdraw" | "payoutAccounts" | "withdrawals" | "withdrawalDetail" | "sellerStateMatrix";
+type BuyerPage = "identitySwitch" | "feedback" | "quickMatch" | "buyerSellerIdentity" | "splash" | "auth" | "profileSetup" | "agreementDetail" | "policyCenter" | "policyAcceptances" | "sellerPolicyConfirm" | "authGuard" | "home" | "announcementDetail" | "search" | "searchResults" | "companion" | "service" | "serviceUnavailable" | "specs" | "bookingSchedule" | "checkout" | "payment" | "paymentProcessing" | "paymentResult" | "paymentFailure" | "paymentCancelled" | "paymentClosed" | "paymentTimeout" | "paymentExceptions" | "orders" | "orderPendingPayment" | "orderDetail" | "orderAccepted" | "orderInService" | "orderPendingConfirm" | "orderCompleted" | "orderReviewed" | "orderCancelled" | "orderSellerRejected" | "orderAfterSale" | "orderRefunded" | "refundApply" | "refundDetail" | "refundRejected" | "refundPlatform" | "refundProcessing" | "refundCompleted" | "refundClosed" | "complaint" | "complaintDetail" | "complaintEvidence" | "complaintCompleted" | "complaintClosed" | "review" | "allReviews" | "reviewDetail" | "reviewStates" | "messages" | "notifications" | "notificationDetail" | "chat" | "chatStates" | "customerService" | "mine" | "buyerProfile" | "favorites" | "coupons" | "editProfile" | "privacySecurity" | "phoneSecurity" | "privacySettings" | "dataExport" | "accountCancellation" | "rules" | "settings" | "transactionStates" | "globalStates" | "mediaWorkflow" | "permissionCenter" | "emptySearch" | "emptyOrders" | "emptyMessages" | "emptyFavorites" | "emptyIncome" | "restrictedAccess" | "apply" | "sellerApplyForm" | "sellerApplyStatus" | "sellerApplyReview" | "sellerApplySupplement" | "sellerApplyRejected" | "sellerApplySuspended";
+type SellerPage = "sellerMine" | "sellerMessages" | "sellerChat" | "seller" | "sellerProfile" | "sellerServices" | "sellerPublish" | "sellerServiceEdit" | "serviceAuditDetail" | "sellerOrders" | "sellerOrderDetail" | "sellerOrderAccepted" | "sellerOrderInService" | "sellerOrderPendingConfirm" | "sellerOrderCompleted" | "sellerOrderClosed" | "sellerOrderRefunded" | "sellerRefund" | "sellerEarnings" | "sellerRevenue" | "incomeDetails" | "withdraw" | "payoutAccounts" | "withdrawals" | "withdrawalDetail" | "sellerStateMatrix";
 type PageId = BuyerPage | SellerPage | TradePageId;
 const isSellerThemePage = (page: PageId) => page.startsWith("seller") || ["serviceAuditDetail", "incomeDetails", "withdraw", "payoutAccounts", "withdrawals", "withdrawalDetail", "emptyIncome"].includes(page);
-const sharedThemePages: PageId[] = ["settings", "editProfile", "privacySecurity", "phoneSecurity", "privacySettings", "dataExport", "accountCancellation", "permissionCenter", "policyCenter", "policyAcceptances", "agreementDetail", "rules", "notifications", "notificationDetail", "announcementDetail", "customerService"];
+const sharedThemePages: PageId[] = ["identitySwitch", "settings", "editProfile", "privacySecurity", "phoneSecurity", "privacySettings", "dataExport", "accountCancellation", "permissionCenter", "policyCenter", "policyAcceptances", "agreementDetail", "rules", "notifications", "notificationDetail", "announcementDetail", "customerService"];
 
 type Tone = "orange" | "lime" | "violet" | "blue";
-type EarningsRange = "今日" | "昨日" | "本周" | "本月" | "本年" | "累计";
 type PaymentOutcome = "success" | "failed" | "cancelled" | "closed" | "timeout";
 type BuyerOrderState = "pendingPayment" | "pendingAccept" | "accepted" | "inService" | "pendingConfirm" | "completed" | "reviewed" | "cancelled" | "sellerRejected" | "afterSale" | "refunded";
 type RefundState = "pending" | "rejected" | "platform" | "processing" | "completed" | "closed";
 type ComplaintState = "processing" | "evidence" | "completed" | "closed";
 type SellerApplicationState = "approved" | "reviewing" | "supplement" | "rejected" | "suspended";
 type SellerOrderState = "pending" | "accepted" | "inService" | "pendingConfirm" | "completed" | "closed" | "refunded";
-type AnnouncementKind = "reportTrade" | "antiFraud";
+type AnnouncementKind = string;
 
 type Companion = { publicProductCount?: number; gender?: "男" | "女"; avatarFileId?: string | null; coverFileId?: string | null; id: number | string; name: string; image: string; level: number; rank: string; rating: string; completed: number; services: number; tags: string[]; online?: boolean; favoriteCount?: number; reviewCount?: number; introduction?: string | null; kd?: string | null; voiceFileId?: string | null; voiceDurationMs?: number | null };
 type Service = HomeProductSource & { reviewCount?:number; gameCategory?:string; coverFileId?: string | null; sellerAvatarFileId?: string | null; id: number | string; sellerId: number | string; sellerName?: string; sellerImage?: string; title: string; cover: string; priceCent: string; sold: number; rating: string; tone: Tone; tags: string[]; subtitle: string };
@@ -84,7 +91,7 @@ type PaymentApiView = { id: string; payment_no: string; order_id: string; amount
 type ConversationApiView = { counterpart?: { nickname: string; avatar_file_id?: string | null; user_id?: string | null; seller_id?: string | null; kind?: "SELLER" | "BUYER" | "PLATFORM" }; id: string; conversation_no: string; conversation_type: "CONSULTATION" | "ORDER" | "SUPPORT"; product_id: string | null; order_id: string | null; last_message_preview: string | null; last_message_at: string | null; unread_count: number; member_role: string; can_send?: boolean; send_block_reason?: string | null; version: number; created_at: string };
 type MessageApiView = { id: string; conversation_id: string; client_message_id: string; sequence_no: string; sender_user_id: string | null; sender_admin_id: string | null; sender_role: string; message_type: "TEXT" | "SYSTEM" | "STICKER"; sticker?: BearSticker; read_by_recipient?: boolean; content: string; send_status: string; moderation_status: string; created_at: string };
 type SupportCaseApiView = { id: string; case_no: string; requester_id: string; conversation_id: string; topic: string; priority: string; status: "WAITING" | "SERVING" | "TRANSFERRED" | "CLOSED"; queue_key: string; assigned_admin_id: string | null; related_type: string | null; related_id: string | null; first_response_at: string | null; closed_at: string | null; close_reason: string | null; version: number; created_at: string };
-type NotificationApiView = { id: string; category: "ORDER" | "ACCOUNT" | "PLATFORM"; notification_type: string; title: string; content_template_id: string; content_variables: Record<string, unknown>; related_type: string | null; related_id: string | null; read_status: "UNREAD" | "READ"; read_at: string | null; created_at: string };
+type NotificationApiView = { id: string; category: "ORDER" | "ACCOUNT" | "PLATFORM" | "FEEDBACK"; notification_type: string; title: string; content_template_id: string; content_variables: Record<string, unknown>; related_type: string | null; related_id: string | null; read_status: "UNREAD" | "READ"; read_at: string | null; created_at: string };
 type RefundApiView = { id: string; refund_no: string; order_id: string; requested_amount_cent: string; approved_amount_cent: string | null; reason_code: string; reason_text: string; description: string | null; seller_decision: "APPROVE" | "REJECT" | null; seller_reason: string | null; admin_decision: "APPROVE" | "REJECT" | null; admin_reason: string | null; status: "REQUESTED" | "SELLER_APPROVED" | "SELLER_REJECTED" | "NEGOTIATING" | "PLATFORM_REVIEW" | "REFUND_PROCESSING" | "REFUNDED" | "REJECTED" | "CANCELLED"; provider_refund_no: string | null; version: number; created_at: string; updated_at: string; logs?: Array<{ id: string; action: string; reason: string | null; new_status: string; created_at: string }> };
 type ComplaintApiView = { id: string; complaint_no: string; reporter_id: string; target_type: string; order_id: string | null; complaint_type: string; description: string; status: "SUBMITTED" | "ACCEPTED" | "PROCESSING" | "NEED_MORE_EVIDENCE" | "COMPLETED" | "CLOSED"; assigned_admin_id: string | null; admin_result: string | null; processed_at: string | null; completed_at: string | null; version: number; created_at: string; logs?: Array<{ id: string; action: string; reason: string | null; new_status: string; created_at: string }>; evidences?: Array<{ id: string; file_id: string; description: string | null; created_at: string }> };
 type ReviewApiView = { id: string; order_id: string; product_id: string; seller_id: string; buyer_id: string; rating: number; content: string | null; anonymous: boolean; status: "PENDING" | "PUBLIC" | "HIDDEN"; display_nickname: string; service_title: string; sku_name: string; hidden_at: string | null; hidden_reason: string | null; created_at: string };
@@ -227,9 +234,9 @@ const pageCatalog: Array<{ group: string; items: Array<{ page: PageId; title: st
   { group: "买家端 · 账号与发现", items: [{ page: "splash", title: "启动页" }, { page: "auth", title: "登录注册" }, { page: "profileSetup", title: "资料初始化" }, { page: "policyCenter", title: "协议与隐私中心" }, { page: "agreementDetail", title: "协议详情与版本" }, { page: "policyAcceptances", title: "我的接受记录" }, { page: "sellerPolicyConfirm", title: "陪玩入驻协议确认" }, { page: "authGuard", title: "游客登录拦截" }, { page: "home", title: "首页" }, { page: "announcementDetail", title: "公告详情" }, { page: "search", title: "搜索" }, { page: "searchResults", title: "搜索结果" }] },
   { group: "买家端 · 陪玩与服务", items: [{ page: "companion", title: "陪玩主页" }, { page: "service", title: "服务详情" }, { page: "serviceUnavailable", title: "服务不可购买" }, { page: "specs", title: "规格选择" }, { page: "bookingSchedule", title: "预约时间" }, { page: "favorites", title: "我的收藏" }, { page: "allReviews", title: "全部评价" }, { page: "reviewDetail", title: "已提交评价" }, { page: "reviewStates", title: "评价审核状态" }, { page: "messages", title: "消息列表" }, { page: "notifications", title: "系统通知" }, { page: "notificationDetail", title: "通知详情" }, { page: "chat", title: "文字聊天" }, { page: "chatStates", title: "消息发送全状态" }, { page: "customerService", title: "平台客服" }] },
   { group: "买家端 · 交易与售后", items: [{ page: "checkout", title: "确认订单" }, { page: "payment", title: "支付" }, { page: "paymentResult", title: "支付结果" }, { page: "paymentExceptions", title: "支付异常处理" }, { page: "orders", title: "购买订单" }, { page: "orderDetail", title: "订单详情" }, { page: "orderAccepted", title: "订单·待开始" }, { page: "refundApply", title: "申请退款" }, { page: "refundDetail", title: "退款详情" }, { page: "complaint", title: "投诉介入" }, { page: "complaintDetail", title: "投诉详情" }, { page: "review", title: "评价服务" }, { page: "transactionStates", title: "交易完整状态" }] },
-  { group: "买家端 · 个人中心", items: [{ page: "mine", title: "我的" }, { page: "buyerProfile", title: "买家公开主页" }, { page: "coupons", title: "优惠券占位" }, { page: "editProfile", title: "编辑资料" }, { page: "privacySecurity", title: "隐私与安全" }, { page: "rules", title: "平台规则" }, { page: "settings", title: "设置" }] },
+  { group: "买家端 · 个人中心", items: [{ page: "mine", title: "我的" }, { page: "buyerProfile", title: "买家公开主页" }, { page: "coupons", title: "优惠券占位" }, { page: "editProfile", title: "编辑资料" }, { page: "privacySecurity", title: "隐私与安全" }, { page: "rules", title: "平台规则" }, { page: "settings", title: "设置" }, { page: "identitySwitch", title: "切换身份" }] },
   { group: "陪玩中心 · 入驻与经营", items: [{ page: "sellerApplyForm", title: "陪玩申请" }, { page: "sellerApplyStatus", title: "申请状态" }, { page: "seller", title: "经营概览" }, { page: "sellerProfile", title: "主页管理" }, { page: "sellerMessages", title: "卖家消息" }, { page: "sellerChat", title: "卖家聊天" }, { page: "companion", title: "公开主页预览" }, { page: "sellerPublish", title: "发布服务" }, { page: "sellerServices", title: "服务管理" }, { page: "sellerServiceEdit", title: "编辑服务" }] },
-  { group: "陪玩中心 · 订单与收益", items: [{ page: "sellerOrders", title: "卖家订单" }, { page: "sellerOrderDetail", title: "卖家订单详情" }, { page: "sellerMine", title: "卖家我的" }, { page: "sellerEarnings", title: "收益中心" }, { page: "incomeDetails", title: "收益明细" }, { page: "withdraw", title: "收益提现" }, { page: "payoutAccounts", title: "收款账户管理" }, { page: "withdrawals", title: "提现记录" }, { page: "sellerStateMatrix", title: "陪玩中心完整状态" }] },
+  { group: "陪玩中心 · 订单与收益", items: [{ page: "sellerOrders", title: "卖家订单" }, { page: "sellerOrderDetail", title: "卖家订单详情" }, { page: "sellerMine", title: "卖家我的" }, { page: "sellerRevenue", title: "收益数据" }, { page: "sellerEarnings", title: "收益中心" }, { page: "incomeDetails", title: "收益明细" }, { page: "withdraw", title: "收益提现" }, { page: "payoutAccounts", title: "收款账户管理" }, { page: "withdrawals", title: "提现记录" }, { page: "sellerStateMatrix", title: "陪玩中心完整状态" }] },
   { group: "新增 · 支付结果全状态", items: [{ page: "paymentProcessing", title: "支付处理中" }, { page: "paymentResult", title: "支付成功" }, { page: "paymentFailure", title: "支付失败" }, { page: "paymentCancelled", title: "用户取消支付" }, { page: "paymentClosed", title: "订单已关闭" }, { page: "paymentTimeout", title: "支付确认超时" }] },
   { group: "新增 · 买家订单详情全状态", items: [{ page: "orderPendingPayment", title: "订单·待付款" }, { page: "orderDetail", title: "订单·待接单" }, { page: "orderAccepted", title: "订单·已接单待开始" }, { page: "orderInService", title: "订单·服务中" }, { page: "orderPendingConfirm", title: "订单·待确认" }, { page: "orderCompleted", title: "订单·完成待评价" }, { page: "orderReviewed", title: "订单·已评价" }, { page: "orderCancelled", title: "订单·已取消" }, { page: "orderSellerRejected", title: "订单·陪玩拒单" }, { page: "orderAfterSale", title: "订单·售后中" }, { page: "orderRefunded", title: "订单·已退款" }] },
   { group: "新增 · 退款与投诉全状态", items: [{ page: "refundDetail", title: "退款·等待陪玩" }, { page: "refundRejected", title: "退款·陪玩拒绝" }, { page: "refundPlatform", title: "退款·平台介入" }, { page: "refundProcessing", title: "退款·渠道处理中" }, { page: "refundCompleted", title: "退款·已完成" }, { page: "refundClosed", title: "退款·已关闭" }, { page: "complaintDetail", title: "投诉·处理中" }, { page: "complaintEvidence", title: "投诉·补充证据" }, { page: "complaintCompleted", title: "投诉·处理完成" }, { page: "complaintClosed", title: "投诉·已关闭" }] },
@@ -280,7 +287,7 @@ function BuyerNav({ page, go, unreadCount = 0 }: { page: PageId; go: (page: Page
 
 function SellerNav({ page, go }: { page: PageId; go: (page: PageId) => void }) {
   const items = [{ page: "seller" as PageId, kind: "home", label: "首页" }, { page: "sellerOrders" as PageId, kind: "order", label: "订单" }, { page: "sellerMessages" as PageId, kind: "message", label: "消息" }, { page: "sellerMine" as PageId, kind: "mine", label: "我的" }];
-  const active = ["sellerServices", "sellerPublish", "sellerServiceEdit"].includes(page) ? "seller" : page === "sellerEarnings" ? "sellerMine" : page;
+  const active = ["sellerServices", "sellerPublish", "sellerServiceEdit"].includes(page) ? "seller" : ["sellerEarnings", "sellerRevenue"].includes(page) ? "sellerMine" : page;
   return <nav className="bottom-nav seller-nav" aria-label="陪玩中心导航">{items.map((item) => <button type="button" key={item.label} className={active === item.page ? "active" : ""} aria-current={active === item.page ? "page" : undefined} onClick={() => go(item.page)}><AppIcon kind={item.kind} /><span>{item.label}</span></button>)}</nav>;
 }
 
@@ -426,10 +433,12 @@ function SearchResultsScreen({ go, scope, query, companionItems, serviceItems, o
   return <div ref={screen} onScroll={() => { if (restored.current && screen.current) remember(screen.current.scrollTop); }} className="app-screen search-results-screen search-discovery-screen"><SearchToolbar query={query} onBack={() => go("search")} onEdit={() => go("search")} /><div className="result-scope-label"><b>{scope === "陪玩" ? "店铺" : "商品"}</b><span>共找到 {count} {scope === "陪玩" ? "家店铺" : "件商品"}</span></div><SortBar options={scope === "陪玩" ? ["综合", "好评", "销量"] : ["综合", "销量", "价格"]} active={sort} direction={direction} onSelect={choose} /><section className="search-result-content">{scope === "陪玩" ? <div className="shop-list">{matchingCompanions.map((item) => <CompanionCard key={item.id} companion={item} go={go} wide onOpen={onCompanionOpen} />)}</div> : <div className="product-grid">{matchingServices.map((item) => <ServiceCard key={item.id} service={item} go={go} onOpen={onServiceOpen} />)}</div>}{error ? <section className="paper-panel live-data-state"><RequestErrorBear message={error} hasContent={count > 0} /><b>搜索结果加载失败</b><p>{error}</p>{onRetry ? <button type="button" onClick={onRetry}>重新加载</button> : null}</section> : loading ? <LoadingState title={`正在搜索${scope}`} detail={`正在为你匹配“${query}”相关内容`} compact /> : count === 0 ? <ContextStateScreen go={go} kind="search" embedded /> : null}</section></div>;
 }
 
+// Design preview uses the original artwork; live announcements still come from the server.
 const homeAnnouncements = [
   { id: "reportTrade" as const, src: "/assets/announcements/report-off-platform.png", alt: "举报脱离平台交易，核实奖励当月平台流水百分之二十" },
   { id: "antiFraud" as const, src: "/assets/announcements/anti-fraud.png", alt: "熊崽电竞防诈骗，只认平台订单，拒绝私下转账" },
 ] as const;
+
 
 const homeShortcuts: Array<{ label: string; icon: string; image?: string } & ({ page: PageId; message?: never } | { message: string; page?: never })> = [
   { label: "快速匹配", icon: "quick-match", page: "quickMatch" },
@@ -470,7 +479,7 @@ function HomeHotSale({ localPreview, services, onOpen, onMore }: { localPreview:
   </section>;
 }
 
-function HomeScreen({ go, notify, active = true, onAnnouncementOpen, unreadCount = 0, companionItems = [], serviceItems = [], onCompanionOpen, onServiceOpen, loading = false, error = "", onRetry, hasMoreShops = false, loadingMoreShops = false, moreShopsError = "", onMoreShops }: { active?: boolean; onAnnouncementOpen: (kind: AnnouncementKind) => void; go: (page: PageId) => void; notify: (message: string) => void; unreadCount?: number; companionItems?: Companion[]; serviceItems?: Service[]; onCompanionOpen?: (item: Companion) => void; onServiceOpen?: (item: Service) => void; loading?: boolean; error?: string; onRetry?: () => void; hasMoreShops?: boolean; loadingMoreShops?: boolean; moreShopsError?: string; onMoreShops?: () => void }) {
+function HomeScreen({ go, notify, active = true, onAnnouncementOpen, unreadCount = 0, companionItems = [], serviceItems = [], onCompanionOpen, onServiceOpen, loading = false, error = "", onRetry, hasMoreShops = false, loadingMoreShops = false, onMoreShops, hasMoreProducts = false, onMoreProducts }: { active?: boolean; onAnnouncementOpen: (kind: AnnouncementKind) => void; go: (page: PageId) => void; notify: (message: string) => void; unreadCount?: number; companionItems?: Companion[]; serviceItems?: Service[]; onCompanionOpen?: (item: Companion) => void; onServiceOpen?: (item: Service) => void; loading?: boolean; error?: string; onRetry?: () => void; hasMoreShops?: boolean; loadingMoreShops?: boolean; onMoreShops?: () => Promise<void>; hasMoreProducts?: boolean; onMoreProducts?: () => Promise<void> }) {
   const [game, setGame] = useState("全部");
   const [mode, setMode] = useState<"推荐" | "店铺" | "商品">("推荐"); const [companionSort, setCompanionSort] = useState("综合"); const [serviceSort, setServiceSort] = useState("综合"); const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const localPreview = useSyncExternalStore(subscribeLocalPreview, getLocalPreview, getServerPreview);
@@ -480,8 +489,12 @@ function HomeScreen({ go, notify, active = true, onAnnouncementOpen, unreadCount
     companionItems = previewCompanions.map(shop => ({ ...shop, reviewCount: 0, publicProductCount: counts.get(String(shop.id)) ?? 0 }));
     serviceItems = previewServices;
     hasMoreShops = false;
+    hasMoreProducts = false;
   }
   const homeRef = useRef<HTMLDivElement>(null);
+  const [feedLimits, setFeedLimits] = useState<Record<string, number>>({});
+  const feedKey = `${localPreview}:${mode}:${mode === "商品" ? `${game}:${serviceSort}` : companionSort}:${direction}`;
+  const visibleLimit = feedLimits[feedKey] ?? 6;
   const modeScroll = useRef<Record<string, number>>({});
   const selectMode = (next: typeof mode) => {
     if (next === mode) return;
@@ -496,6 +509,17 @@ function HomeScreen({ go, notify, active = true, onAnnouncementOpen, unreadCount
   const chooseSort = (item: string, current: string, setCurrent: (value: string) => void) => { if (item === current && item !== "综合") setDirection(direction === "desc" ? "asc" : "desc"); else { setCurrent(item); setDirection(item === "价格" ? "asc" : "desc"); } };
   const sortedCompanions = [...companionItems].sort((a, b) => companionSort === "好评" ? (Number(a.rating) - Number(b.rating)) * (direction === "desc" ? -1 : 1) : companionSort === "销量" ? (a.completed - b.completed) * (direction === "desc" ? -1 : 1) : 0);
   const sortedServices = serviceItems.filter(item => game === "全部" || publicGames(item.gameCategory || item.title).includes(game as typeof PRODUCT_GAMES[number])).sort((a, b) => serviceSort === "销量" ? (a.sold - b.sold) * (direction === "desc" ? -1 : 1) : serviceSort === "价格" ? compareCent(homeProductFacts(a).minimumCent ?? a.priceCent, homeProductFacts(b).minimumCent ?? b.priceCent) * (direction === "desc" ? -1 : 1) : 0);
+  const feedTotal = mode === "商品" ? sortedServices.length : companionItems.length;
+  const feedHasMore = feedTotal > visibleLimit || (mode === "商品" ? hasMoreProducts : hasMoreShops);
+  const loadFeed = async () => {
+    const feedbackBeat = new Promise(resolve => setTimeout(resolve, 320));
+    if (feedTotal <= visibleLimit) {
+      if (mode === "商品") await onMoreProducts?.();
+      else await onMoreShops?.();
+    }
+    await feedbackBeat;
+    setFeedLimits(current => ({ ...current, [feedKey]: visibleLimit + 6 }));
+  };
   return <div ref={homeRef} className="app-screen home-screen" data-home-mode={mode} aria-busy={loading}><StatusBar /><div className="home-command-bar">
     <button type="button" className="home-search-field" aria-label="搜索店铺/商品" onClick={() => go("search")}>
       <CartoonIcon kind="search" />
@@ -503,7 +527,7 @@ function HomeScreen({ go, notify, active = true, onAnnouncementOpen, unreadCount
     </button>
     <nav className="home-mode-tabs" aria-label="首页浏览模式">{(["推荐", "店铺", "商品"] as const).map((item) => <button type="button" className={mode === item ? "active" : ""} aria-current={mode === item ? "page" : undefined} onClick={() => selectMode(item)} key={item}>{item}</button>)}</nav>
   </div>
-    {mode === "推荐" ? <HomeAnnouncementCarousel items={homeAnnouncements} active={active && mode === "推荐"} onOpen={onAnnouncementOpen} /> : null}
+    {mode === "推荐" ? localPreview ? <HomeAnnouncementCarousel items={homeAnnouncements} active={active} onOpen={onAnnouncementOpen} /> : <PublicAnnouncements request={apiRequest} active={active} onOpen={onAnnouncementOpen} /> : null}
     {mode === "推荐" ? <HomeShortcuts go={go} notify={notify} /> : null}
     {mode === "推荐" ? <HomeHotSale localPreview={localPreview} services={serviceItems} onOpen={onServiceOpen} onMore={() => selectMode("商品")} notify={notify} /> : null}
     {!localPreview && loading && companionItems.length + serviceItems.length === 0 ? <LoadingState title="正在加载商品与店铺" detail="商品与店铺资料正在加载" /> : null}{!localPreview && error ? <section className="paper-panel live-data-state failed"><RequestErrorBear message={error} hasContent={companionItems.length + serviceItems.length > 0} /><b>加载失败</b><p>{error}</p><button type="button" disabled={loading} onClick={onRetry}>重试</button></section> : null}
@@ -511,19 +535,24 @@ function HomeScreen({ go, notify, active = true, onAnnouncementOpen, unreadCount
     {!localPreview && !loading && !error && (mode === "商品" ? serviceItems.length === 0 : companionItems.length === 0) ? <ContextStateScreen go={go} kind="search" embedded /> : null}
     {mode === "推荐" && (showAvatarPreview || companionItems.length > 0) ? <section className="home-section home-companion-section">
       <SectionTitle icon="crown" title="热门店铺" action={recommendedShops.hasMore ? "更多 ›" : undefined} onAction={recommendedShops.hasMore ? () => selectMode("店铺") : undefined} />
-      <div className="shop-list home-companion-list">{recommendedShops.items.map((item) => <CompanionCard key={item.id} companion={item} go={go} wide homeSummary onOpen={onCompanionOpen} />)}</div>
+      <div className="shop-list home-companion-list">{companionItems.slice(0, visibleLimit).map((item) => <CompanionCard key={item.id} companion={item} go={go} wide homeSummary onOpen={onCompanionOpen} />)}</div>
     </section> : null}
-    {mode === "店铺" ? <><SortBar options={["综合", "好评", "销量"]} active={companionSort} direction={direction} onSelect={(item) => chooseSort(item, companionSort, setCompanionSort)} /><section className="home-section listing-section" aria-label="全部店铺"><div className="shop-list home-companion-list">{sortedCompanions.map((item) => <CompanionCard key={item.id} companion={item} go={go} wide homeSummary onOpen={onCompanionOpen} />)}</div>
-      {!localPreview && moreShopsError && <p className="home-shop-load-error" role="alert">{moreShopsError}</p>}
-      {!localPreview && hasMoreShops && <button type="button" className="home-shop-load-more" disabled={loading || loadingMoreShops} onClick={onMoreShops}>{loadingMoreShops ? "正在加载店铺…" : moreShopsError ? "重试加载更多" : "加载更多店铺"}</button>}
-      {!localPreview && !loading && !error && !hasMoreShops && companionItems.length > 0 && <p className="home-companion-end" role="status">已加载全部店铺</p>}
+    {mode === "店铺" ? <><SortBar options={["综合", "好评", "销量"]} active={companionSort} direction={direction} onSelect={(item) => chooseSort(item, companionSort, setCompanionSort)} /><section className="home-section listing-section" aria-label="全部店铺"><div className="shop-list home-companion-list">{sortedCompanions.slice(0, visibleLimit).map((item) => <CompanionCard key={item.id} companion={item} go={go} wide homeSummary onOpen={onCompanionOpen} />)}</div>
     </section></> : null}
-    {mode === "商品" ? <><HomeProductGameFilter value={game} onChange={setGame}/><SortBar options={["综合", "销量", "价格"]} active={serviceSort} direction={direction} onSelect={(item) => chooseSort(item, serviceSort, setServiceSort)} /><section className="home-section listing-section"><div className="product-grid" aria-label="全部商品">{sortedServices.map((item) => <HomeProductCard key={item.id} product={item} preview={localPreview} onOpen={() => onServiceOpen ? onServiceOpen(item) : go("service")} />)}</div>{(localPreview || (!loading && !error)) && serviceItems.length > 0 && sortedServices.length === 0 && <p className="home-product-empty" role="status">该游戏暂无可展示商品，可切换其他游戏。</p>}</section></> : null}
+    {mode === "商品" ? <><HomeProductGameFilter value={game} onChange={setGame}/><SortBar options={["综合", "销量", "价格"]} active={serviceSort} direction={direction} onSelect={(item) => chooseSort(item, serviceSort, setServiceSort)} /><section className="home-section listing-section"><div className="product-grid" aria-label="全部商品">{sortedServices.slice(0, visibleLimit).map((item) => <HomeProductCard key={item.id} product={item} preview={localPreview} onOpen={() => onServiceOpen ? onServiceOpen(item) : go("service")} />)}</div>{(localPreview || (!loading && !error)) && serviceItems.length > 0 && sortedServices.length === 0 && <p className="home-product-empty" role="status">{hasMoreProducts ? "当前尚未加载到该游戏商品，可继续上拉查找。" : "该游戏暂无可展示商品，可切换其他游戏。"}</p>}</section></> : null}
+    {(localPreview || (!loading && !error)) && <HomeFeedFooter key={feedKey} root={homeRef} active={active} hasMore={feedHasMore} blocked={!localPreview && (loading || loadingMoreShops)} onLoadMore={loadFeed} />}
     <BuyerNav page="home" go={go} unreadCount={unreadCount} />
   </div>;
 }
 
 function AnnouncementDetailScreen({ go, kind, backPage = "notifications" }: { backPage?: PageId; go: (page: PageId) => void; kind: AnnouncementKind }) {
+  const localPreview = useSyncExternalStore(subscribeLocalPreview, getLocalPreview, getServerPreview);
+  if (localPreview && homeAnnouncements.some(item => item.id === kind)) return <PreviewAnnouncementDetailScreen go={go} kind={kind} backPage={backPage} />;
+  return <PublicAnnouncementDetail key={kind} request={apiRequest} id={kind} back={() => go(backPage)} />;
+}
+
+
+function PreviewAnnouncementDetailScreen({ go, kind, backPage = "notifications" }: { backPage?: PageId; go: (page: PageId) => void; kind: AnnouncementKind }) {
   const report = kind === "reportTrade";
   return <div className={`app-screen announcement-detail-screen ${report ? "report-announcement" : "anti-fraud-announcement"}`}><StatusBar /><Header title="公告详情" subtitle="熊崽电竞平台公告 · 本地测试草案" back={() => go(backPage)} /><article className="announcement-article">
     <section className="announcement-detail-hero"><img src={report ? "/assets/announcements/report-detail-hero.png" : "/assets/announcements/anti-fraud-detail-hero.png"} alt={report ? "熊崽阻止脱离平台交易" : "熊崽识别诈骗消息"} /><div><span>{report ? "交易安全" : "防诈骗提醒"}</span><h1>{report ? <>拒绝私下交易<br />举报核实有奖励</> : <>只认平台订单<br />拒绝私下转账</>}</h1><p>{report ? "保护每一笔订单，让服务和权益都有记录" : "不泄露验证码，不点击陌生链接"}</p></div></section>
@@ -587,7 +616,7 @@ function CheckoutScreen({ go, selected, product, quantity = 1, onOrderCreated, n
  if(!product||!sku)return <ContextStateScreen go={go} kind="search"/>;
  const confirmPolicies=async()=>{if(flight.current)return;flight.current=true;setBusy(true);try{await acceptSelectedPolicies("ORDER_PAYMENT",policyIds);await load()}catch(cause){setError(apiMessage(cause))}finally{flight.current=false;setBusy(false)}};
  const submit=async()=>{if(flight.current||!preview||!draft)return;flight.current=true;setBusy(true);setError('');try{await acceptSelectedPolicies("ORDER_PAYMENT",policyIds);const latest=await apiRequest<{payable_amount_cent:string}>('/orders/preview',{method:'POST',body:JSON.stringify(draft)});if(latest.payable_amount_cent!==preview.payable_amount_cent){await load();setError('价格已变化，请核对后重新提交。');return;}const order=await apiRequest<OrderApiView>('/orders',{method:'POST',headers:{'idempotency-key':key.current},body:JSON.stringify({...draft,expected_payable_amount_cent:latest.payable_amount_cent})});onOrderCreated(order);notify('订单已由服务端创建');go('payment')}catch(cause){setError(apiMessage(cause))}finally{flight.current=false;setBusy(false)}};
- return <div className="app-screen decision-page"><Header title="确认订单" variant="centered" back={()=>go('service')}/><h2>{product.title}</h2><p>{product.seller?.seller_nickname} · {sku.sku_name} ×{quantity}</p><p>{preview?`服务端应付 ¥${formatCent(preview.payable_amount_cent)}`:'正在读取服务端价格…'}</p><p>{product.fulfillment_seconds!=null?`付款后 ${product.fulfillment_seconds/3600} 小时内完成，无需预约或卖家接单。`:selectedTime?.label??'旧预约商品需先选择真实时段。'}</p><p>具体需求通过聊天沟通，买家备注选填。创建订单前需确认交易协议并完成实名成年门禁。</p><PolicyChecklist title="交易规则确认" scene="ORDER_PAYMENT" selectedIds={policyIds} onChange={setPolicyIds} go={go} note="创建订单前主动确认" />{policyError&&<p role="alert">{policyError}<button onClick={()=>void retryPolicies()}>重试协议</button></p>}<button disabled={busy||policyLoading||!!policyError||!policies.length||!policies.every(p=>policyIds.includes(p.id))} onClick={()=>void confirmPolicies()}>确认协议并获取服务端价格</button><button className="decision-row" onClick={()=>go('chat')}>联系卖家 <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></button>{error&&<p className="form-error" role="alert">{error}<button onClick={()=>void load()}>重新加载</button></p>}<button className="full-primary" disabled={busy||!preview||!policies.length||!policies.every(p=>policyIds.includes(p.id))||(product.fulfillment_seconds==null&&!selectedTime)} onClick={()=>void submit()}>{busy?'提交中…':'提交订单'}</button></div>;
+ return <div className="app-screen decision-page"><Header title="确认订单" variant="centered" back={()=>go('service')}/><h2>{product.title}</h2><p>{product.seller?.seller_nickname} · {sku.sku_name} ×{quantity}</p><p>{preview?`服务端应付 ¥${formatCent(preview.payable_amount_cent)}`:'正在读取服务端价格…'}</p><p>{product.fulfillment_seconds!=null?`付款后 ${product.fulfillment_seconds/3600} 小时内完成，无需预约或卖家接单。`:selectedTime?.label??'旧预约商品需先选择真实时段。'}</p><p>具体需求通过聊天沟通，买家备注选填。创建订单前需确认交易协议并完成实名成年门禁。</p><PolicyChecklist title="交易规则确认" scene="ORDER_PAYMENT" selectedIds={policyIds} onChange={setPolicyIds} go={go} note="创建订单前主动确认" />{policyError&&<p role="alert">{policyError}<button type="button" className="toon-action" onClick={()=>void retryPolicies()}>重试协议</button></p>}<button type="button" className="toon-action" disabled={busy||policyLoading||!!policyError||!policies.length||!policies.every(p=>policyIds.includes(p.id))} onClick={()=>void confirmPolicies()}>确认协议并获取服务端价格</button><button className="decision-row" onClick={()=>go('chat')}>联系卖家 <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></button>{error&&<p className="form-error" role="alert">{error}<button type="button" className="toon-action" onClick={()=>void load()}>重新加载</button></p>}<button className="full-primary" disabled={busy||!preview||!policies.length||!policies.every(p=>policyIds.includes(p.id))||(product.fulfillment_seconds==null&&!selectedTime)} onClick={()=>void submit()}>{busy?'提交中…':'提交订单'}</button></div>;
 }
 
 function AgreementDetailScreen({ go }: { go: (page: PageId) => void }) {
@@ -843,6 +872,8 @@ function MessagesScreen({ go, unreadCount, onOpen, seller = false, searchState }
   const history = useRef(new Map<string, MessageApiView[]>());
   useEffect(() => { let active = true; void loadCursorItems<ConversationApiView>("/conversations").then(items => { if (active) { setConversations(items); setLoaded(true); } }).catch(cause => { if (active) { setLoadError(apiMessage(cause)); setLoaded(true); } }); return () => { active = false; }; }, []);
   const visible = conversations.filter(item => item.conversation_type !== "SUPPORT" && (seller ? item.member_role === "SELLER" : item.member_role !== "SELLER"));
+  const supportInbox = summarizeSupportInbox(conversations);
+  const support = { preview: supportInbox.latest?.last_message_preview, time: supportInbox.latest?.last_message_at, unread: supportInbox.unread };
   const entries: InboxEntry[] = visible.map(item => ({ id: item.id, name: item.counterpart?.nickname || (item.conversation_type === "ORDER" ? "订单会话" : "服务咨询"), avatar: DEFAULT_PLAYER_IMAGE, preview: item.last_message_preview ?? "会话已创建", time: item.last_message_at, unread: item.unread_count }));
   const search = async (keyword: string): Promise<InboxEntry[]> => {
     // Read all cursor pages only when requested; never mark messages read during search.
@@ -860,7 +891,7 @@ function MessagesScreen({ go, unreadCount, onOpen, seller = false, searchState }
       return hit ? [{ ...entry, match: hit.content, matchMessageId: hit.id, time: hit.created_at }] : [];
     });
   };
-  return <div ref={screen} onScroll={() => { if (searchState && screen.current) searchState.write({...searchState.read(),scroll:screen.current.scrollTop}); }} className="app-screen messages-screen"><ConversationList initialSearch={searchState?.read()} onSearchStateChange={searchState ? next => { searchState.write({ ...searchState.read(), ...next }); } : undefined} seller={seller} entries={entries} search={search} loading={!loaded} error={loadError} onOpen={(id, matchMessageId) => { const conversation = visible.find(item => item.id === id); if (conversation) onOpen(conversation, matchMessageId); }} empty="暂无会话，从服务或订单详情发起聊天。" />{seller ? <SellerNav page="sellerMessages" go={go} /> : <BuyerNav page="messages" go={go} unreadCount={unreadCount} />}</div>;
+  return <div ref={screen} onScroll={() => { if (searchState && screen.current) searchState.write({...searchState.read(),scroll:screen.current.scrollTop}); }} className="app-screen messages-screen"><ConversationList onSupport={() => go("customerService")} support={support} initialSearch={searchState?.read()} onSearchStateChange={searchState ? next => { searchState.write({ ...searchState.read(), ...next }); } : undefined} seller={seller} entries={entries} search={search} loading={!loaded} error={loadError} onOpen={(id, matchMessageId) => { const conversation = visible.find(item => item.id === id); if (conversation) onOpen(conversation, matchMessageId); }} empty="暂无会话，从服务或订单详情发起聊天。" />{seller ? <SellerNav page="sellerMessages" go={go} /> : <BuyerNav page="messages" go={go} unreadCount={unreadCount} />}</div>;
 }
 
 function ChatScreen({ onShop, go, notify, viewer, conversation: initialConversation, order, product, onConversation, seller = false, searchMessageId }: { onShop?: (id: string) => void; searchMessageId?: string; seller?: boolean; go: (page: PageId) => void; notify: (message: string) => void; viewer: Viewer | null; conversation: ConversationApiView | null; order: OrderApiView | null; product: ProductApiView | null; onConversation: (conversation: ConversationApiView) => void }) {
@@ -1090,7 +1121,7 @@ function MineScreen({ go, unreadCount = 0, viewer, onOrders, scrollState }: { sc
         <span className="mine-profile-copy"><b>{viewer?.profile?.nickname ?? "登录熊崽电竞"}</b><span>{!viewer ? "登录后查看订单与个人资料" : !viewer.profile?.public_user_no || viewer.profile.public_user_no.startsWith("LOCAL-") ? "查看与编辑个人资料" : `账号：${viewer.profile.public_user_no}`}</span></span><span className="mine-profile-chevron" aria-hidden="true"><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></span>
       </button>
     </div>
-    <section className="paper-panel commerce-my-orders"><SectionTitle title="我的订单" action="全部订单 ›" onAction={() => viewer ? onOrders("全部") : go("auth")} /><div className="commerce-order-entries">{buyerOrderEntries.map((item) => <button type="button" key={item.label} onClick={() => viewer ? onOrders(item.label) : go("auth")}><AppIcon kind={mineOrderIcon[item.label] ?? item.icon} /><span>{item.label}</span></button>)}</div></section>
+    <section className="paper-panel commerce-my-orders"><SectionTitle title="我的订单" /><MineOrderStrip><button type="button" aria-label="全部订单" onClick={() => viewer ? onOrders("全部") : go("auth")}><AppIcon kind="order" /><span>全部订单</span></button>{buyerOrderEntries.map((item) => <button type="button" key={item.label} onClick={() => viewer ? onOrders(item.label) : go("auth")}><AppIcon kind={mineOrderIcon[item.label] ?? item.icon} /><span>{item.label}</span></button>)}</MineOrderStrip></section>
     <section className="mine-grid buyer-assets">
       <button type="button" onClick={() => openAccount("favorites")}><AppIcon kind="favorite" className="mine-asset-icon" /><b>我的收藏</b><span>店铺与商品</span></button>
       <button type="button" onClick={() => go("coupons")}><span className="mine-asset-icon" aria-hidden="true"><img src={creamJellyIconUrl("coupon-center")} alt="" /></span><b>优惠券</b><span>前往领券中心</span></button>
@@ -1098,7 +1129,10 @@ function MineScreen({ go, unreadCount = 0, viewer, onOrders, scrollState }: { sc
     <section className="mine-menu">
       <button type="button" onClick={() => openAccount("messages")}><AppIcon kind="message" className="menu-symbol" /><span><b>消息</b><small>{viewer ? unreadCount > 0 ? `${unreadCount} 条未读` : "查看会话" : "登录后查看会话"}</small></span><em aria-hidden="true"><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>
       <button type="button" onClick={() => go("rules")}><AppIcon kind="mine-rules" className="menu-symbol" /><span><b>平台规则</b><small>交易、售后与评价说明</small></span><em aria-hidden="true"><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>
-      <button className="decision-row" onClick={() => go("customerService")}><AppIcon kind="service" /><span><b>平台客服</b></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><BuyerIdentity request={apiRequest} userId={viewer?.id} onOpen={() => go("buyerSellerIdentity")} onNavigate={target => go(target as PageId)} />
+    </section>
+    <section className="mine-menu mine-identity" aria-labelledby="mine-identity-heading">
+      <h2 id="mine-identity-heading">陪玩身份</h2>
+      <BuyerIdentity request={apiRequest} userId={viewer?.id} onOpen={() => go("buyerSellerIdentity")} onNavigate={target => go(target as PageId)} />
     </section>
     <BuyerNav page="mine" go={go} unreadCount={unreadCount} />
   </div>;
@@ -1117,7 +1151,7 @@ function RulesScreen({ go, backPage = "mine" }: { go: (page: PageId) => void; ba
 
 function SettingsScreen({ go, notify, onLoggedOut, buyerViewer }: { buyerViewer?: Viewer | null; go: (page: PageId) => void; notify: (message: string) => void; onLoggedOut: () => void }) {
   const logout = async () => { try { await apiRequest("/auth/logout", { method: "POST" }); } catch (cause) { if (!(cause instanceof ApiClientError && cause.status === 401)) { notify(apiMessage(cause)); return; } } onLoggedOut(); notify("已退出登录"); window.setTimeout(() => go("auth"), 500); };
-  return <div className="app-screen settings-screen"><StatusBar /><Header title="设置" subtitle="账号、隐私与身份" back={() => go("mine")} />{buyerViewer !== undefined ? <section className="mine-menu buyer-settings-identity"><BuyerIdentity request={apiRequest} userId={buyerViewer?.id} onOpen={() => go("buyerSellerIdentity")} onNavigate={target => go(target as PageId)} /></section> : <section className="seller-identity-card"><img src="/assets/xiongzai-icon.png" alt="熊崽电竞陪玩认证" /><div><span>SELLER IDENTITY</span><h2>陪玩身份</h2><p>通过审核后，才可以拥有陪玩主页、发布服务并处理卖家订单。</p><b>当前状态：审核已通过</b></div><button type="button" onClick={() => go("seller")}>进入陪玩中心</button></section>}<section className="settings-group identity-settings">{buyerViewer === undefined && <button type="button" onClick={() => go("sellerApplyStatus")}><span><b>申请成为陪玩</b><small>查看申请资料和审核记录</small></span><em>已通过 <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></em></button>}<button type="button" onClick={() => go("editProfile")}><span><b>个人资料</b><small>头像、昵称、手机号</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => go("privacySecurity")}><span><b>隐私与安全</b><small>手机号、实名认证、隐私设置</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => go("policyCenter")}><span><b>协议与隐私中心</b><small>当前版本、接受记录与入驻确认</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => go("rules")}><span><b>平台规则</b><small>交易、退款、评价规范</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => void logout()}><span><b>退出登录</b></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button></section></div>;
+  return <div className="app-screen settings-screen"><StatusBar /><Header title="设置" subtitle="账号、隐私与身份" back={() => go(buyerViewer === undefined ? "sellerMine" : "mine")} />{buyerViewer !== undefined ? <section className="mine-menu buyer-settings-identity"><BuyerIdentity request={apiRequest} userId={buyerViewer?.id} onOpen={() => go("buyerSellerIdentity")} onNavigate={target => go(target as PageId)} /></section> : <section className="seller-identity-card"><img src="/assets/xiongzai-icon.png" alt="熊崽电竞陪玩认证" /><div><span>SELLER IDENTITY</span><h2>陪玩身份</h2><p>通过审核后，才可以拥有陪玩主页、发布服务并处理卖家订单。</p><b>当前状态：审核已通过</b></div><button type="button" onClick={() => go("seller")}>进入陪玩中心</button></section>}<section className="settings-group identity-settings">{buyerViewer === undefined && <button type="button" onClick={() => go("sellerApplyStatus")}><span><b>申请成为陪玩</b><small>查看申请资料和审核记录</small></span><em>已通过 <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></em></button>}<button type="button" onClick={() => go("editProfile")}><span><b>个人资料</b><small>头像、昵称、手机号</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => go("privacySecurity")}><span><b>隐私与安全</b><small>手机号、实名认证、隐私设置</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => go("policyCenter")}><span><b>协议与隐私中心</b><small>当前版本、接受记录与入驻确认</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => go("rules")}><span><b>平台规则</b><small>交易、退款、评价规范</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><button type="button" onClick={() => go("identitySwitch")}><span><b>切换身份</b></span><em>{buyerViewer === undefined ? "卖家" : "买家"} <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></em></button><button type="button" onClick={() => void logout()}><span><b>退出登录</b></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button></section></div>;
 }
 
 function SellerApplyFormScreen({ go, notify }: { go: (page: PageId) => void; notify: (message: string) => void }) {
@@ -1160,7 +1194,7 @@ function SellerApplyFormScreen({ go, notify }: { go: (page: PageId) => void; not
   };
   if(loading)return <div className="app-screen seller-apply-form-screen"><Header title="申请开设店铺" back={()=>go("settings")}/><p role="status">正在读取申请草稿…</p></div>;
   if(loadError)return <div className="app-screen seller-apply-form-screen"><Header title="申请开设店铺" back={()=>go("settings")}/><section role="alert"><p>{loadError}</p><button type="button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>重新读取草稿</button></section></div>;
-  if(!editable)return <div className="app-screen seller-apply-form-screen"><Header title="申请开设店铺" back={()=>go("settings")}/><p>当前申请状态不能修改，请查看审核记录。</p><button type="button" onClick={()=>go("buyerSellerIdentity")}>查看真实申请状态</button></div>;
+  if(!editable)return <div className="app-screen seller-apply-form-screen"><Header title="申请开设店铺" back={()=>go("settings")}/><p>当前申请状态不能修改，请查看审核记录。</p><button type="button" className="toon-action" onClick={()=>go("buyerSellerIdentity")}>查看真实申请状态</button></div>;
   return <div className="app-screen seller-apply-form-screen">
     <Header title="申请开设店铺" subtitle={`第 ${step} 步，共 3 步`} back={() => step === 1 ? go("settings") : setStep((step - 1) as 1 | 2)} />
     {loading?<p role="status">正在读取申请草稿…</p>:loadError?<section role="alert"><p>{loadError}</p><button type="button" onClick={()=>{setLoading(true);setRevision(v=>v+1);}}>重新读取草稿</button></section>:!editable?<p role="alert">当前申请状态不能修改，请查看审核记录。</p>:null}<button type="button" className="secondary-full" disabled={!editable||submitting} onClick={()=>void saveDraft()}>{submitting?"保存或提交中…":"保存草稿"}</button><div className="apply-progress"><span className={step >= 1 ? "active" : ""}><i>1</i><b>基本资料</b></span><span className={step >= 2 ? "active" : ""}><i>2</i><b>游戏与声音</b></span><span className={step >= 3 ? "active" : ""}><i>3</i><b>确认提交</b></span></div>
@@ -1206,7 +1240,7 @@ function ApplyScreen({ go, notify, state = "approved" }: { go: (page: PageId) =>
 }
 
 function MerchantIdentity({ profile, go }: { profile: SellerApiView | null; go: (page: PageId) => void }) {
-  return <header className="merchant-identity"><button type="button" onClick={() => go("sellerProfile")} aria-label="查看陪玩资料"><CatalogImage fileId={profile?.seller_avatar_file_id} src={DEFAULT_PLAYER_IMAGE} kind="avatar" alt="陪玩头像" /><span><b>{profile?.seller_nickname ?? "陪玩中心"}</b><small>{profile ? profile.accepting_orders ? "正在接单 · 陪玩卖家" : "休息中 · 陪玩卖家" : "正在加载资料…"}</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><IconButton label="返回买家端" onClick={() => go("mine")}><AppIcon kind="home" /></IconButton></header>;
+  return <header className="merchant-identity"><button type="button" onClick={() => go("sellerProfile")} aria-label="查看陪玩资料"><CatalogImage fileId={profile?.seller_avatar_file_id} src={DEFAULT_PLAYER_IMAGE} kind="avatar" alt="陪玩头像" /><span><b>{profile?.seller_nickname ?? "陪玩中心"}</b><small>{profile ? profile.accepting_orders ? "正在接单 · 陪玩卖家" : "休息中 · 陪玩卖家" : "正在加载资料…"}</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button><IconButton label="返回买家端" onClick={() => go("mine")}><AppIcon kind="home" /></IconButton><IconButton label="设置" onClick={() => go("settings")}><AppIcon kind="setting" /></IconButton></header>;
 }
 function SellerCenterScreen({ go, onOrders }: { go: (page: PageId) => void; onOrders: (tab: string) => void }) {
   const [profile, setProfile] = useState<SellerApiView | null>(null);
@@ -1221,9 +1255,8 @@ function SellerCenterScreen({ go, onOrders }: { go: (page: PageId) => void; onOr
   return <div className="app-screen seller-screen"><div className="merchant-brand-header"><StatusBar /><div className="merchant-brand-caption">熊崽电竞 · 卖家端</div><MerchantIdentity profile={profile} go={go} /></div>
     {loading || loadError ? <section className="paper-panel live-data-state"><b>{loading ? "正在加载经营数据…" : "经营数据加载失败"}</b>{loadError && <><p>{loadError}</p><button type="button" onClick={() => void reload()}>重试</button></>}</section> : <>
     <section className="paper-panel merchant-overview" aria-label="订单待办和今日经营数据">
-      <SectionTitle title="今日经营" />
-      <div className="merchant-daily-grid"><button type="button" onClick={() => go("sellerMine")}><b>¥{formatCent(today.turnoverCent)}</b><span>今日营业额</span></button><button type="button" onClick={() => go("sellerMine")}><b>{today.orderCount}</b><span>今日订单数</span></button></div>
-      <div className="merchant-order-shortcuts">{["待付款", "新订单", "服务中", "待确认", "售后"].map(tab => <button type="button" onClick={() => onOrders(tab)} key={tab}><b>{orders.filter(order => matchesOrderTab(order, tab, "seller")).length}</b><span>{tab === "新订单" ? "待接单" : tab === "售后" ? "退款售后" : tab}</span></button>)}</div>
+      <SectionTitle title="今日经营" action="收益数据 ›" onAction={() => go("sellerRevenue")} />
+      <div className="merchant-daily-grid"><button type="button" onClick={() => go("sellerMine")}><b>¥{formatCent(today.turnoverCent)}</b><span>今日营业额</span></button><button type="button" onClick={() => go("sellerMine")}><b>{today.orderCount}</b><span>今日订单数</span></button></div><div className="merchant-order-shortcuts">{["待付款", "新订单", "服务中", "待确认", "售后"].map(tab => <button type="button" onClick={() => onOrders(tab)} key={tab}><b>{orders.filter(order => matchesOrderTab(order, tab, "seller")).length}</b><span>{tab === "新订单" ? "待接单" : tab === "售后" ? "退款售后" : tab}</span></button>)}</div>
     </section>
     <button type="button" className="paper-panel merchant-product-entry" aria-label="商品管理" onClick={() => go("sellerServices")}><AppIcon kind="service" className="seller-tool-icon" /><span><b>商品管理</b><small>发布商品 · 上架 / 下架</small></span><span className="merchant-product-count">{products.filter(row => row.status === "ON_SALE").length} 个在售</span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>
     </>}<button type="button" className="secondary-full" onClick={() => go("sellerTradeOrders")}>V3.1 订单履约与售后 <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></button><SellerNav page="seller" go={go} /></div>;
@@ -1241,8 +1274,8 @@ function SellerMineScreen({ go, onPreview }: { go: (page: PageId) => void; onPre
   return <div className="app-screen seller-mine-screen"><StatusBar /><MerchantIdentity profile={profile} go={go} />
     {loading || error ? <section className="paper-panel live-data-state"><b>{loading ? "正在加载账户与经营数据…" : "数据加载失败"}</b>{error && <><p>{error}</p><button type="button" onClick={() => void load()}>重试</button></>}</section> : <>
     <section className="earnings-balance merchant-balance"><span>可提现金额</span><b>¥{formatCent(summary!.available_cent)}</b><button type="button" disabled={summary!.withdrawal_paused} onClick={() => go("withdraw")}>{summary!.withdrawal_paused ? "提现暂停" : "提现"}</button><button type="button" onClick={() => go("sellerEarnings")}>资金明细 <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></button></section>
-    <section className="paper-panel merchant-period-card"><SectionTitle title="经营数据" /><div className="merchant-period-tabs" role="tablist" aria-label="营业额统计时段">{merchantPeriods.map(period => <button type="button" role="tab" aria-selected={range === period} onClick={() => setRange(period)} key={period}>{period}</button>)}</div><div className="merchant-metrics"><div><b>¥{formatCent(metrics.turnoverCent)}</b><span>{range}营业额</span></div><div><b>{metrics.orderCount}</b><span>{range}订单数</span></div><div><b>¥{formatCent(metrics.refundCent)}</b><span>订单已退金额</span></div></div><small className="merchant-metric-note">按下单时间统计 · 营业额为已付金额，未扣退款和平台费用</small></section>
-    <section className="paper-panel merchant-account-links"><button type="button" onClick={onPreview}><AppIcon kind="mine" /><span>预览主页</span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>{[["wallet", "收益明细", "sellerEarnings"], ["withdraw", "提现记录", "withdrawals"], ["wallet", "收款账户", "payoutAccounts"], ["mine", "主页资料", "sellerProfile"], ["setting", "账号设置", "settings"], ["service", "平台客服", "customerService"]].map(([icon, label, page]) => <button type="button" onClick={() => go(page as PageId)} key={label}><AppIcon kind={icon} /><span>{label}</span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>)}</section>
+    <section className="paper-panel merchant-period-card"><SectionTitle title="经营数据" action="收益数据 ›" onAction={() => go("sellerRevenue")} /><div className="merchant-period-tabs" role="tablist" aria-label="营业额统计时段">{merchantPeriods.map(period => <button type="button" role="tab" aria-selected={range === period} onClick={() => setRange(period)} key={period}>{period}</button>)}</div><div className="merchant-metrics"><div><b>¥{formatCent(metrics.turnoverCent)}</b><span>{range}营业额</span></div><div><b>{metrics.orderCount}</b><span>{range}订单数</span></div><div><b>¥{formatCent(metrics.refundCent)}</b><span>订单已退金额</span></div></div><small className="merchant-metric-note">按下单时间统计 · 营业额为已付金额，未扣退款和平台费用</small></section>
+    <section className="paper-panel merchant-account-links"><button type="button" onClick={onPreview}><AppIcon kind="mine" /><span>预览主页</span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>{[["data", "收益数据", "sellerRevenue"], ["wallet", "收益明细", "sellerEarnings"], ["withdraw", "提现记录", "withdrawals"], ["wallet", "收款账户", "payoutAccounts"], ["mine", "主页资料", "sellerProfile"]].map(([icon, label, page]) => <button type="button" onClick={() => go(page as PageId)} key={label}><AppIcon kind={icon} /><span>{label}</span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>)}</section>
     </>}<button type="button" className="secondary-full" onClick={() => go("sellerTradeFunds")}>V3.1 退款、冻结与结算明细 <CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></button><SellerNav page="sellerMine" go={go} /></div>;
 }
 
@@ -1328,18 +1361,27 @@ function SellerRefundScreen({ go, notify, refund, onUpdated }: { go: (page: Page
   return <div className="app-screen seller-refund-screen"><Header title="处理退款" subtitle={`退款单 ${refund?.refund_no ?? "—"}`} back={() => go("sellerOrders")} /><section className="refund-countdown"><span>{refund?.status === "REQUESTED" ? "待陪玩处理" : refund?.status ?? "暂无待处理退款"}</span><b>请及时处理</b><p>陪玩处理、平台介入和渠道退款均会保留状态日志。</p></section><section className="checkout-service seller-order-product"><CatalogImage src={snapshot?.product_image} alt={snapshot?.product_title ?? "关联订单商品"} /><span><b>{snapshot?.product_title ?? (snapshotLoading ? "正在读取关联订单…" : snapshotError ? "关联订单读取失败" : "未选择退款订单")}</b><small>关联订单 {refund?.order_id ?? "—"}</small><em>申请退款 ¥{formatCent(refund?.requested_amount_cent ?? "0")}</em></span></section>{snapshotError && <section className="paper-panel live-data-state failed" role="alert"><p>{snapshotError}</p><button type="button" disabled={snapshotLoading} onClick={() => setSnapshotRetry(value => value + 1)}>重新读取关联订单</button></section>}<section className="paper-panel seller-refund-facts"><SectionTitle title="买家退款申请" note={refund ? new Date(refund.created_at).toLocaleString("zh-CN") : "—"} /><div><span>退款金额</span><b>¥{formatCent(refund?.requested_amount_cent ?? "0")}</b></div><div><span>退款原因</span><b>{refund?.reason_text ?? "—"}</b></div><div><span>买家说明</span><b>{refund?.description ?? "未补充说明"}</b></div></section>{action === "reject" ? <section className="form-panel seller-reject-form"><label htmlFor="seller-refund-reason"><span>拒绝退款原因</span><CartoonSelect id="seller-refund-reason" aria-label="退款原因" value={reason} onChange={(event) => setReason(event.target.value)}><option value="">请选择原因</option><option>已按约定完成服务</option><option>买家未按约定配合</option><option>其他原因</option></CartoonSelect></label></section> : null}<section className="paper-panel seller-refund-rule"><AppIcon kind="shield" /><span><b>请根据实际履约情况处理</b><small>拒绝退款后买家可申请平台介入，平台将核验聊天记录和订单状态。</small></span></section><div className="seller-order-actions"><button type="button" disabled={refund?.status !== "REQUESTED"} onClick={() => setAction("reject")}>拒绝退款</button><button type="button" disabled={refund?.status !== "REQUESTED"} onClick={() => setAction("agree")}>同意退款</button></div>{action === "agree" ? <ConfirmDialog title="确认同意退款？" text={`确认后 ¥${formatCent(refund?.requested_amount_cent ?? "0")} 将提交原支付渠道。`} confirmText="同意并退款" onCancel={() => setAction("")} onConfirm={() => void decide("APPROVE", "陪玩同意退款申请")} /> : null}{action === "reject" && reason ? <ConfirmDialog title="确认拒绝退款？" text="拒绝原因将同步给买家。若买家申请平台介入，请配合补充证据。" confirmText="提交拒绝" tone="danger" onCancel={() => setAction("")} onConfirm={() => void decide("REJECT", reason)} /> : null}</div>;
 }
 
-function SellerEarningsScreen({ go }: { go: (page: PageId) => void }) {
-  const now = new Date(); const todayValue = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`; const [range, setRange] = useState<EarningsRange>("本周"); const [customStart, setCustomStart] = useState(""); const [customEnd, setCustomEnd] = useState(todayValue);
-  const [summary,setSummary]=useState<FinanceSummaryApi|null>(null); const [incomeRows,setIncomeRows]=useState<IncomeApiView[]>([]); const [loadError,setLoadError]=useState("");
-  const load=useCallback(async()=>{setLoadError("");try{const [nextSummary,nextIncomes]=await Promise.all([apiRequest<FinanceSummaryApi>("/seller/finance/summary"),apiRequest<IncomeApiView[]>("/seller/finance/incomes")]);setSummary(nextSummary);setIncomeRows(nextIncomes);}catch(cause){setLoadError(apiMessage(cause));}},[]); useEffect(()=>{void Promise.resolve().then(load);},[load]);
-  const earliestIncome = incomeRows.length ? incomeRows.reduce((earliest, row) => new Date(row.created_at) < earliest ? new Date(row.created_at) : earliest, new Date(incomeRows[0].created_at)) : new Date(now.getFullYear(), 0, 1); const earliestValue = `${earliestIncome.getFullYear()}-${String(earliestIncome.getMonth() + 1).padStart(2, "0")}-${String(earliestIncome.getDate()).padStart(2, "0")}`; const effectiveStart = customStart || earliestValue; const customDatesValid = Boolean(effectiveStart && customEnd && effectiveStart <= customEnd);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()); const startOfYesterday = new Date(startOfToday.getTime()-86_400_000); const startOfWeek = new Date(startOfToday.getTime()-6*86_400_000); const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1); const startOfYear = new Date(now.getFullYear(), 0, 1); const customStartDate = new Date(`${effectiveStart}T00:00:00`); const customEndDate = new Date(`${customEnd}T23:59:59.999`);
-  const selectedRows=incomeRows.filter((row)=>{const created=new Date(row.created_at);if(range==="今日")return created>=startOfToday;if(range==="昨日")return created>=startOfYesterday&&created<startOfToday;if(range==="本周")return created>=startOfWeek;if(range==="本月")return created>=startOfMonth;if(range==="本年")return created>=startOfYear;return customDatesValid&&created>=customStartDate&&created<=customEndDate;}); const amountCent=selectedRows.reduce((total,row)=>total+BigInt(row.seller_amount_cent),0n); const averageCent=selectedRows.length?amountCent/BigInt(selectedRows.length):0n;
-  if(loadError && (!summary || navigator.onLine !== false))return <div className="app-screen seller-earnings-screen"><Header title="收益中心" back={()=>go("seller")}/><section className="paper-panel live-data-state failed"><RequestErrorBear message={loadError} /><b>收益数据加载失败</b><p>{loadError}</p><button type="button" onClick={()=>void load()}>重试</button></section></div>;
-  return <div className="app-screen seller-earnings-screen"><StatusBar /><Header title="收益中心" subtitle="按时间查看真实收益" back={() => go("sellerMine")} actions={<IconButton label="提现记录" onClick={() => go("withdrawals")}><AppIcon kind="order" /></IconButton>} />{loadError ? <section className="paper-panel live-data-state"><RequestErrorBear message={loadError} hasContent /><b>收益数据未更新</b><p>{loadError}</p><button type="button" onClick={() => void load()}>重试</button></section> : null}<section className="earnings-balance"><span>可提现金额</span><b>¥{formatCent(summary?.available_cent??"0")}</b><button type="button" disabled={summary?.withdrawal_paused} onClick={() => go("withdraw")}>{summary?.withdrawal_paused?"提现暂停":"提现"}</button><small>待结算 ¥{formatCent(summary?.pending_cent??"0")} · 欠款 ¥{formatCent(summary?.liability_cent??"0")}</small></section><div className="earnings-range-tabs">{(["今日", "昨日", "本周", "本月", "本年", "累计"] as EarningsRange[]).map((item) => <button type="button" className={range === item ? "active" : ""} onClick={() => setRange(item)} key={item}>{item}</button>)}</div>{range === "累计" ? <section className="earnings-date-range" aria-label="累计收益日期范围"><b className="earnings-date-range-title"><i>日</i><span>自定义累计区间</span></b><label><span>开始日期</span><input type="date" value={effectiveStart} max={customEnd || todayValue} onChange={(event) => setCustomStart(event.target.value)} /></label><i>至</i><label><span>结束日期</span><input type="date" value={customEnd} min={effectiveStart} max={todayValue} onChange={(event) => setCustomEnd(event.target.value)} /></label><small className={customDatesValid ? "" : "invalid"}>{customDatesValid ? `${formatChineseDate(effectiveStart)} 至 ${formatChineseDate(customEnd)}` : "开始日期不能晚于结束日期"}</small></section> : null}<section className="earnings-summary"><div><span>{range === "累计" ? "区间" : range}收益</span><b>¥{formatCent(amountCent.toString())}</b><small>{selectedRows.length} 笔已完成收益</small></div><div><span>平均单笔</span><b>¥{formatCent(averageCent.toString())}</b><small>按当前筛选计算</small></div><div><span>锁定中</span><b>¥{formatCent(summary?.locked_cent??"0")}</b><small>等待平台或渠道处理</small></div></section><section className="paper-panel income-list"><SectionTitle title="收益明细" note={`${incomeRows.length} 笔`} action="全部 ›" onAction={() => go("incomeDetails")} />{summary && incomeRows.length === 0 ? <section className="bear-inline-empty"><StateBear scene="income" /><b>暂无收益明细</b></section> : null}{incomeRows.slice(0,3).map((income)=><div key={income.id}><span><b>订单 {income.order_id.slice(0,8)}</b><small>{income.status} · {new Date(income.created_at).toLocaleString("zh-CN")}</small></span><strong>+¥{formatCent(income.seller_amount_cent)}</strong></div>)}</section><SellerNav page="sellerEarnings" go={go} /></div>;
+function SellerRevenueScreen({ go, back, accountMode = false }: { go: (page: PageId) => void; back: () => void; accountMode?: boolean }) {
+  const [data, setData] = useState<{ rows: RevenueRow[]; summary: FinanceSummaryApi; profile: SellerApiView } | null>(null);
+  const [error, setError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    Promise.all([loadCursorItems<RevenueRow>("/seller/finance/incomes"), apiRequest<FinanceSummaryApi>("/seller/finance/summary"), apiRequest<SellerApiView>("/seller/profile")])
+      .then(([rows, summary, profile]) => { if (active) setData({ rows, summary, profile }); })
+      .catch(cause => { if (active) setError(apiMessage(cause)); });
+    return () => { active = false; };
+  }, [attempt]);
+  return <div className="app-screen seller-workbench seller-revenue-screen"><header className="sw-header"><button type="button" aria-label="返回上一页" onClick={back}><CartoonIcon kind="back" /></button><h1>收益中心</h1><button type="button" className="sw-settings-entry" aria-label="设置" onClick={() => go("settings")}><CartoonIcon kind="setting" /></button></header>{error ? <section className="paper-panel live-data-state" role="alert"><b>收益数据加载失败</b><p>{error}</p><button type="button" onClick={() => { setError(""); setData(null); setAttempt(n => n + 1); }}>重试</button></section> : data ? <RevenueDashboard rows={data.rows}
+    identity={<div className="revenue-person"><div className="revenue-person-avatar"><CatalogImage fileId={data.profile.seller_avatar_file_id} src={DEFAULT_PLAYER_IMAGE} kind="avatar" alt="陪玩头像" /></div><div><strong>{data.profile.seller_nickname}</strong><small>{data.profile.accepting_orders ? '正在接单' : '休息中'} · 陪玩卖家</small></div><button type="button" aria-label="查看陪玩资料" onClick={() => go('sellerProfile')}><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" /></button></div>}
+    actions={<><button type="button" onClick={() => go('sellerOrders')}><CartoonIcon kind="order" />我的订单</button><button type="button" onClick={() => go('incomeDetails')}><CartoonIcon kind="wallet" />资金明细</button><button type="button" onClick={() => go('customerService')}><CartoonIcon kind="service" />联系客服</button></>}
+    account={accountMode ? <section className="revenue-account"><div><span>可提现金额</span><strong>¥{formatCent(data.summary.available_cent)}</strong><small>锁定 ¥{formatCent(data.summary.locked_cent)} · 欠款 ¥{formatCent(data.summary.liability_cent)}</small></div><button type="button" className="toon-action-button" disabled={data.summary.withdrawal_paused} onClick={() => go('withdraw')}>{data.summary.withdrawal_paused ? '提现暂停' : '提现'}</button><button type="button" className="toon-action-button" onClick={() => go('withdrawals')}>提现记录</button><small>账户余额与所选时段净收益分别统计</small></section> : undefined}
+  /> : <section className="paper-panel live-data-state" role="status">正在加载收益数据…</section>}<SellerNav page={accountMode ? "sellerEarnings" : "sellerRevenue"} go={go} /></div>;
 }
 
-function formatChineseDate(value: string) { const [year, month, day] = value.split("-"); return `${year}年${month}月${day}日`; }
+function SellerEarningsScreen({ go }: { go: (page: PageId) => void }) {
+  return <SellerRevenueScreen go={go} back={() => go('sellerMine')} accountMode />;
+}
 
 function IncomeDetailsScreen({ go }: { go: (page: PageId) => void }) {
   const [filter, setFilter] = useState("全部"); const [records,setRecords]=useState<IncomeApiView[]>([]); const [summary,setSummary]=useState<FinanceSummaryApi|null>(null);const [liabilities,setLiabilities]=useState<LiabilityApiView[]>([]); const [loaded,setLoaded]=useState(false); const [loadError,setLoadError]=useState("");
@@ -1381,17 +1423,17 @@ function WithdrawalDetailScreen({ go, notify }: { go: (page: PageId) => void; no
 function NotificationsScreen({ go, onSelect, onAnnouncementOpen, backPage = "messages" }: { onAnnouncementOpen: (kind: AnnouncementKind) => void; go: (page: PageId) => void; onSelect: (notification: NotificationApiView) => void; backPage?: PageId }) {
   const [tab, setTab] = useState("全部"); const [notices, setNotices] = useState<NotificationApiView[]>([]); const [loaded, setLoaded] = useState(false); const [loadError, setLoadError] = useState("");
   const [retry, setRetry] = useState(0);
-  useEffect(() => { const controller = new AbortController(); void apiRequest<CursorResponse<NotificationApiView>>("/notifications?limit=50", { signal: controller.signal }).then((result) => { if (!controller.signal.aborted) { setNotices(result.items); setLoaded(true); } }).catch((cause) => { if (!controller.signal.aborted) setLoadError(apiMessage(cause)); }); return () => controller.abort(); }, [retry]);
+  useEffect(() => { const controller = new AbortController(); void apiRequest<CursorResponse<NotificationApiView>>("/notifications?limit=50&include_feedback=true", { signal: controller.signal }).then((result) => { if (!controller.signal.aborted) { setNotices(result.items); setLoaded(true); } }).catch((cause) => { if (!controller.signal.aborted) setLoadError(apiMessage(cause)); }); return () => controller.abort(); }, [retry]);
   const visible = tab === "全部" ? notices : notices.filter((item) => noticeGroup(item) === tab);
   const open = async (item: NotificationApiView) => { const selected = item.read_status === "READ" ? item : await apiRequest<NotificationApiView>(`/notifications/${item.id}/read`, { method: "POST" }).catch(() => item); setNotices((current) => current.map((row) => row.id === selected.id ? selected : row)); onSelect(selected); go("notificationDetail"); };
-  return <div className="app-screen notification-screen"><Header variant="centered" title="官方通知" subtitle="订单、售后、账户与平台消息" back={() => go(backPage)} /><div className="notice-tabs">{["全部", "订单", "售后", "账户", "平台", "反馈"].map((item) => <button type="button" className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>{tab === "全部" || tab === "平台" ? <section className="official-announcement-links" aria-label="平台公告">{homeAnnouncements.map((item) => <button type="button" key={item.id} onClick={() => onAnnouncementOpen(item.id)}><AppIcon kind="shield" /><span><b>{item.id === "reportTrade" ? "平台交易与举报说明" : "防诈骗安全提醒"}</b><small>平台公告 · 本地测试草案</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>)}</section> : null}<section className="notice-list">{visible.map((item) => <button type="button" className={item.read_status === "UNREAD" ? "unread" : ""} onClick={() => void open(item)} key={item.id}><i>{noticeGroup(item).slice(0, 1)}</i><span><b>{item.title}<time>{new Date(item.created_at).toLocaleString("zh-CN")}</time></b><small>{String(item.content_variables.content ?? item.content_variables.message ?? "查看通知详情")}</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>)}</section>{loadError ? <section className="paper-panel live-data-state"><RequestErrorBear message={loadError} hasContent={notices.length > 0} /><b>通知暂未加载</b><p>{loadError}</p><button type="button" onClick={() => { setLoadError(""); setLoaded(false); setRetry(value => value + 1); }}>重新加载通知</button></section> : !loaded ? <section className="paper-panel live-data-state"><b>正在加载通知…</b></section> : null}{loaded && !loadError && visible.length === 0 ? <section className="paper-panel message-safety bear-inline-empty"><StateBear scene="messages" eventKey={tab} /><b>暂无通知</b><p>订单、账户与平台消息会显示在这里。</p></section> : null}</div>;
+  return <div className="app-screen notification-screen"><Header variant="centered" title="官方通知" subtitle="订单、售后、账户与平台消息" back={() => go(backPage)} /><div className="notice-tabs">{["全部", "订单", "售后", "账户", "平台", "反馈"].map((item) => <button type="button" className={tab === item ? "active" : ""} onClick={() => setTab(item)} key={item}>{item}</button>)}</div>{tab === "全部" || tab === "平台" ? <PublicAnnouncements request={apiRequest} links onOpen={onAnnouncementOpen} /> : null}<section className="notice-list">{visible.map((item) => <button type="button" className={item.read_status === "UNREAD" ? "unread" : ""} onClick={() => void open(item)} key={item.id}><i>{noticeGroup(item).slice(0, 1)}</i><span><b>{item.title}<time>{new Date(item.created_at).toLocaleString("zh-CN")}</time></b><small>{String(item.content_variables.content ?? item.content_variables.message ?? "查看通知详情")}</small></span><em><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>)}</section>{loadError ? <section className="paper-panel live-data-state"><RequestErrorBear message={loadError} hasContent={notices.length > 0} /><b>通知暂未加载</b><p>{loadError}</p><button type="button" onClick={() => { setLoadError(""); setLoaded(false); setRetry(value => value + 1); }}>重新加载通知</button></section> : !loaded ? <section className="paper-panel live-data-state"><b>正在加载通知…</b></section> : null}{loaded && !loadError && visible.length === 0 ? <section className="paper-panel message-safety bear-inline-empty"><StateBear scene="messages" eventKey={tab} /><b>暂无通知</b><p>订单、账户与平台消息会显示在这里。</p></section> : null}</div>;
 }
 
 function NotificationDetailScreen({ go, notification, onTargetOpen }: { go: (page: PageId) => void; notification: NotificationApiView | null; onTargetOpen: (item: NotificationApiView, signal: AbortSignal) => Promise<void> }) {
   const [opening,setOpening]=useState(false),[error,setError]=useState('');
   const request=useRef<AbortController|null>(null),lock=useRef(false);
   useEffect(()=>()=>request.current?.abort(),[]);
-  const labels:Record<string,string>={ORDER:'查看订单',REFUND:'查看退款详情',COMPLAINT:'查看售后申诉',CONVERSATION:'查看会话'};
+  const labels:Record<string,string>={ORDER:'查看订单',REFUND:'查看退款详情',COMPLAINT:'查看售后申诉',CONVERSATION:'查看会话',FEEDBACK:'查看反馈回复',ANNOUNCEMENT:'查看公告'};
   const target=notification?.related_type?labels[notification.related_type]:null;
   const open=async()=>{if(!notification||!notification.related_id||lock.current)return;lock.current=true;setOpening(true);setError('');const c=new AbortController();request.current=c;try{await onTargetOpen(notification,c.signal)}catch(e){if(!c.signal.aborted)setError(apiMessage(e))}finally{lock.current=false;if(!c.signal.aborted)setOpening(false)}};
   return <div className="app-screen notification-detail-screen"><Header title="通知详情" subtitle={notification?`${noticeGroup(notification)}通知`:''} back={()=>go('notifications')}/><section className="paper-panel"><h1>{notification?.title??'尚未选择通知'}</h1><p>{notification?String(notification.content_variables.content??notification.content_variables.message??'请查看关联详情'):''}</p><small>{notification?new Date(notification.created_at).toLocaleString('zh-CN'):''}</small></section>{target?<button className="full-primary" disabled={opening||!notification?.related_id} onClick={()=>void open()}>{opening?'正在读取…':target}</button>:notification?.related_id?<p className="decision-info">此类通知的详情接口尚未接通，当前可查看通知原文。</p>:null}{error&&<p role="alert">{error}<button onClick={()=>void open()}>重试</button></p>}</div>;
@@ -1557,6 +1599,7 @@ export default function Home() {
   const [sharedThemeRole, setSharedThemeRole] = useState<"buyer" | "seller">("buyer");
   const sellerTheme = isSellerThemePage(page) || (sharedThemePages.includes(page) && sharedThemeRole === "seller");
   const buyerApiOrderList = useNavigationSnapshot<BuyerOrderListState>({ filter: "全部", query: "", searchOpen: false, scroll: 0 });
+  const sellerRevenueReturn = useRef<PageId>("seller");
   const [orderEntryFilter, setOrderEntryFilter] = useState("");
   const phoneRef = useRef<HTMLElement>(null);
   useAppCanvas(phoneRef);
@@ -1575,6 +1618,7 @@ export default function Home() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [statePreview, setStatePreview] = useState(false);
   const [entryReturnPages, setEntryReturnPages] = useState<Record<"rules" | "coupons" | "notifications" | "buyerSellerIdentity", PageId>>({ rules: "mine", coupons: "mine", notifications: "messages", buyerSellerIdentity: "mine" });
+  const identitySwitchReturn = useRef<PageId>("settings");
   const mineScroll = useNavigationSnapshot(0);
   const buyerOrderReturn = useRef<PageId>("home");
   const profileNavigationGuard = useRef<((next: () => void) => void) | null>(null);
@@ -1601,9 +1645,10 @@ export default function Home() {
   const [liveServices, setLiveServices] = useState<Service[]>([]);
   const [discoveryLoading, setDiscoveryLoading] = useState(true);
   const [discoveryError, setDiscoveryError] = useState("");
+  const [productCursor, setProductCursor] = useState<string | null>(null);
+  const moreProductsRequest = useRef(false);
   const [shopCursor, setShopCursor] = useState<string | null>(null);
   const [loadingMoreShops, setLoadingMoreShops] = useState(false);
-  const [moreShopsError, setMoreShopsError] = useState("");
   const discoveryGeneration = useRef(0);
   const moreShopsRequest = useRef(false);
   const publicProductCounts = useRef<Map<string, number> | null>(null);
@@ -1616,7 +1661,8 @@ export default function Home() {
   const publicChatReturn = useRef(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | number>();
   const [announcementReturn, setAnnouncementReturn] = useState<PageId>("notifications");
-  const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementKind>("reportTrade");
+  const [selectedAnnouncement, setSelectedAnnouncement] = useState<AnnouncementKind>("");
+  const [feedbackId, setFeedbackId] = useState<string | null>(null);
   useEffect(() => { void apiRequest<Viewer>("/me").then(setViewer).catch(() => setViewer(null)); }, []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -1636,9 +1682,11 @@ export default function Home() {
     if (next === "sellerMessages" || next === "sellerChat") setMessageRole("seller");
     else if (next === "messages" || next === "chat") setMessageRole("buyer");
     if (["chat", "sellerChat"].includes(next) && !["messages", "sellerMessages"].includes(page)) setSelectedConversation(null);
+    if (next === "sellerRevenue") sellerRevenueReturn.current = page === "sellerMine" ? "sellerMine" : "seller";
     if (next === "sellerOrders") { setSellerOrderFilter(""); setSellerTradeEntry("orders"); }
     if (next === "orders") { setOrderEntryFilter(""); buyerOrderReturn.current = page === "mine" ? "mine" : "home"; }
-    if (next === "auth" && ["mine", "buyerSellerIdentity"].includes(page)) storefrontLoginReturn.current = page;
+    if (next === "identitySwitch") identitySwitchReturn.current = page;
+    if (next === "auth" && ["mine", "buyerSellerIdentity", "identitySwitch"].includes(page)) storefrontLoginReturn.current = page;
     setCatalogPreview(null);
     if (next === "customerService") setSelectedSupportConversationId(null);
     if (next === "buyerSellerIdentity") {
@@ -1653,7 +1701,7 @@ export default function Home() {
   }, [page, sellerTheme]);
   const loadDiscovery = useCallback(async () => {
     const generation = ++discoveryGeneration.current;
-    setDiscoveryLoading(true); setDiscoveryError(""); setMoreShopsError(""); setLoadingMoreShops(false); moreShopsRequest.current = false;
+    setDiscoveryLoading(true); setDiscoveryError(""); setLoadingMoreShops(false); moreShopsRequest.current = false; moreProductsRequest.current = false;
     try {
       const [sellerRows, productRows] = await Promise.all([apiRequest<CursorResponse<SellerApiView>>("/companions?limit=50"), apiRequest<CursorResponse<ProductApiView>>("/services?limit=50")]);
       if (generation !== discoveryGeneration.current) return;
@@ -1662,24 +1710,36 @@ export default function Home() {
       for (const product of products) serviceCounts.set(String(product.sellerId), (serviceCounts.get(String(product.sellerId)) ?? 0) + 1);
       publicProductCounts.current = completePublicProductCounts(products, productRows.next_cursor);
       setLiveCompanions(sellerRows.items.map(row => ({ ...companionFromApi(row), services: serviceCounts.get(row.id) ?? 0, publicProductCount: publicProductCounts.current ? publicProductCounts.current.get(row.id) ?? 0 : undefined })));
-      setLiveServices(products); setShopCursor(sellerRows.next_cursor);
+      setLiveServices(products); setShopCursor(sellerRows.next_cursor); setProductCursor(productRows.next_cursor);
     } catch (cause) { if (generation === discoveryGeneration.current) setDiscoveryError(apiMessage(cause)); }
     finally { if (generation === discoveryGeneration.current) setDiscoveryLoading(false); }
   }, []);
   const loadMoreShops = async () => {
     if (!shopCursor || discoveryLoading || moreShopsRequest.current) return;
     const generation = discoveryGeneration.current;
-    moreShopsRequest.current = true; setLoadingMoreShops(true); setMoreShopsError("");
+    moreShopsRequest.current = true; setLoadingMoreShops(true);
     try {
       const result = await apiRequest<CursorResponse<SellerApiView>>(`/companions?limit=50&cursor=${encodeURIComponent(shopCursor)}`);
       if (generation !== discoveryGeneration.current) return;
       const incoming = result.items.map(row => ({ ...companionFromApi(row), publicProductCount: publicProductCounts.current ? publicProductCounts.current.get(row.id) ?? 0 : undefined }));
       setLiveCompanions(current => mergeHomeShopPages(current, incoming)); setShopCursor(result.next_cursor);
-    } catch (cause) { if (generation === discoveryGeneration.current) setMoreShopsError(apiMessage(cause)); }
+    } catch (cause) { throw new Error(apiMessage(cause)); }
     finally { if (generation === discoveryGeneration.current) { moreShopsRequest.current = false; setLoadingMoreShops(false); } }
   };
+  const loadMoreProducts = async () => {
+    if (!productCursor || discoveryLoading || moreProductsRequest.current) return;
+    const generation = discoveryGeneration.current;
+    moreProductsRequest.current = true;
+    try {
+      const result = await apiRequest<CursorResponse<ProductApiView>>(`/services?limit=50&cursor=${encodeURIComponent(productCursor)}`);
+      if (generation !== discoveryGeneration.current) return;
+      setLiveServices(current => mergeHomeShopPages(current, result.items.map(serviceFromApi)));
+      setProductCursor(result.next_cursor);
+    } catch (cause) { throw new Error(apiMessage(cause)); }
+    finally { if (generation === discoveryGeneration.current) moreProductsRequest.current = false; }
+  };
   useEffect(() => { void Promise.resolve().then(loadDiscovery); }, [loadDiscovery]);
-  useEffect(() => { if (!viewer) return; void Promise.all([loadCursorItems<ConversationApiView>("/conversations"), apiRequest<CursorResponse<NotificationApiView>>("/notifications?limit=50")]).then(([conversations]) => setUnreadCount(conversations.reduce((total, item) => total + item.unread_count, 0))).catch(() => setUnreadCount(0)); }, [viewer, page]);
+  useEffect(() => { if (!viewer) return; void Promise.all([loadCursorItems<ConversationApiView>("/conversations"), apiRequest<CursorResponse<NotificationApiView>>("/notifications?limit=50&include_feedback=true")]).then(([conversations]) => setUnreadCount(conversations.reduce((total, item) => total + item.unread_count, 0))).catch(() => setUnreadCount(0)); }, [viewer, page]);
   const notify = useCallback((message: string) => { if (toastTimer.current) clearTimeout(toastTimer.current); setToast(message); toastTimer.current = setTimeout(() => setToast(""), 2400); }, []);
   useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
   useEffect(() => {
@@ -1695,6 +1755,8 @@ export default function Home() {
     else if(item.related_type==='REFUND') {const row=await apiRequest<RefundApiView>(`/refunds/${id}`,{signal});if(!signal.aborted){setCurrentRefund(row);navigate('refundDetail')}}
     else if(item.related_type==='COMPLAINT') {const row=await apiRequest<ComplaintApiView>(`/complaints/${id}`,{signal});if(!signal.aborted){setCurrentComplaint(row);navigate('complaintDetail')}}
     else if(item.related_type==='CONVERSATION'){const row=await apiRequest<ConversationApiView>(`/conversations/${id}`,{signal});if(!signal.aborted){if(row.conversation_type==='SUPPORT'){setSelectedSupportConversationId(row.id);navigate('customerService')}else{setSelectedConversation(row);setCurrentOrder(null);setSelectedProduct(null);navigate(row.member_role==='SELLER'?'sellerChat':'chat')}}}
+    else if(item.related_type==='FEEDBACK') { await apiRequest(`/feedback/${id}`,{signal}); if(!signal.aborted){setFeedbackId(item.related_id);navigate('feedback')} }
+    else if(item.related_type==='ANNOUNCEMENT') { await apiRequest(`/announcements/${id}`,{signal}); if(!signal.aborted){setSelectedAnnouncement(item.related_id);setAnnouncementReturn('notifications');navigate('announcementDetail')} }
     else throw new Error("此类通知的详情接口尚未接通");
   };
   useEffect(()=>{
@@ -1724,7 +1786,7 @@ export default function Home() {
   const renderScreen = () => {
     if (chatDesignPreview && ["messages", "sellerMessages"].includes(page)) {
       const seller = page === "sellerMessages";
-      return <ChatDesignInbox seller={seller} onOpen={id => { setDesignChatId(id); setSelectedConversation(null); setPage(seller ? "sellerChat" : "chat"); }} nav={seller ? <SellerNav page="sellerMessages" go={navigateSeller} /> : <BuyerNav page="messages" go={navigate} unreadCount={unreadCount} />} />;
+      return <ChatDesignInbox seller={seller} onSupport={() => navigate("customerService")} onOpen={id => { setDesignChatId(id); setSelectedConversation(null); setPage(seller ? "sellerChat" : "chat"); }} nav={seller ? <SellerNav page="sellerMessages" go={navigateSeller} /> : <BuyerNav page="messages" go={navigate} unreadCount={unreadCount} />} />;
     }
     if (chatDesignPreview && !selectedConversation && ["chat", "sellerChat"].includes(page)) {
       return <ChatDesignPreview key={`${page}:${designChatId}`} threadId={designChatId} seller={page === "sellerChat"} onBack={() => navigate(page === "sellerChat" ? "sellerMessages" : "messages")} />;
@@ -1741,7 +1803,7 @@ export default function Home() {
         onShop={id => { const local = previewCompanions.find(c => c.id === id); if (local) openCompanion(local); else { storefrontReturn.current = page; setSelectedCompanionId(id); setPage("companion"); } }}
         onLegacy={() => { setLegacyOrders(true); navigate(role === "seller" ? "sellerOrders" : "orders"); }} />;
     }
-    if (localCatalogEnabled && ["seller", "sellerMine", "sellerServices", "sellerPublish", "sellerServiceEdit", "sellerEarnings"].includes(page)) {
+    if (localCatalogEnabled && ["seller", "sellerMine", "sellerServices", "sellerPublish", "sellerServiceEdit", "sellerEarnings", "sellerRevenue"].includes(page)) {
       return <SellerWorkbench key={`${page}:${sellerNavigationRevision}`} entry={page} merchant={merchantPreview} trade={tradeStore} registerNavigationGuard={registerProductNavigationGuard}
         nav={<SellerNav page={page} go={navigateSeller} />}
         go={target => {
@@ -1822,7 +1884,7 @@ export default function Home() {
       case "buyerProfile": return <BuyerProfileScreen go={navigate} />;
       case "favorites": return <FavoritesScreen go={navigate} onCompanionOpen={openCompanion} onServiceOpen={openService} />;
       case "coupons": return <CouponCenter back={() => navigate(entryReturnPages.coupons)} />;
-      case "feedback": return <FeedbackPage back={() => navigate("home")} />;
+      case "feedback": return <ConnectedFeedbackPage key={viewer?.id ?? "guest"} request={apiRequest} userId={viewer?.id} initialId={feedbackId} back={() => { setFeedbackId(null); navigate("home"); }} login={() => navigate("auth")} />;
       case "quickMatch": return <QuickMatchScreen go={navigate} companionItems={localCatalogEnabled ? previewCompanions : liveCompanions} onOpen={openCompanion} loading={!localCatalogEnabled && discoveryLoading} error={localCatalogEnabled ? "" : discoveryError} retry={() => void loadDiscovery()} />;
       case "editProfile": return <EditProfileScreen {...common} buyerMode={!sellerTheme} viewer={viewer} onUpdated={setViewer} />;
       case "privacySecurity": return <PrivacySecurityScreen {...common} viewer={viewer} />;
@@ -1831,6 +1893,7 @@ export default function Home() {
       case "dataExport": return <DataExportScreen {...common} />;
       case "accountCancellation": return <AccountCancellationScreen {...common} />;
       case "rules": return <RulesScreen go={navigate} backPage={entryReturnPages.rules} />;
+      case "identitySwitch": return <IdentitySwitchScreen key={`${viewer?.id ?? "guest"}:${sellerTheme}`} role={sellerTheme ? "seller" : "buyer"} preview={localCatalogEnabled} userId={viewer?.id} request={apiRequest} onBack={() => navigate(identitySwitchReturn.current)} onNavigate={target => navigate(target as PageId)} />;
       case "settings": return <SettingsScreen {...common} buyerViewer={sellerTheme ? undefined : viewer} onLoggedOut={() => { setViewer(null); setUnreadCount(0); }} />;
       case "transactionStates": return <TransactionStatesScreen go={navigate} />;
       case "globalStates": return <GlobalStatesScreen {...common} />;
@@ -1864,6 +1927,7 @@ export default function Home() {
       case "sellerOrderRefunded": return <SellerOrderDetailScreen {...common} state="refunded" order={currentOrder} onUpdated={setCurrentOrder} />;
       case "sellerRefund": return <SellerRefundScreen {...common} refund={currentRefund} onUpdated={setCurrentRefund} />;
       case "sellerMine": return <SellerMineScreen go={navigate} onPreview={() => void previewOwnProfile()} />;
+      case "sellerRevenue": return <SellerRevenueScreen go={navigate} back={() => navigate(sellerRevenueReturn.current)} />;
       case "sellerEarnings": return <SellerEarningsScreen go={navigate} />;
       case "incomeDetails": return <IncomeDetailsScreen go={navigate} />;
       case "withdraw": return <WithdrawScreen {...common} />;
@@ -1882,7 +1946,7 @@ export default function Home() {
         const now = Date.now();
         const samples = createSamples(now).filter(o => o.stage === "receipt" && (!o.sale || o.sale.status === "remedyReceipt"));
         tradeStore.setOrders(rows => [...rows, ...samples.filter(o => !rows.some(existing => existing.id.startsWith(`${o.id}-receipt-preview-`) && existing.stage === "receipt" && (!existing.sale || existing.sale.status === "remedyReceipt"))).map(o => ({ ...o, id: `${o.id}-receipt-preview-${now}`, buyer: "本地预览买家", sale: o.sale ? { ...o.sale, id: `${o.sale.id}-receipt-preview-${now}` } : undefined }))]);
-      }}>补充待收货预览订单</button>}{!sellerTheme && <button onClick={() => navigate("buyerTradeCheckout")}>预览下单流程</button>}{page.includes('Trade') || ['orders','sellerOrders'].includes(page) ? <button onClick={() => navigate(sellerTheme ? 'buyerTradeDetail' : 'sellerTradeDetail')}>{sellerTheme ? '切换到买家端预览' : '切换到卖家端预览'}</button> : null}</details>}{(tradeStore.storageError || merchantPreview.storageError) && <p role="alert" style={{position:'fixed',top:8,left:8,right:8,zIndex:10000,padding:12,background:'#fff0f0',color:'#9d2634'}}>{tradeStore.storageError || merchantPreview.storageError}</p>}<section ref={phoneRef} data-page-palette={sellerTheme ? "seller" : "buyer"} data-ui-refinement={UI_REFINEMENT.enabled ? "on" : "off"} data-ui-material={UI_REFINEMENT.material} className={`phone-shell user-motion${page === "sellerMessages" ? " page-messages" : page === "sellerChat" ? " page-chat" : ""}${["messages", "sellerMessages", "emptyMessages", "chat", "sellerChat", "chatStates", "customerService"].includes(page) ? "" : " user-theme"} page-${page}`} aria-label={`熊崽电竞 ${meta.title}预览`}><div className="home-retained" hidden={page !== "home"}><HomeScreen {...common} active={page === "home"} onAnnouncementOpen={(kind) => { setAnnouncementReturn("home"); setSelectedAnnouncement(kind); setPage("announcementDetail"); }} unreadCount={unreadCount} companionItems={liveCompanions} serviceItems={liveServices} onCompanionOpen={openCompanion} onServiceOpen={openService} loading={discoveryLoading} error={discoveryError} onRetry={() => void loadDiscovery()} hasMoreShops={Boolean(shopCursor)} loadingMoreShops={loadingMoreShops} moreShopsError={moreShopsError} onMoreShops={() => void loadMoreShops()} /></div>{page !== "home" ? catalogPreview ? <LocalCatalogPreview key={`${catalogPreview.kind}:${catalogPreview.id}`} entry={catalogPreview} onClose={() => navigate(storefrontReturn.current)} onContact={() => notify("这是展示商品，暂不支持联系真实店铺客服")} onCheckout={item => {
+      }}>补充待收货预览订单</button>}{!sellerTheme && <button onClick={() => navigate("buyerTradeCheckout")}>预览下单流程</button>}{page.includes('Trade') || ['orders','sellerOrders'].includes(page) ? <button onClick={() => navigate(sellerTheme ? 'buyerTradeDetail' : 'sellerTradeDetail')}>{sellerTheme ? '切换到买家端预览' : '切换到卖家端预览'}</button> : null}</details>}{(tradeStore.storageError || merchantPreview.storageError) && <p role="alert" style={{position:'fixed',top:8,left:8,right:8,zIndex:10000,padding:12,background:'#fff0f0',color:'#9d2634'}}>{tradeStore.storageError || merchantPreview.storageError}</p>}<section ref={phoneRef} data-page-palette={sellerTheme ? "seller" : "buyer"} data-ui-refinement={UI_REFINEMENT.enabled ? "on" : "off"} data-ui-material={UI_REFINEMENT.material} className={`phone-shell user-motion${page === "sellerMessages" ? " page-messages" : page === "sellerChat" ? " page-chat" : ""}${["messages", "sellerMessages", "emptyMessages", "chat", "sellerChat", "chatStates", "customerService"].includes(page) ? "" : " user-theme"} page-${page}`} aria-label={`熊崽电竞 ${meta.title}预览`}><div className="home-retained" hidden={page !== "home"}><HomeScreen {...common} active={page === "home"} onAnnouncementOpen={(kind) => { setAnnouncementReturn("home"); setSelectedAnnouncement(kind); setPage("announcementDetail"); }} unreadCount={unreadCount} companionItems={liveCompanions} serviceItems={liveServices} onCompanionOpen={openCompanion} onServiceOpen={openService} loading={discoveryLoading} error={discoveryError} onRetry={() => void loadDiscovery()} hasMoreShops={Boolean(shopCursor)} loadingMoreShops={loadingMoreShops} onMoreShops={loadMoreShops} hasMoreProducts={Boolean(productCursor)} onMoreProducts={loadMoreProducts} /></div>{page !== "home" ? catalogPreview ? <LocalCatalogPreview key={`${catalogPreview.kind}:${catalogPreview.id}`} entry={catalogPreview} onClose={() => navigate(storefrontReturn.current)} onContact={() => notify("这是展示商品，暂不支持联系真实店铺客服")} onCheckout={item => {
           const now = Date.now();
           const newOrder = { ...createSamples(now)[7], id: `XZ31P${now}`, title: item.title, cover: item.cover, seller: item.seller, sellerId: item.sellerId, spec: item.spec, amount: item.amount, quantity: item.quantity, unitPrice: item.unitPrice, productId: item.productId, skuId: item.skuId, promiseHours: item.promiseHours, requiredFields: [], buyer: "本地预览买家", buyerId: "local-preview-buyer", ruleVersion: "V3.1", stage: "unpaid" as const, sale: undefined, refunded: 0, caseCount: 0, evidence: [], extensionUsed: false, paidAt: 0, promiseAt: 0, confirmAt: undefined, review: undefined, specialAppeal: undefined, specialEvidence: undefined, terminatedAt: undefined, reviewed: false, logs: [{ title: "确认商品规格", detail: "本地设计预览", at: now }] };
           tradeStore.setOrders(rows => [...rows, newOrder]); tradeStore.setSelected(newOrder.id); navigate("buyerTradeCheckout");

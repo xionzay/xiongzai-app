@@ -1,5 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import type { ProductGame } from "@xiongzai/contracts/commerce";
 import { apiClient } from "@/auth/runtime";
+import { catalogPath, type CatalogKind, type CatalogSort } from "./home-domain";
 import type { CompanionApiView, CursorPage, ServiceApiView } from "@/types/api";
 
 export interface HomeCatalog {
@@ -7,16 +9,12 @@ export interface HomeCatalog {
   services: ServiceApiView[];
 }
 
-export function useHomeCatalog() {
-  return useQuery({
-    queryKey: ["home", "catalog"],
+export function useCatalog<T extends CompanionApiView | ServiceApiView>(kind: CatalogKind, sort: CatalogSort = "comprehensive", game: ProductGame | "ALL" = "ALL") {
+  return useInfiniteQuery({
+    queryKey: ["home", "catalog", kind, sort, game],
     meta: { sessionIndependent: true },
-    queryFn: async (): Promise<HomeCatalog> => {
-      const [companions, services] = await Promise.all([
-        apiClient.publicRequest<CursorPage<CompanionApiView>>("/companions?limit=20"),
-        apiClient.publicRequest<CursorPage<ServiceApiView>>("/services?limit=20")
-      ]);
-      return { companions: companions.items, services: services.items };
-    }
+    initialPageParam: "",
+    queryFn: ({ pageParam, signal }) => apiClient.publicRequest<CursorPage<T>>(catalogPath(kind, sort, game, pageParam), { signal }),
+    getNextPageParam: page => page.next_cursor ?? undefined
   });
 }

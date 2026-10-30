@@ -13,7 +13,7 @@ import { acceptPolicies, submitIdentity, useIdentity, usePolicies } from "@/feat
 import { identityFormSchema, type IdentityFormValues } from "@/features/account/account-domain";
 import { allPoliciesConfirmed } from "@/features/account/policy-confirmation-domain";
 import { PolicyConfirmationList } from "@/features/account/policy-confirmation-list";
-import { colors, radii, spacing, typography } from "@/theme/tokens";
+import { colors, spacing, typography } from "@/theme/tokens";
 
 const statusCopy = { PENDING: "测试审核中", VERIFIED: "测试已通过", REJECTED: "测试未通过", EXPIRED: "测试已过期", REVOKED: "测试已撤销" } as const;
 
@@ -49,4 +49,4 @@ export function IdentityScreen() {
 }
 
 function Info({ label, value }: { label: string; value: string }) { return <View style={styles.info}><Text style={styles.meta}>{label}</Text><Text style={styles.value}>{value}</Text></View>; }
-const styles = StyleSheet.create({ content: { gap: spacing.md }, state: { minHeight: 220, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, card: { gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: radii.lg, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, title: { ...typography.sectionTitle, color: colors.text }, info: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md }, meta: { ...typography.caption, color: colors.textSecondary }, value: { ...typography.body, color: colors.text, flex: 1, textAlign: "right" } });
+const styles = StyleSheet.create({ content: { gap: spacing.md }, state: { minHeight: 220, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, card: { gap: spacing.md, padding: spacing.lg, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 }, title: { ...typography.sectionTitle, color: colors.text }, info: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md }, meta: { ...typography.caption, color: colors.textSecondary }, value: { ...typography.body, color: colors.text, flex: 1, textAlign: "right" } });

@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { useState } from "react";
 import { ChevronRightIcon } from "@/components/ui-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -87,7 +88,7 @@ export function FavoritesScreen() {
               {visible.map((item) => (
                 <Pressable key={item.favorite.id} accessibilityRole="button" accessibilityLabel={`${item.title}，${item.subtitle}`} onPress={() => router.push(item.href)} style={({ pressed }) => [styles.item, pressed && styles.pressed]}>
                   <FileImage fileId={item.imageFileId} resizeMode="cover" style={styles.image} label={`${item.title}图片`} />
-                  <View style={styles.itemCopy}><Text style={styles.title}>{item.title}</Text><Text style={styles.subtitle}>{item.subtitle}</Text></View>
+                  <View style={styles.itemCopy}><Text style={styles.title}>{item.title}</Text><Text style={styles.subtitle}>{item.subtitle.split("★")[0]}<JellyIcon kind="star" />{item.subtitle.split("★")[1]}</Text></View>
                   <ChevronRightIcon size={20} />
                 </Pressable>
               ))}
@@ -110,9 +111,9 @@ function FavoriteTab({ label, selected, onPress }: { label: string; selected: bo
 
 const styles = StyleSheet.create({
   content: { gap: 13 },
-  tabs: { flexDirection: "row", gap: 6, padding: 5, borderWidth: 1, borderColor: "rgba(62,57,47,0.08)", borderRadius: 999, backgroundColor: "rgba(255,253,248,0.84)" },
+  tabs: { flexDirection: "row", gap: 6, padding: 5, backgroundColor: "transparent", borderRadius: 0, borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, height: undefined, minHeight: 48 },
   tab: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: 999 },
-  tabActive: { backgroundColor: colors.brand },
+  tabActive: { backgroundColor: "transparent", borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.brandDeep, shadowOpacity: 0, elevation: 0 },
   tabText: { color: colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: "800" },
   tabTextActive: { color: colors.white },
   list: { overflow: "hidden", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
@@ -122,7 +123,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "900" },
   subtitle: { marginTop: 5, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
   arrow: { color: colors.textSecondary, fontSize: 26 },
-  stateCard: { minHeight: 220, justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  stateCard: { minHeight: 220, justifyContent: "center", ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   warning: { padding: 13, borderWidth: 1, borderColor: "rgba(229,72,77,0.20)", borderRadius: 14, backgroundColor: "rgba(255,240,232,0.96)" },
   warningText: { color: colors.danger, fontSize: 12, lineHeight: 16 },
   pressed: { opacity: 0.72 }

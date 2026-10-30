@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { canEnterSellerCenter, canSubmitSellerService, centToYuanInput, isSellerIdentityForUser, missingSellerApplicationFields, sellerBuyerCacheKeys, sellerEntry, sellerProfileSchema, sellerServiceActions, sellerServiceSchema, sellerSkuSchema, shouldReloadSellerAfterConflict, yuanToCent } from "../src/features/seller/seller-domain";
+import { canEnterSellerCenter, canSubmitSellerService, centToYuanInput, isSellerIdentityForUser, missingSellerApplicationFields, sellerBuyerCacheKeys, sellerEntry, sellerProfileSchema, sellerProfileTextPayload, sellerServiceActions, sellerServiceSchema, sellerSkuSchema, shouldReloadSellerAfterConflict, yuanToCent } from "../src/features/seller/seller-domain";
 import type { SellerProfileApiView } from "../src/types/api";
 
 const sellerStatusScreenSource = readFileSync(fileURLToPath(new URL("../src/features/seller/seller-status-screen.tsx", import.meta.url).href), "utf8");
@@ -43,8 +43,19 @@ test("SellerStatus 与申请状态映射覆盖申请、补资料、拒绝、通�
 test("陪玩申请资料不完整时阻止提交，媒体缺失不生成假 file_id", () => {
   assert.deepEqual(missingSellerApplicationFields(completeSeller), []);
   const incomplete = { ...completeSeller, seller_avatar_file_id: null, voice_file_id: null, voice_duration_ms: null };
-  assert.deepEqual(missingSellerApplicationFields(incomplete), ["陪玩头像", "声音名片", "声音时长"]);
+  assert.deepEqual(missingSellerApplicationFields(incomplete), ["陪玩头像"]);
   assert.equal(sellerProfileSchema.safeParse({ sellerNickname: "熊", introduction: "短", gameRank: "", kd: "x", preferredMode: "", playStyle: "", gameExperience: "" }).success, false);
+});
+
+test("入驻草稿允许缺资料，提交要求与后端一致，可选字段归一为空值", () => {
+  const values = { sellerNickname: "本地测试店铺", introduction: "", gameRank: "", kd: "", preferredMode: "", playStyle: "", gameExperience: "" };
+  assert.equal(sellerProfileSchema.safeParse(values).success, true);
+  assert.deepEqual(sellerProfileTextPayload(values), { seller_nickname: "本地测试店铺", introduction: null, game_rank: null, kd: null, preferred_mode: null, play_style: null, game_experience: null });
+  const minimum = { ...completeSeller, game_rank:null, kd:null, play_style:null, game_experience:null, voice_file_id:null, voice_duration_ms:null };
+  assert.deepEqual(missingSellerApplicationFields(minimum), []);
+  assert.deepEqual(missingSellerApplicationFields({...minimum,introduction:"  ",preferred_mode:""}), ["主页介绍","擅长模式"]);
+  assert.equal(sellerProfileSchema.safeParse({...values,kd:"invalid"}).success, false);
+  assert.equal(sellerProfileSchema.safeParse({...values,gameExperience:"a".repeat(501)}).success, false);
 });
 
 test("陪玩资料和接单状态的 CAS 冲突必须重新读取服务端版本", () => {
@@ -98,20 +109,32 @@ test("发布服务真实上传主图并绑定 file_id，规格数量与设计稿
 });
 
 test("陪玩中心主页面结构与本地设计稿一致", () => {
-  assert.match(sellerServicesSource, /flexWrap: "wrap"/u);
-  assert.match(sellerServicesSource, /＋ 发布服务/u);
-  assert.match(sellerOrdersSource, /\[\s*\{ label: "新订单"/u);
-  assert.doesNotMatch(sellerOrdersSource, /label: "全部"|label: "已关闭"/u);
-  assert.match(sellerOrdersSource, /还没有购买订单/u);
-  assert.match(sellerEarningsSource, /useState<Range>\("本周"\)/u);
-  assert.match(sellerEarningsSource, /accessibilityLabel="提现记录"/u);
+  assert.match(sellerServicesSource, /<ScrollView horizontal/u);
+  assert.match(sellerServicesSource, /productTabs\.map/u);
+  assert.match(sellerServicesSource, /<FlatList/u);
+  assert.match(sellerServicesSource, /accessibilityLabel="发布服务"/u);
+  assert.match(sellerServicesSource, /router\.push\("\/seller\/services\/new"\)/u);
+  assert.match(sellerServicesSource, /<ApprovedIllustration kind="plus"/u);
+  assert.match(sellerOrdersSource, /label: "待服务", value: "PENDING_SERVICE"/u);
+  assert.match(sellerOrdersSource, /label: "新订单", value: "PENDING_ACCEPT"/u);
+  assert.match(sellerOrdersSource, /label: "待收货", value: "PENDING_BUYER_CONFIRM"/u);
+  assert.match(sellerOrdersSource, /label: "全部"/u);
+  assert.match(sellerOrdersSource, /还没有收到订单/u);
+  assert.match(sellerOrdersSource, /当前分类暂无订单/u);
+  assert.doesNotMatch(sellerOrdersSource, /去看看服务|还没有购买订单/u);
+  assert.match(sellerEarningsSource, /useState<RevenueRange>\('本月'\)/u);
+  for (const label of ['净收益（元）', '订单收入', '平台服务费', '退款扣减', '收益订单', '服务买家', '平均单笔收益']) assert.ok(sellerEarningsSource.includes(label));
+  assert.ok(sellerEarningsSource.includes("href: '/seller/finance'"));
+  assert.doesNotMatch(sellerEarningsSource, /router\.push\(["']\/seller\/finance\/withdraw["']\)/u);
 });
 
 test("收益累计日期使用可展开日历并限制有效区间，不再要求手工输入", () => {
   assert.match(sellerEarningsSource, /DateField label="开始日期"/u);
   assert.match(sellerEarningsSource, /DateField label="结束日期"/u);
-  assert.match(sellerEarningsSource, /minimumDate=\{datePicker === "end" \? effectiveStart : undefined\}/u);
-  assert.match(sellerEarningsSource, /maximumDate=\{datePicker === "start" \? customEnd : dateInputValue\(new Date\(\)\)\}/u);
+  assert.match(sellerEarningsSource, /minimumDate=\{datePicker === 'end' \? customStart : undefined\}/u);
+  assert.match(sellerEarningsSource, /maximumDate=\{datePicker === 'start' \? customEnd : chinaDate\(now.getTime\(\)\)\}/u);
+  assert.ok(sellerEarningsSource.includes("range === '自定义'"));
+  assert.ok(sellerEarningsSource.includes('revenueBounds(range, customStart, customEnd, now)'));
   assert.doesNotMatch(sellerEarningsSource, /cleanDateInput|keyboardType="numbers-and-punctuation"/u);
   assert.match(calendarDatePickerSource, /<Modal visible=\{visible\}/u);
   assert.match(calendarDatePickerSource, /accessibilityLabel="上个月"/u);

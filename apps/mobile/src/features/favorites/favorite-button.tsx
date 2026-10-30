@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { useEffect } from "react";
 import { router } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
@@ -33,7 +34,7 @@ export function FavoriteButton({ type, id, returnTo, onError, appearance = "defa
 
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={active ? "取消收藏" : "收藏"} accessibilityState={{ selected: active, busy: mutation.isPending }} disabled={mutation.isPending} onPress={toggle} style={[styles.button, appearance === "companion-action" && styles.companionAction, appearance === "service-action" && styles.serviceAction, active && appearance === "default" && styles.active]}>
-      {appearance === "companion-action" ? <><FavoriteActionIcon selected={active} size={34} /><Text style={styles.companionLabel}>收藏陪玩</Text></> : appearance === "service-action" ? <><FavoriteActionIcon selected={active} size={32} /><Text style={styles.serviceLabel}>收藏服务</Text></> : <Text style={[styles.label, active && styles.activeLabel]}>{active ? "♥ 已收藏" : "♡ 收藏"}</Text>}
+      {appearance === "companion-action" ? <><FavoriteActionIcon selected={active} size={34} /><Text style={styles.companionLabel}>收藏陪玩</Text></> : appearance === "service-action" ? <><FavoriteActionIcon selected={active} size={32} /><Text style={styles.serviceLabel}>收藏服务</Text></> : <Text style={[styles.label, active && styles.activeLabel]}><JellyIcon kind={active ? "heartFilled" : "heartOutline"} />{active ? " 已收藏" : " 收藏"}</Text>}
     </Pressable>
   );
 }

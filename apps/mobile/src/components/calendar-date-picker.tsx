@@ -1,3 +1,4 @@
+import { JellyIcon } from "./jelly-icon";
 import { useMemo, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -38,12 +39,12 @@ export function CalendarDatePicker({ visible, title, value, minimumDate, maximum
               <Text style={styles.eyebrow}>选择日期</Text>
               <Text style={styles.title}>{title}</Text>
             </View>
-            <Pressable accessibilityRole="button" accessibilityLabel="关闭" onPress={onClose} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}><Text style={styles.closeText}>×</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="关闭" onPress={onClose} style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}><Text style={styles.closeText}><JellyIcon kind="close" label="关闭" /></Text></Pressable>
           </View>
           <View style={styles.monthHeader}>
-            <Pressable accessibilityRole="button" accessibilityLabel="上个月" disabled={previousDisabled} onPress={() => setVisibleMonth(previousMonth)} style={({ pressed }) => [styles.monthButton, previousDisabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.monthArrow}>‹</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="上个月" disabled={previousDisabled} onPress={() => setVisibleMonth(previousMonth)} style={({ pressed }) => [styles.monthButton, previousDisabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.monthArrow}><JellyIcon kind="back" label="返回" /></Text></Pressable>
             <Text accessibilityRole="header" style={styles.monthTitle}>{visibleMonth.getFullYear()}年 {visibleMonth.getMonth() + 1}月</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="下个月" disabled={nextDisabled} onPress={() => setVisibleMonth(nextMonth)} style={({ pressed }) => [styles.monthButton, nextDisabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.monthArrow}>›</Text></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel="下个月" disabled={nextDisabled} onPress={() => setVisibleMonth(nextMonth)} style={({ pressed }) => [styles.monthButton, nextDisabled && styles.disabled, pressed && styles.pressed]}><Text style={styles.monthArrow}><JellyIcon kind="back" right label="打开" /></Text></Pressable>
           </View>
           <View style={styles.weekRow}>{weekLabels.map((label) => <Text key={label} style={styles.weekLabel}>{label}</Text>)}</View>
           <View style={styles.calendarGrid}>

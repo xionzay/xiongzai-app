@@ -2,6 +2,26 @@
 
 更新日期：2026-08-22。本文档只定义开发和预发布流程，不授权创建付费账号、生产数据库/密钥或上传应用市场。
 
+2026-10-13 补充：本轮工程验证及当前边界以 [最终收尾报告](../../../docs/frontend-final-2026-10-12/验收报告.md) 为准。新店铺/商品订单与历史预约订单并存，不用历史验收清单替代 V3.7 设备级复核。手机号换绑、个人数据下载和注销保持“暂未开放”。
+
+2026-10-17：Android 已取得专用驱动授权并完成部分真实本地交易、聊天与退款申请验证，最新证据和 verified 开发包见 [设备记录](../../../docs/frontend-final-2026-10-12/设备续验-2026-10-17.md)。开发包需要 Metro；iOS zip 仅供模拟器，不是实体 IPA。共享测试环境缺少完整 Worker/Scheduler 时不要把旧订单停留状态当成客户端可以自行修正，也不要直接启动批处理推进其他任务记录；应先使用隔离环境或取得明确批准。声音名片仅验证了入口与 Android 麦克风拒绝，完整录制、人工审核和试听仍需后续验收。
+
+买家和陪玩 Tab 已按真实手势 inset 与动态字体高度排版；每次系统字体/尺寸探测先记原值并最终恢复。1.3 倍字体变化可能重建 Android Activity、返回首页，不能将首页截图冒充原页面和全部 Tab 的大字体验收。
+
+## 2026-10-17 独立 Android 咨询/客服复验
+
+设备上新增“熊崽电竞隔离验收”（`com.xiongzai.esports.acceptance`），保留原 App。专用 API 3302、提交后超时代理 3303、只读核对/清理 3304、Metro 8088 均只回环监听。它使用本机测试库的随机 Schema，只有合成聊天账号/商品，不是完整媒体或支付预发布环境。实际复验和最新 Web 收尾见 [最新隔离记录](../../../docs/frontend-final-2026-10-12/后端幂等与隔离验收-2026-10-17.md)。Web 既有 10 项失败、2 个 lint 错误已关闭；当前构建及 370/370 通过，lint 0 错误/69 警告；Mobile 再跑类型/lint、270/270 通过。浏览器本地示例的验收不替代原生全流程。
+
+模拟器只有 `test` 环境的显式本机地址可使用非共享端口；旧局域网地址仍回退各平台默认桥接。专用 Metro 设置 `EXPO_NO_DOTENV=1` 和 `EXPO_PUBLIC_*` 测试值；`metro.config.cjs` 同时阻止 SDK 57 开发虚拟模块再次导入 `.env.local` 覆盖命令行，默认开发不受该选项影响。不要修改用户 `.env.local` 来临时切环境，也不要把“命令行打印了新地址”当成 Bundle 已实际切换的证据。
+
+测试工具在忽略目录 `.local/isolated-device-2026-10-17/`，随源码保持但不是业务发布入口；清理只能操作该工具生成的随机 Schema 和专用端口，不能清开发库、原 App、9000 映射或共享进程。完整停止方式和独立开发包校验值见上述记录。
+
+## 2026-10-17 隔离补验注意事项
+
+商品咨询复用与客服首条创建幂等已获授权修复，详见 [隔离回归报告](../../../docs/frontend-final-2026-10-12/后端幂等与隔离验收-2026-10-17.md)。编译 dist 不会更新已运行 API；不要直接重启共享服务或启动共享 Worker/Scheduler推进其他任务订单。设备复测应连接专用隔离 API 与账号。新工单调用必须携带稳定 `client_message_id`，正文或关联对象改变为新意图；不能假定兼容旧无编号请求也具备幂等。
+
+本地 Mock Bundle 导出明确设置 `EXPO_PUBLIC_APP_ENV=test EXPO_PUBLIC_ENABLE_MOCK_PAYMENT=true`，保持生产 Mock/HTTP 禁止。Doctor 使用项目已有 CocoaPods 时，需设置 `.local/cocoapods-arm64/gems` 为 GEM_HOME/GEM_PATH，并预载 logger 和既有 `ruby26_compat.rb`；这是本机运行环境，不需关闭 Doctor 检查或修改 SDK。本轮 JS Bundle 不替代 Development Build 或实体机验收。
+
 ## 1. 本地开发
 
 1. 复制 `apps/mobile/.env.example` 为不纳入 Git 的 `.env.local`。
@@ -14,7 +34,31 @@ API 地址：
 - iOS Simulator：`http://127.0.0.1:3002/api/v1`
 - Android Emulator：`http://10.0.2.2:3002/api/v1`
 - 真机：`http://<开发电脑局域网 IP>:3002/api/v1`，手机与电脑必须在同一隔离测试网络，防火墙只放行必要端口。
+
+### Android 真机的显式 USB 隔离连接（2026-10-25）
+
+不希望开放局域网时，可对独立测试 App 使用 ADB reverse。只有 `EXPO_PUBLIC_APP_ENV=test`、Android 实体设备、`EXPO_PUBLIC_ANDROID_USB_REVERSE=true` 同时成立，才接受显式的 `http://127.0.0.1:<独立端口>/api/v1`。端口需 >=1024 且不能是共享开发端口 3002；不允许 localhost、模拟器桥接地址、URL 凭据/查询串/fragment 或生产环境。未设置开关时原有真机限制不变。
+
+本轮独立 API 代理 3303、MinIO 9000、真机专用 Metro 8089 均通过 USB 映射，服务保持本机监听。必须先核对目标设备和后端 test/mock 模式；端口号本身不能证明数据隔离。不要自动回退共享 API，不要用该选项连接生产。断开 USB 后连接不可用属于预期，不应切换其他后端。
+
+Metro 使用 `EXPO_NO_DOTENV=1`、`EXPO_PUBLIC_API_BASE_URL=http://127.0.0.1:3303/api/v1` 和上述 test/USB 开关；USB 开关参与 Metro 缓存隔离。此配置只用于真机专用 Metro，不能复用于 iOS/模拟器。安装独立 acceptance 包名，不覆盖个人/正式 App。只移除本次增加的 reverse 规则，不执行 remove-all 或重置全局 ADB。
 - 预发布/生产：必须为 `https://`；生产构建在配置阶段会拒绝 HTTP。
+
+### Android 模拟器访问本地 MinIO
+
+仅在本地开发/隔离测试、指定模拟器连接时使用。API 地址中的 `10.0.2.2` 能访问开发电脑，但服务端返回的签名图片/声音地址若为 `http://127.0.0.1:9000`，Android 会将它解释为模拟器自身。
+
+先确认当前设备和已有映射；若已有同端口但不同目标的映射，不要直接覆盖。将 Android SDK platform-tools 加入 PATH 后执行：
+
+```bash
+adb devices -l
+adb -s emulator-5554 reverse --list
+adb -s emulator-5554 reverse tcp:9000 tcp:9000
+```
+
+配置后重新启动本测试 App。签名 URL 的 Host、路径、查询字符串保持原样；不要用客户端替换域名、公开 Bucket 或假图片“修复”。映射只作用于指定开发设备，重连后需复核；撤回本条映射时使用 `adb -s emulator-5554 reverse --remove tcp:9000`，不要清空其他映射或重置全局 ADB。
+
+本例端口对应当前电脑 MinIO；配置不同时应先只读核对实际签名地址的 origin，不输出完整签名查询串。实体手机应按受控局域网/预发布媒体方案配置，不能照抄模拟器 loopback。2026-10-17 已实际验证，见 [Android 设备记录](../../../docs/frontend-final-2026-10-12/设备续验-2026-10-17.md)。
 
 ## 2. iOS 与 Android 运行
 
@@ -23,7 +67,7 @@ pnpm mobile:ios
 pnpm mobile:android
 ```
 
-若原生目录尚未生成，先执行 `pnpm --filter @xiongzai/mobile prebuild`。预发布验收必须记录：OS 版本、设备型号、App 构建号、API 环境、执行人和时间。仅 Expo Bundle 导出成功不等于 Xcode/Gradle 原生编译、签名或真机验收成功。
+若原生目录尚未生成，才执行 `pnpm --filter @xiongzai/mobile prebuild`。已有原生工程务必先单独完整备份：Expo 非交互模式即使不带 `--clean`，也可能自动清理被判定为异常的原生目录。预发布验收必须记录：OS 版本、设备型号、App 构建号、API 环境、执行人和时间。仅 Expo Bundle 导出成功不等于 Xcode/Gradle 原生编译、签名或真机验收成功。
 
 ## 3. 环境变量和应用标识
 

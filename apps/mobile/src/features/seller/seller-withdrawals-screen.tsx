@@ -79,13 +79,13 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#DEF0FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   content: { gap: 13 },
   list: { gap: 12, paddingHorizontal: 12, paddingBottom: 24 },
   headerAction: { minHeight: 44, justifyContent: "center", paddingHorizontal: 13, borderRadius: 11, backgroundColor: colors.brand },
   headerActionText: { color: colors.white, fontSize: 12, lineHeight: 16, fontWeight: "900" },
   state: { minHeight: 230, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
-  card: { gap: 8, padding: 15, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  card: { gap: 8, padding: 15, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   row: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
   title: { color: colors.text, fontSize: 17, lineHeight: 22, fontWeight: "900" },
   status: { color: colors.brandDeep, fontSize: 12, lineHeight: 16, fontWeight: "900" },

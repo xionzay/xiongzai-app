@@ -1,7 +1,9 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
-  const appEnvironment = parseAppEnvironment(process.env.EXPO_PUBLIC_APP_ENV);
+  const configuredEnvironment = parseAppEnvironment(process.env.EXPO_PUBLIC_APP_ENV);
+  const releaseBuild = process.env.NODE_ENV === "production" || process.env.EAS_BUILD_PROFILE === "production";
+  const appEnvironment = releaseBuild && configuredEnvironment !== "test" ? "production" : configuredEnvironment;
   const mockPaymentRequested = process.env.EXPO_PUBLIC_ENABLE_MOCK_PAYMENT === "true";
   if (appEnvironment === "production" && mockPaymentRequested) throw new Error("生产构建禁止启用 Mock Payment Provider");
   const enableMockPayment = appEnvironment !== "production" && mockPaymentRequested;
@@ -19,6 +21,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     slug: "xiongzai-esports",
     scheme: "xiongzai",
     version: "0.1.0",
+    platforms: ["ios", "android"],
     orientation: "portrait",
     userInterfaceStyle: "light",
     icon: "./assets/xiongzai-icon.png",
@@ -31,7 +34,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       supportsTablet: false,
       bundleIdentifier: iosBundleIdentifier,
       infoPlist: {
-        NSAppTransportSecurity: resolveIosTransportSecurity(appEnvironment)
+        NSAppTransportSecurity: resolveIosTransportSecurity(appEnvironment),
+        ...(appEnvironment !== "production" ? { NSLocalNetworkUsageDescription: "本地测试时连接开发电脑的 API 和受控媒体服务。" } : {})
       }
     },
     android: {
@@ -44,6 +48,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       "expo-router",
+      "expo-asset",
+      "expo-system-ui",
       [
         "expo-splash-screen",
         {
@@ -53,18 +59,19 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         }
       ],
       ["expo-secure-store", { "configureAndroidBackup": true }],
+      ["expo-video", { supportsBackgroundPlayback: false, supportsPictureInPicture: false }],
       [
         "expo-image-picker",
         {
-          photosPermission: "用于选择头像；图片只会在您确认后处理。",
+          photosPermission: "用于选择头像、服务图片、凭证和聊天图片；图片只会在您确认后上传。",
           cameraPermission: "用于拍摄头像；图片只会在您确认后处理。",
-          microphonePermission: "用于录制 10–30 秒声音名片；录音仅在您确认后上传并进入审核。"
+          microphonePermission: "用于录制 10–30 秒声音名片或 1–60 秒聊天语音；录音仅在您确认后上传并进入审核，不用于实时通话。"
         }
       ],
       [
         "expo-audio",
         {
-          microphonePermission: "用于录制 10–30 秒声音名片；录音仅在您确认后上传并进入审核。",
+          microphonePermission: "用于录制 10–30 秒声音名片或 1–60 秒聊天语音；录音仅在您确认后上传并进入审核，不用于实时通话。",
           recordAudioAndroid: true,
           enableBackgroundRecording: false,
           enableBackgroundPlayback: false

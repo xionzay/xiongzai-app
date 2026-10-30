@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -18,15 +20,7 @@ import { colors } from "@/theme/tokens";
 const reviewTags = ["技术靠谱", "准时接单", "沟通舒服", "耐心教学"] as const;
 const ratingLabels = ["很差", "较差", "一般", "满意", "非常满意"] as const;
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function ReviewCreateScreen() {
   const { orderId = "" } = useLocalSearchParams<{ orderId: string }>();
@@ -88,12 +82,12 @@ export function ReviewCreateScreen() {
 
           <View style={styles.serviceCard}>
             <FileImage fileId={current.product_image || null} style={styles.serviceImage} label={`${current.product_title}图片`} />
-            <View style={styles.serviceCopy}><Text style={styles.serviceTitle} numberOfLines={2}>{current.product_title}</Text><Text style={styles.serviceMeta}>陪玩：{current.seller_name}</Text><Text style={styles.serviceMeta}>{current.sku_name} · 约 {current.sku_duration_minutes * current.quantity} 分钟</Text></View>
+            <View style={styles.serviceCopy}><Text style={styles.serviceTitle} numberOfLines={2}>{current.product_title}</Text><Text style={styles.serviceMeta}>陪玩：{current.seller_name}</Text><Text style={styles.serviceMeta}>{current.sku_name} · {current.sku_duration_minutes == null ? "按完成时限交付" : `约 ${current.sku_duration_minutes * current.quantity} 分钟`}</Text></View>
           </View>
 
           <View style={styles.ratingCard}>
             <Text style={styles.ratingTitle}>本次服务体验如何？</Text>
-            <View accessibilityRole="radiogroup" style={styles.stars}>{[1, 2, 3, 4, 5].map((star) => { const active = star <= rating; return <Pressable key={star} accessibilityRole="radio" accessibilityLabel={`${star}星`} accessibilityState={{ checked: rating === star }} disabled={!allowed || busy} onPress={() => setRating(star)} style={styles.starButton}><Text style={[styles.star, active && styles.starActive]}>{active ? "★" : "☆"}</Text></Pressable>; })}</View>
+            <View accessibilityRole="radiogroup" style={styles.stars}>{[1, 2, 3, 4, 5].map((star) => { const active = star <= rating; return <Pressable key={star} accessibilityRole="radio" accessibilityLabel={`${star}星`} accessibilityState={{ checked: rating === star }} disabled={!allowed || busy} onPress={() => setRating(star)} style={styles.starButton}><JellyIcon kind={active ? "star" : "outline"} size={43} /></Pressable>; })}</View>
             <Text style={styles.ratingLabel}>{rating ? ratingLabels[rating - 1] : "请选择评分"}</Text>
           </View>
 
@@ -106,7 +100,7 @@ export function ReviewCreateScreen() {
 
             <View style={styles.tags}>{reviewTags.map((tag) => { const selected = content.includes(tag); return <Pressable key={tag} accessibilityRole="button" accessibilityState={{ selected }} disabled={!allowed || busy || selected} onPress={() => addTag(tag)} style={[styles.tag, selected && styles.tagSelected]}><Text style={[styles.tagText, selected && styles.tagTextSelected]}>{selected ? "✓ " : ""}{tag}</Text></Pressable>; })}</View>
 
-            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: anonymous }} disabled={!allowed || busy} onPress={() => setAnonymous((value) => !value)} style={styles.anonymousRow}><View style={[styles.checkbox, anonymous && styles.checkboxChecked]}><Text style={styles.checkmark}>{anonymous ? "✓" : ""}</Text></View><View style={styles.anonymousCopy}><Text style={styles.anonymousTitle}>匿名展示评价</Text><Text style={styles.anonymousNote}>公开时显示“匿名玩家”</Text></View></Pressable>
+            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: anonymous }} disabled={!allowed || busy} onPress={() => setAnonymous((value) => !value)} style={styles.anonymousRow}><View style={[styles.checkbox, anonymous && styles.checkboxChecked]}><Text style={styles.checkmark}>{anonymous ? <JellyIcon kind="check" label="已选" /> : ""}</Text></View><View style={styles.anonymousCopy}><Text style={styles.anonymousTitle}>匿名展示评价</Text><Text style={styles.anonymousNote}>公开时显示“匿名玩家”</Text></View></Pressable>
           </View>
 
           <View style={styles.ruleCard}><Text style={styles.ruleTitle}>评价规则</Text><Text style={styles.ruleText}>每个订单只能提交一次评价；提交后不能编辑或重复评价，违规内容可能由平台隐藏。</Text></View>
@@ -118,40 +112,40 @@ export function ReviewCreateScreen() {
   );
 }
 
-function ReviewBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ReviewBackdrop() { return <BrandBackdrop />; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
-const card = { borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow } as const;
+const card = { ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 30 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 25, lineHeight: 31, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   notice: { marginHorizontal: 12, marginBottom: 10 },
-  serviceCard: { minHeight: 122, flexDirection: "row", alignItems: "center", gap: 14, marginHorizontal: 12, marginBottom: 10, padding: 11, ...card },
+  serviceCard: { minHeight: 122, flexDirection: "row", alignItems: "center", gap: 14, marginHorizontal: 12, marginBottom: 10, padding: 11, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   serviceImage: { width: 100, height: 100, borderRadius: 14 },
   serviceCopy: { minWidth: 0, flex: 1 },
   serviceTitle: { color: colors.text, fontSize: 15, lineHeight: 21, fontWeight: "900" },
   serviceMeta: { marginTop: 7, color: "#74767B", fontSize: 12, lineHeight: 16 },
-  ratingCard: { alignItems: "center", marginHorizontal: 12, marginBottom: 10, padding: 18, ...card },
+  ratingCard: { alignItems: "center", marginHorizontal: 12, marginBottom: 10, padding: 18, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   ratingTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontWeight: "900", textAlign: "center" },
   stars: { flexDirection: "row", justifyContent: "center", gap: 8, marginTop: 13 },
   starButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   star: { color: "#FFB319", fontSize: 43, lineHeight: 48, fontWeight: "500" },
   starActive: { textShadowColor: "rgba(255,179,25,0.22)", textShadowOffset: { width: 0, height: 3 }, textShadowRadius: 7 },
   ratingLabel: { minHeight: 18, marginTop: 6, color: "#B06D00", fontSize: 13, lineHeight: 18, fontWeight: "800" },
-  formCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  formCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   field: { position: "relative" },
   fieldLabel: { marginBottom: 8, color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "900" },
-  reviewInput: { minHeight: 112, borderWidth: 1, borderColor: "#D8D1C6", borderRadius: 15, padding: 13, paddingBottom: 30, backgroundColor: "#F7F3EC", color: colors.text, fontSize: 13, lineHeight: 19 },
+  reviewInput: { borderWidth: 1, padding: 13, paddingBottom: 30, color: colors.text, lineHeight: 19, backgroundColor: colors.input, borderColor: colors.controlBorder, borderRadius: 10, fontSize: 16, minHeight: 48, shadowOpacity: 0, elevation: 0 },
   counter: { position: "absolute", right: 11, bottom: 9, color: "#74767B", fontSize: 12 },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: 7, marginTop: 13 },
   tag: { minHeight: 44, justifyContent: "center", borderWidth: 1, borderColor: "#D5CFE7", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: "#F2EDFF" },
@@ -165,7 +159,7 @@ const styles = StyleSheet.create({
   anonymousCopy: { flex: 1 },
   anonymousTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "900" },
   anonymousNote: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16 },
-  ruleCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  ruleCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   ruleTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "900" },
   ruleText: { marginTop: 7, color: "#74767B", fontSize: 12, lineHeight: 17 },
   submit: { minHeight: 50, alignItems: "center", justifyContent: "center", marginHorizontal: 12, marginTop: 5, marginBottom: 18, borderRadius: 16, backgroundColor: colors.accent, shadowColor: "#FF4F15", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 4 },

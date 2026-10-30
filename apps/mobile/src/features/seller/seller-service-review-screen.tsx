@@ -6,7 +6,7 @@ import { PrimaryButton } from "@/components/primary-button";
 import { StateView } from "@/components/state-view";
 import { useSellerProfile, useSellerService } from "@/features/seller/seller-api";
 import { sellerServiceActions } from "@/features/seller/seller-domain";
-import { colors, radii, spacing, typography } from "@/theme/tokens";
+import { colors, spacing, typography } from "@/theme/tokens";
 import type { SellerProductStatus } from "@/types/api";
 import { formatCent } from "@/utils/money";
 
@@ -42,4 +42,4 @@ export function SellerServiceReviewScreen({ id }: { id: string }) {
 
 function Row({ label, value }: { label: string; value: string }) { return <View style={styles.row}><Text style={styles.label}>{label}</Text><Text style={styles.value}>{value}</Text></View>; }
 function dateText(value: string | null) { return value ? new Date(value).toLocaleString("zh-CN") : "—"; }
-const styles = StyleSheet.create({ content: { gap: spacing.md }, state: { minHeight: 230, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, card: { gap: spacing.sm, padding: spacing.lg, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: radii.lg, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, title: { ...typography.cardTitle, color: colors.text }, heading: { ...typography.sectionTitle, color: colors.text }, row: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md }, label: { ...typography.caption, color: colors.textSecondary }, value: { ...typography.body, color: colors.text, flexShrink: 1, textAlign: "right" } });
+const styles = StyleSheet.create({ content: { gap: spacing.md }, state: { minHeight: 230, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, card: { gap: spacing.sm, padding: spacing.lg, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 }, title: { ...typography.cardTitle, color: colors.text }, heading: { ...typography.sectionTitle, color: colors.text }, row: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md }, label: { ...typography.caption, color: colors.textSecondary }, value: { ...typography.body, color: colors.text, flexShrink: 1, textAlign: "right" } });

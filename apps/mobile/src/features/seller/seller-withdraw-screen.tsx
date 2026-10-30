@@ -65,7 +65,7 @@ export function SellerWithdrawScreen() {
 
 function Row({ label, value }: { label: string; value: string }) { return <View style={styles.row}><Text style={styles.meta}>{label}</Text><Text style={styles.value}>{value}</Text></View>; }
 const styles = StyleSheet.create({
-  content: { gap: spacing.md }, state: { minHeight: 240, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, card: { gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: radii.lg, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  content: { gap: spacing.md }, state: { minHeight: 240, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, card: { gap: spacing.md, padding: spacing.lg, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   row: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md }, heading: { ...typography.sectionTitle, color: colors.text },
   title: { ...typography.cardTitle, color: colors.text }, meta: { ...typography.caption, color: colors.textSecondary }, value: { ...typography.body, color: colors.text, fontWeight: "800" },
   choices: { gap: spacing.sm }, choice: { minHeight: 60, gap: spacing.xs, padding: spacing.lg, borderRadius: radii.md, backgroundColor: colors.surfaceCard, borderWidth: 1, borderColor: colors.border },

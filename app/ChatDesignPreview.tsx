@@ -35,9 +35,9 @@ export function searchDesignChats(keyword: string, seller = false): InboxEntry[]
   });
 }
 
-export function ChatDesignInbox({ onOpen, nav, seller = false }: { onOpen: (id: string) => void; nav: ReactNode; seller?: boolean }) {
+export function ChatDesignInbox({ onOpen, onSupport, nav, seller = false }: { onOpen: (id: string) => void; onSupport: () => void; nav: ReactNode; seller?: boolean }) {
   return <div className="app-screen messages-screen">
-    <ConversationList seller={seller} entries={searchDesignChats("", seller)} search={async query => searchDesignChats(query, seller)} onOpen={onOpen} />
+    <ConversationList seller={seller} entries={searchDesignChats("", seller)} search={async query => searchDesignChats(query, seller)} onOpen={onOpen} onSupport={onSupport} />
     {nav}
   </div>;
 }

@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui-icons";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -6,25 +8,12 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { PrimaryButton } from "@/components/primary-button";
 import { useAuth } from "@/auth/auth-provider";
 import { markNotificationRead, useNotification, verifyNotificationTarget } from "@/features/chat/chat-api";
-import { notificationBody, notificationDestination } from "@/features/chat/chat-domain";
+import { notificationBody, notificationCategoryCopy, notificationDestination } from "@/features/chat/chat-domain";
 import { queryClient } from "@/query/query-client";
 import { colors } from "@/theme/tokens";
-import type { NotificationCategory, RelatedObjectType } from "@/types/api";
+import type { NotificationRelatedObjectType as RelatedObjectType } from "@/types/api";
 
-const categoryLabel: Record<NotificationCategory, string> = {
-  ORDER: "订单通知",
-  ACCOUNT: "账户通知",
-  PLATFORM: "平台通知"
-};
 
-const backgroundBands = Array.from({ length: 56 }, (_, index) => {
-  const ratio = index / 55;
-  const from = ratio <= 0.58 ? [255, 250, 240] : [255, 253, 247];
-  const to = ratio <= 0.58 ? [255, 253, 247] : [248, 241, 231];
-  const progress = ratio <= 0.58 ? ratio / 0.58 : (ratio - 0.58) / 0.42;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
 
 const heroBands = Array.from({ length: 30 }, (_, index) => {
   const ratio = index / 29;
@@ -86,12 +75,12 @@ export function NotificationDetailScreen() {
   };
 
   return (
-    <NotificationDetailShell subtitle={categoryLabel[item.category]}>
+    <NotificationDetailShell subtitle={notificationCategoryCopy(item.category).label}>
       {notice ? <View accessibilityRole="alert" style={styles.notice}><Text style={styles.noticeText}>{notice}</Text></View> : null}
       <View style={styles.heroFrame}>
         <View style={styles.hero}>
           <HeroBackdrop />
-          <View style={styles.successIcon}><Text style={styles.successIconText}>✓</Text></View>
+          <View style={styles.successIcon}><Text style={styles.successIconText}><JellyIcon kind="check" label="已选" /></Text></View>
           <Text style={styles.heroTitle}>{item.title}</Text>
           <Text style={styles.heroNote}>消息已送达并记录</Text>
         </View>
@@ -133,9 +122,7 @@ function leaveNotificationDetail() {
   else router.replace("/notifications");
 }
 
-function DetailBackdrop() {
-  return <View pointerEvents="none" style={styles.backdrop}>{backgroundBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>;
-}
+function DetailBackdrop() { return <BrandBackdrop />; }
 
 function HeroBackdrop() {
   return <View pointerEvents="none" style={styles.heroBackdrop}>{heroBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.heroBand, { backgroundColor: color }]} />)}</View>;
@@ -152,6 +139,8 @@ function DetailState({ title, message, loading = false, failed = false, action, 
 }
 
 function relatedLabel(type: RelatedObjectType | null) {
+  if (type === "FEEDBACK") return "关联反馈";
+  if (type === "ANNOUNCEMENT") return "关联公告";
   if (type === "ORDER") return "关联订单";
   if (type === "REFUND") return "关联退款";
   if (type === "COMPLAINT") return "关联投诉";
@@ -163,6 +152,8 @@ function relatedLabel(type: RelatedObjectType | null) {
 }
 
 function notificationActionLabel(type: RelatedObjectType | null) {
+  if (type === "FEEDBACK") return "查看反馈与回复";
+  if (type === "ANNOUNCEMENT") return "查看公告";
   if (type === "ORDER") return "查看订单";
   if (type === "REFUND") return "查看退款详情";
   if (type === "COMPLAINT") return "查看投诉详情";
@@ -179,15 +170,15 @@ function relatedVariableId(variables: Record<string, unknown>) {
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFAF0" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center", marginHorizontal: 12, paddingBottom: 7 },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 14, backgroundColor: "#FFFDF8", ...softShadow },
+  header: { flexDirection: "row", alignItems: "center", marginHorizontal: 12, minHeight: 60, paddingBottom: 4, height: undefined },
+  back: { alignItems: "center", justifyContent: "center", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   backText: { marginTop: -3, color: colors.text, fontSize: 34, lineHeight: 38, fontWeight: "500" },
-  headerCopy: { flex: 1, justifyContent: "center", marginLeft: 11 },
-  pageTitle: { color: colors.text, fontSize: 21, lineHeight: 26, fontWeight: "800" },
-  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
+  headerCopy: { flex: 1, justifyContent: "center", marginLeft: 0, minWidth: 0 },
+  pageTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  pageSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   actionSpace: { width: 55 },
   content: { gap: 12, paddingHorizontal: 12, paddingBottom: 28 },
   heroFrame: { borderRadius: 20, ...softShadow },
@@ -198,10 +189,10 @@ const styles = StyleSheet.create({
   successIconText: { color: colors.text, fontSize: 29, lineHeight: 34, fontWeight: "900" },
   heroTitle: { marginTop: 11, color: colors.text, fontSize: 24, lineHeight: 29, fontWeight: "900", textAlign: "center" },
   heroNote: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 16, textAlign: "center" },
-  bodyCard: { minHeight: 76, justifyContent: "center", padding: 15, borderWidth: 1, borderColor: "rgba(62,57,47,0.12)", borderRadius: 18, backgroundColor: "#FFFDF8", ...softShadow },
+  bodyCard: { minHeight: 76, justifyContent: "center", padding: 15, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   body: { color: colors.text, fontSize: 13, lineHeight: 22 },
   time: { marginTop: 13, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  relatedCard: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 10, padding: 12, borderWidth: 1, borderColor: "rgba(62,57,47,0.12)", borderRadius: 18, backgroundColor: "#FFFDF8", ...softShadow },
+  relatedCard: { minHeight: 72, flexDirection: "row", alignItems: "center", gap: 10, padding: 12, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   relatedIcon: { width: 46, height: 46, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: "#E4F2FF" },
   relatedIconText: { color: "#2F78BC", fontSize: 15, fontWeight: "900" },
   relatedCopy: { flex: 1, minWidth: 0 },

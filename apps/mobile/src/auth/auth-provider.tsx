@@ -43,7 +43,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const bootstrap = useCallback(async () => {
     setStatus("booting");
     setBootstrapError(null);
-    const refreshToken = await credentialsStore.getRefreshToken().catch(() => null);
+    let refreshToken: string | null;
+    try {
+      refreshToken = await credentialsStore.getRefreshToken();
+    } catch {
+      setUser(null);
+      setBootstrapError("无法读取系统安全存储，请解锁设备后重试；未清除已有登录凭证");
+      return;
+    }
     if (!refreshToken) {
       await clearLocalState();
       return;

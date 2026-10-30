@@ -30,7 +30,7 @@ export function PolicyAcceptanceRecordsScreen() {
 const styles = StyleSheet.create({
   content: { gap: spacing.md },
   state: { minHeight: 220, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
-  card: { gap: spacing.sm, padding: spacing.lg },
+  card: { gap: spacing.sm, padding: spacing.lg, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   heading: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   title: { flex: 1, ...typography.sectionTitle, color: colors.text },
   version: { ...typography.caption, color: colors.brandDeep, fontWeight: "800" },

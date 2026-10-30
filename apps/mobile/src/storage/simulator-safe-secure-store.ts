@@ -3,15 +3,18 @@ import type { SecureStoreAdapter } from "@/storage/secure-credentials";
 export function createSimulatorSafeSecureStore(
   primary: SecureStoreAdapter,
   allowMemoryFallback: boolean
-): SecureStoreAdapter {
+): SecureStoreAdapter & { isTemporaryStorage(): boolean } {
   const memory = new Map<string, string>();
+  let unavailable = false;
 
   return {
+    isTemporaryStorage: () => unavailable,
     async getItemAsync(key) {
       try {
         return (await primary.getItemAsync(key)) ?? memory.get(key) ?? null;
       } catch (error) {
         if (!allowMemoryFallback) throw error;
+        unavailable = true;
         return memory.get(key) ?? null;
       }
     },
@@ -21,6 +24,7 @@ export function createSimulatorSafeSecureStore(
         memory.delete(key);
       } catch (error) {
         if (!allowMemoryFallback) throw error;
+        unavailable = true;
         memory.set(key, value);
       }
     },
@@ -29,6 +33,7 @@ export function createSimulatorSafeSecureStore(
         await primary.deleteItemAsync(key);
       } catch (error) {
         if (!allowMemoryFallback) throw error;
+        unavailable = true;
       } finally {
         memory.delete(key);
       }

@@ -31,6 +31,7 @@ export function cancelOrder(orderId: string, version: number, reason: string) {
   return apiClient.request<OrderApiView>(`/orders/${orderId}/cancel`, { method: "POST", body: JSON.stringify({ version, reason }) });
 }
 export function confirmOrderComplete(orderId: string, version: number) { return apiClient.request<OrderApiView>(`/orders/${orderId}/confirm`, { method: "POST", body: JSON.stringify({ version }) }); }
+export function buyerClockAction(orderId: string, action: "extend-receipt" | "remind", version: number) { return apiClient.request<OrderApiView>(`/orders/${orderId}/${action}`, { method: "POST", body: JSON.stringify({ version }) }); }
 
 export function useOrderPreview(draft: OrderDraftApi | null) {
   return useQuery({

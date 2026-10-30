@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { useMemo, useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -19,15 +21,7 @@ import { formatCent } from "@/utils/money";
 
 const reasons = ["陪玩长时间未接单", "预约时间无法履约", "服务与描述不符", "双方协商一致", "其他原因"] as const;
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function RefundCreateScreen() {
   const { orderId = "" } = useLocalSearchParams<{ orderId: string }>();
@@ -101,8 +95,8 @@ export function RefundCreateScreen() {
 
             <View style={[styles.reasonField, reasonOpen && styles.reasonFieldOpen]}>
               <Text style={styles.fieldLabel}>退款原因</Text>
-              <Pressable accessibilityRole="button" accessibilityState={{ expanded: reasonOpen }} disabled={!allowed || submitting} onPress={() => setReasonOpen((value) => !value)} style={[styles.reasonButton, reasonOpen && styles.reasonButtonOpen]}><Text style={styles.reasonButtonText}>{reason}</Text><Text style={[styles.reasonArrow, reasonOpen && styles.reasonArrowOpen]}>⌄</Text></Pressable>
-              {reasonOpen ? <View accessibilityRole="list" style={styles.reasonMenu}>{reasons.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: item === reason }} onPress={() => { setReason(item); setReasonOpen(false); }} style={[styles.reasonOption, item === reason && styles.reasonOptionActive]}><Text style={[styles.reasonOptionText, item === reason && styles.reasonOptionTextActive]}>{item}</Text><View style={[styles.reasonCheck, item !== reason && styles.reasonCheckEmpty]}><Text style={styles.reasonCheckText}>{item === reason ? "✓" : ""}</Text></View></Pressable>)}</View> : null}
+              <Pressable accessibilityRole="button" accessibilityState={{ expanded: reasonOpen }} disabled={!allowed || submitting} onPress={() => setReasonOpen((value) => !value)} style={[styles.reasonButton, reasonOpen && styles.reasonButtonOpen]}><Text style={styles.reasonButtonText}>{reason}</Text><JellyIcon kind="chevron" up={reasonOpen} /></Pressable>
+              {reasonOpen ? <View accessibilityRole="list" style={styles.reasonMenu}>{reasons.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: item === reason }} onPress={() => { setReason(item); setReasonOpen(false); }} style={[styles.reasonOption, item === reason && styles.reasonOptionActive]}><Text style={[styles.reasonOptionText, item === reason && styles.reasonOptionTextActive]}>{item}</Text><View style={[styles.reasonCheck, item !== reason && styles.reasonCheckEmpty]}><Text style={styles.reasonCheckText}>{item === reason ? <JellyIcon kind="check" label="已选" /> : ""}</Text></View></Pressable>)}</View> : null}
             </View>
 
             <View style={styles.field}>
@@ -126,29 +120,29 @@ function centToInput(value: string): string {
   return `${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
 }
 
-function RefundBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function RefundBackdrop() { return <BrandBackdrop />; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
-const card = { borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow } as const;
+const card = { ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 30 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 25, lineHeight: 31, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   notice: { marginHorizontal: 12, marginBottom: 10 },
   amountHero: { marginHorizontal: 12, marginBottom: 10, padding: 20, borderRadius: 20, backgroundColor: "#3A86C2", ...softShadow },
   amountLabel: { color: colors.white, fontSize: 12, lineHeight: 16 },
   amountValue: { marginVertical: 6, color: colors.white, fontSize: 31, lineHeight: 38, fontWeight: "900" },
   amountNote: { color: "#E3F3FF", fontSize: 12, lineHeight: 16 },
-  formCard: { position: "relative", zIndex: 2, marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  formCard: { position: "relative", zIndex: 2, marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   formCardOpen: { zIndex: 30, elevation: 20 },
   field: { position: "relative", marginBottom: 18 },
   fieldLabel: { marginBottom: 8, color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "900" },
@@ -175,7 +169,7 @@ const styles = StyleSheet.create({
   reasonCheckText: { color: "#33460C", fontSize: 12, fontWeight: "900" },
   description: { minHeight: 105, borderWidth: 1, borderColor: "#D8D1C6", borderRadius: 15, padding: 13, paddingBottom: 28, backgroundColor: "#F7F3EC", color: colors.text, fontSize: 13, lineHeight: 19 },
   counter: { position: "absolute", right: 11, bottom: 8, color: "#74767B", fontSize: 12 },
-  ruleCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  ruleCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   ruleTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontWeight: "900" },
   ruleText: { marginTop: 10, color: "#74767B", fontSize: 12, lineHeight: 17 },
   submit: { minHeight: 50, alignItems: "center", justifyContent: "center", marginHorizontal: 12, marginTop: 5, marginBottom: 18, borderRadius: 16, backgroundColor: colors.accent, shadowColor: "#FF4F15", shadowOffset: { width: 0, height: 7 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 4 },

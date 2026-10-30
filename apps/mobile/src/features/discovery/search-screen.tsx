@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { useMemo, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -183,13 +184,13 @@ export function SearchScreen() {
 function ScopeOption({ label, selected, onPress }: { label: string; selected: boolean; onPress(): void }) {
   return (
     <Pressable accessibilityRole="menuitem" accessibilityState={{ selected }} onPress={onPress} style={({ pressed }) => [styles.scopeOption, selected && styles.scopeOptionActive, pressed && styles.pressed]}>
-      <Text style={[styles.scopeOptionText, selected && styles.scopeOptionTextActive]}>{label}</Text><Text style={styles.scopeCheck}>{selected ? "✓" : ""}</Text>
+      <Text style={[styles.scopeOptionText, selected && styles.scopeOptionTextActive]}>{label}</Text><Text style={styles.scopeCheck}>{selected ? <JellyIcon kind="check" label="已选" /> : ""}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#DEF0FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   keyboard: { flex: 1 },
   flex: { flex: 1, paddingHorizontal: 12 },
   list: { paddingHorizontal: 12, paddingBottom: 24 },
@@ -206,17 +207,17 @@ const styles = StyleSheet.create({
   scopeOptionText: { color: "#333333", fontSize: 14, lineHeight: 19, fontWeight: "800" },
   scopeOptionTextActive: { color: colors.accent },
   scopeCheck: { color: colors.accent, fontSize: 13, fontWeight: "900" },
-  input: { zIndex: 10, flex: 1, height: 48, marginLeft: -7, paddingHorizontal: 12, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderTopRightRadius: 13, borderBottomRightRadius: 13, color: colors.text, backgroundColor: "#FFFFFF", fontSize: 13, ...nativeShadow },
+  input: { zIndex: 10, flex: 1, height: 48, marginLeft: -7, paddingHorizontal: 12, borderWidth: 1, borderTopRightRadius: 13, borderBottomRightRadius: 13, color: colors.text, ...nativeShadow, backgroundColor: colors.input, borderColor: colors.controlBorder, borderRadius: 10, fontSize: 16, minHeight: 48, shadowOpacity: 0, elevation: 0 },
   searchButton: { width: 54, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: colors.accent },
   searchLabel: { color: colors.white, fontSize: 14, fontWeight: "900" },
-  hotCard: { marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  hotCard: { marginBottom: 10, padding: 13, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   hotTitle: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: "900" },
   hotGrid: { flexDirection: "row", flexWrap: "wrap", gap: 9, marginTop: 12 },
   hotButton: { width: "48.5%", minHeight: 46, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 10, paddingVertical: 7, borderRadius: 11, backgroundColor: "#F6F1E9" },
   hotIndex: { width: 23, height: 23, overflow: "hidden", borderRadius: 7, backgroundColor: "#FFE3D5", color: colors.accent, fontSize: 10, lineHeight: 23, fontWeight: "900", textAlign: "center" },
   hotText: { flex: 1, color: colors.text, fontSize: 13, lineHeight: 17, fontWeight: "700" },
   hotEmpty: { marginTop: 12, color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
-  recommendSection: { marginBottom: 11, paddingHorizontal: 12, paddingVertical: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.94)", ...nativeShadow },
+  recommendSection: { marginBottom: 11, paddingHorizontal: 12, paddingVertical: 13, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   resultHeading: { minHeight: 23, flexDirection: "row", alignItems: "baseline", gap: 8 },
   resultTitle: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: "900" },
   resultNote: { flexShrink: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
   sortActive: { borderColor: colors.brand, backgroundColor: colors.brand },
   sortText: { color: colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: "700" },
   sortTextActive: { color: colors.white },
-  stateCard: { minHeight: 220, justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  stateCard: { minHeight: 220, justifyContent: "center", ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   loadingCard: { flex: 1, marginTop: 12 },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.72 }

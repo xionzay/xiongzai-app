@@ -1,3 +1,4 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
 import { useEffect, useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { Animated, AppState, Easing, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -14,15 +15,7 @@ import { colors } from "@/theme/tokens";
 import { formatCent } from "@/utils/money";
 import { ShieldIcon } from "@/components/tab-icons";
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function PaymentProcessingScreen() {
   const { id = "", orderId = "" } = useLocalSearchParams<{ id: string; orderId: string }>();
@@ -44,6 +37,7 @@ export function PaymentProcessingScreen() {
   }, [spin]);
 
   useEffect(() => {
+    if (payment.isPending || order.isPending || payment.isError || order.isError) return;
     if (outcome !== "processing") {
       router.replace({ pathname: "/payments/[id]/result", params: { id, orderId } });
       return;
@@ -54,7 +48,7 @@ export function PaymentProcessingScreen() {
       void Promise.all([refetchPayment(), refetchOrder()]).finally(() => setAttempt((value) => value + 1));
     }, delay);
     return () => clearTimeout(timer);
-  }, [attempt, id, orderId, outcome, refetchOrder, refetchPayment]);
+  }, [attempt, id, orderId, outcome, refetchOrder, refetchPayment, payment.isPending, order.isPending, payment.isError, order.isError]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (state) => {
@@ -129,23 +123,23 @@ export function PaymentProcessingScreen() {
   );
 }
 
-function ProcessingBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ProcessingBackdrop() { return <BrandBackdrop />; }
 
 function InfoRow({ label, value, active = false }: { label: string; value: string; active?: boolean }) { return <View style={styles.infoRow}><Text style={styles.infoLabel}>{label}</Text><Text style={[styles.infoValue, active && styles.infoActive]} numberOfLines={2}>{value}</Text></View>; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 28 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 23, lineHeight: 30, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   hero: { alignItems: "center", marginHorizontal: 16, marginTop: 20, marginBottom: 12, paddingHorizontal: 20, paddingVertical: 28, borderRadius: 26, backgroundColor: "#E8F3F9", ...softShadow },
   orbit: { position: "relative", width: 72, height: 72, marginBottom: 15, borderWidth: 6, borderColor: "#B9DDF6", borderTopColor: "#2F8FE5", borderRadius: 36 },
   dot: { position: "absolute", width: 8, height: 8, borderRadius: 4, backgroundColor: "#FFB83E" },
@@ -155,12 +149,12 @@ const styles = StyleSheet.create({
   heroTitle: { color: colors.text, fontSize: 24, lineHeight: 31, fontWeight: "900", textAlign: "center" },
   heroNote: { marginTop: 7, color: "#74767B", fontSize: 12, lineHeight: 18, textAlign: "center" },
   amount: { marginTop: 14, color: colors.text, fontSize: 27, lineHeight: 34, fontWeight: "900" },
-  progressCard: { marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  progressCard: { marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   infoRow: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)" },
   infoLabel: { color: "#74767B", fontSize: 12 },
   infoValue: { maxWidth: "65%", color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: "800", textAlign: "right" },
   infoActive: { color: "#237BBF" },
-  securityCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  securityCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 12, marginBottom: 10, padding: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   securityText: { flex: 1, color: "#74767B", fontSize: 12, lineHeight: 16 },
   mockPanel: { marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "#B9DDF6", borderRadius: 17, backgroundColor: "#EDF7FF", ...softShadow },
   mockTitle: { color: colors.text, fontSize: 13, fontWeight: "900" },

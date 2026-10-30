@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { JellyIcon } from "../../components/jelly-icon";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { isFulfillmentOrder } from "@xiongzai/contracts/commerce";
 import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { resolveSellerHomeFilter } from "./seller-home-model";
+import { ApprovedIllustration } from "@/components/approved-illustration";
 import { NativeBackdrop, NativeButton, NativeHeader, nativeShadow } from "@/components/native-page";
 import { FileImage } from "@/components/file-image";
 import { StateView } from "@/components/state-view";
@@ -15,25 +19,37 @@ import { formatCent } from "@/utils/money";
 
 type Filter = OrderStatus | "AFTER_SALE" | undefined;
 const filters: { label: string; value?: Filter }[] = [
+  { label: "全部" },
+  { label: "待服务", value: "PENDING_SERVICE" },
   { label: "新订单", value: "PENDING_ACCEPT" },
   { label: "待开始", value: "ACCEPTED" },
   { label: "服务中", value: "IN_SERVICE" },
-  { label: "待确认", value: "PENDING_BUYER_CONFIRM" },
+  { label: "待收货", value: "PENDING_BUYER_CONFIRM" },
   { label: "已完成", value: "COMPLETED" },
   { label: "售后", value: "AFTER_SALE" }
 ];
-let savedFilter: Filter = "PENDING_ACCEPT";
+let savedFilter: Filter;
 let savedOffset = 0;
 
 export function SellerOrdersSummaryScreen() {
-  const [filter, setFilter] = useState<Filter>(savedFilter);
+  const params = useLocalSearchParams<{ filter?: string }>();
+  const [manualFilter, setFilter] = useState<Filter>(savedFilter);
+  const requested = resolveSellerHomeFilter(params.filter);
+  const filter = requested ? requested === 'ALL' ? undefined : requested : manualFilter;
+  const filterScroll = useRef<ScrollView>(null);
+  const positions = useRef<Record<string, number>>({});
+  useEffect(() => {
+    if (requested) { savedFilter = requested === 'ALL' ? undefined : requested; savedOffset = 0; }
+    const x = positions.current[filter ?? 'ALL'];
+    if (x !== undefined) filterScroll.current?.scrollTo({ x: Math.max(0, x - 12), animated: false });
+  }, [requested, filter]);
   const query = useSellerOrders(true, filter === "AFTER_SALE" ? undefined : filter, filter === "AFTER_SALE" ? "IN_PROGRESS" : undefined);
   const items = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
   const header = (
     <View style={styles.headerContent}>
       <NativeHeader title="卖家订单" subtitle="买家下单后的履约工作台" onBack={() => router.replace("/(seller-tabs)")} />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
-        {filters.map((item) => <Pressable key={item.label} accessibilityRole="tab" accessibilityState={{ selected: filter === item.value }} onPress={() => { savedFilter = item.value; savedOffset = 0; setFilter(item.value); }} style={({ pressed }) => [styles.filter, filter === item.value && styles.filterActive, pressed && styles.pressed]}><Text style={[styles.filterText, filter === item.value && styles.filterTextActive]}>{item.label}</Text></Pressable>)}
+      <ScrollView ref={filterScroll} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
+        {filters.map((item) => <Pressable key={item.label} accessibilityRole="tab" accessibilityState={{ selected: filter === item.value }} onLayout={({ nativeEvent }) => { positions.current[item.value ?? 'ALL'] = nativeEvent.layout.x; if (filter === item.value) filterScroll.current?.scrollTo({ x: Math.max(0, nativeEvent.layout.x - 12), animated: false }); }} onPress={() => { router.setParams({ filter: undefined }); savedFilter = item.value; savedOffset = 0; setFilter(item.value); }} style={({ pressed }) => [styles.filter, filter === item.value && styles.filterActive, pressed && styles.pressed]}><Text style={[styles.filterText, filter === item.value && styles.filterTextActive]}>{item.label}</Text></Pressable>)}
       </ScrollView>
     </View>
   );
@@ -53,7 +69,7 @@ export function SellerOrdersSummaryScreen() {
           scrollEventThrottle={200}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.brand} />}
-          ListEmptyComponent={<SellerOrderEmpty />}
+          ListEmptyComponent={<SellerOrderEmpty filtered={filter !== undefined} />}
           renderItem={({ item }) => <OrderCard order={item} />}
           ListFooterComponent={query.hasNextPage ? <NativeButton tone="secondary" label={query.isFetchingNextPage ? "加载中…" : "加载更多"} disabled={query.isFetchingNextPage} onPress={() => void query.fetchNextPage()} /> : null}
         />
@@ -62,8 +78,8 @@ export function SellerOrdersSummaryScreen() {
   );
 }
 
-function SellerOrderEmpty() {
-  return <View style={styles.emptyState}><View style={styles.emptyMark}><View style={styles.emptyMarkInner} /></View><Text style={styles.emptyTitle}>还没有购买订单</Text><Text style={styles.emptyMessage}>选择喜欢的陪玩服务，首笔订单会显示在这里。</Text><View style={styles.emptyButton}><NativeButton label="去看看服务" onPress={() => router.replace("/(buyer-tabs)")} /></View></View>;
+function SellerOrderEmpty({ filtered }: { filtered: boolean }) {
+  return <View style={styles.emptyState}><ApprovedIllustration kind="order" size={64} /><Text style={styles.emptyTitle}>{filtered ? '当前分类暂无订单' : '还没有收到订单'}</Text><Text style={styles.emptyMessage}>买家付款后，订单会显示在这里。你可以先完善店铺商品。</Text><View style={styles.emptyButton}><NativeButton label="管理商品" onPress={() => router.push("/(seller-tabs)/services")} /></View></View>;
 }
 
 function OrderCard({ order }: { order: OrderApiView }) {
@@ -78,10 +94,10 @@ function OrderCard({ order }: { order: OrderApiView }) {
       <View style={styles.row}><View><Text style={styles.buyer}>{order.buyer?.nickname ?? "平台买家"}</Text><Text style={styles.buyerNote}>订单备注：{order.buyer_note || "未填写"}</Text></View><Text style={styles.status}>{sellerOrderStatusLabel(order)}</Text></View>
       <View style={styles.productRow}>
         <FileImage fileId={productImageFileId} style={styles.productImage} label={`${order.product_title}主图`} />
-        <View style={styles.productCopy}><Text style={styles.title} numberOfLines={2}>{order.product_title}</Text><Text style={styles.meta} numberOfLines={2}>{order.sku_name} · {formatServiceTime(order.service_starts_at)}</Text></View>
+        <View style={styles.productCopy}><Text style={styles.title} numberOfLines={2}>{order.product_title}</Text><Text style={styles.meta} numberOfLines={2}>{order.sku_name} · {isFulfillmentOrder(order) ? "按完成期限交付" : formatServiceTime(order.service_starts_at)}</Text></View>
         <Text style={styles.money}>{formatCent(order.payable_amount_cent)}</Text>
       </View>
-      <View style={styles.actionRow}><Text style={styles.orderNo}>订单 {order.order_no}</Text><Text style={styles.actionText}>查看详情 ›</Text></View>
+      <View style={styles.actionRow}><Text style={styles.orderNo}>订单 {order.order_no}</Text><Text style={styles.actionText}>查看详情 <JellyIcon kind="back" right /></Text></View>
     </Pressable>
   );
 }

@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -15,15 +17,7 @@ import { ShieldIcon } from "@/components/tab-icons";
 
 const complaintTypes = ["服务与描述不符", "陪玩未按约定履约", "诱导线下交易", "不文明沟通", "其他问题"] as const;
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function ComplaintCreateScreen() {
   const params = useLocalSearchParams<{ orderId?: string; refundId?: string; targetType?: string; targetId?: string }>();
@@ -84,8 +78,8 @@ export function ComplaintCreateScreen() {
 
             <View style={[styles.typeField, typeOpen && styles.typeFieldOpen]}>
               <Text style={styles.fieldLabel}>投诉类型</Text>
-              <Pressable accessibilityRole="button" accessibilityState={{ expanded: typeOpen }} disabled={busy} onPress={() => setTypeOpen((value) => !value)} style={[styles.typeButton, typeOpen && styles.typeButtonOpen]}><Text style={styles.typeButtonText}>{type}</Text><Text style={[styles.typeArrow, typeOpen && styles.typeArrowOpen]}>⌄</Text></Pressable>
-              {typeOpen ? <View accessibilityRole="list" style={styles.typeMenu}>{complaintTypes.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: item === type }} onPress={() => { setType(item); setTypeOpen(false); }} style={[styles.typeOption, item === type && styles.typeOptionActive]}><Text style={[styles.typeOptionText, item === type && styles.typeOptionTextActive]}>{item}</Text><View style={[styles.typeCheck, item !== type && styles.typeCheckEmpty]}><Text style={styles.typeCheckText}>{item === type ? "✓" : ""}</Text></View></Pressable>)}</View> : null}
+              <Pressable accessibilityRole="button" accessibilityState={{ expanded: typeOpen }} disabled={busy} onPress={() => setTypeOpen((value) => !value)} style={[styles.typeButton, typeOpen && styles.typeButtonOpen]}><Text style={styles.typeButtonText}>{type}</Text><JellyIcon kind="chevron" up={typeOpen} /></Pressable>
+              {typeOpen ? <View accessibilityRole="list" style={styles.typeMenu}>{complaintTypes.map((item) => <Pressable key={item} accessibilityRole="button" accessibilityState={{ selected: item === type }} onPress={() => { setType(item); setTypeOpen(false); }} style={[styles.typeOption, item === type && styles.typeOptionActive]}><Text style={[styles.typeOptionText, item === type && styles.typeOptionTextActive]}>{item}</Text><View style={[styles.typeCheck, item !== type && styles.typeCheckEmpty]}><Text style={styles.typeCheckText}>{item === type ? <JellyIcon kind="check" label="已选" /> : ""}</Text></View></Pressable>)}</View> : null}
             </View>
 
             <View style={styles.field}>
@@ -97,7 +91,7 @@ export function ComplaintCreateScreen() {
 
             <View style={styles.evidenceSection}>
               <View style={styles.evidenceHeader}><Text style={styles.fieldLabel}>证据材料</Text><Text style={styles.evidenceCount}>{fileIds.length}/6</Text></View>
-              {fileIds.map((id, index) => <View key={id} style={styles.evidenceRow}><View style={styles.evidenceMark}><Text style={styles.evidenceMarkText}>✓</Text></View><View style={styles.evidenceCopy}><Text style={styles.evidenceTitle}>私有图片凭证 {index + 1}</Text><Text style={styles.evidenceNote}>已完成校验并加入本次投诉</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`从本次投诉移除私有图片凭证${index + 1}`} disabled={busy} onPress={() => setFileIds((current) => current.filter((item) => item !== id))} style={styles.removeButton}><Text style={styles.removeText}>从本次投诉移除</Text></Pressable></View>)}
+              {fileIds.map((id, index) => <View key={id} style={styles.evidenceRow}><View style={styles.evidenceMark}><Text style={styles.evidenceMarkText}><JellyIcon kind="check" label="已选" /></Text></View><View style={styles.evidenceCopy}><Text style={styles.evidenceTitle}>私有图片凭证 {index + 1}</Text><Text style={styles.evidenceNote}>已完成校验并加入本次投诉</Text></View><Pressable accessibilityRole="button" accessibilityLabel={`从本次投诉移除私有图片凭证${index + 1}`} disabled={busy} onPress={() => setFileIds((current) => current.filter((item) => item !== id))} style={styles.removeButton}><Text style={styles.removeText}>从本次投诉移除</Text></Pressable></View>)}
               {fileIds.length < 6 ? <View style={styles.uploadWrap}><ImageUploadSlot key={slotKey} fileType="COMPLAINT_EVIDENCE" label="投诉图片凭证" expectedVisibility="PRIVATE" requireApproval readyLabel="添加到本次投诉" onReady={addEvidence} /></View> : null}
               <Text style={styles.evidenceHelp}>最多 6 张；图片只存入私有证据区，平台也会依法调取关联订单与聊天记录。</Text>
             </View>
@@ -114,25 +108,25 @@ export function ComplaintCreateScreen() {
   );
 }
 
-function ComplaintBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ComplaintBackdrop() { return <BrandBackdrop />; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
-const card = { borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow } as const;
+const card = { ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 30 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 23, lineHeight: 29, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   notice: { marginHorizontal: 12, marginBottom: 10 },
-  formCard: { position: "relative", zIndex: 2, marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  formCard: { position: "relative", zIndex: 2, marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   formCardOpen: { zIndex: 40, elevation: 24 },
   targetRow: { minHeight: 55, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, marginBottom: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)", paddingBottom: 13 },
   targetCopy: { minWidth: 0, flex: 1 },

@@ -23,7 +23,7 @@ export function isRefundAmountAllowed(amountCent: string | null, availableCent: 
 export function hasOrderAction(order: Pick<OrderDetailApiView, "available_actions">, action: BuyerOrderAction) { return order.available_actions.includes(action); }
 export function shouldRefreshAfterConflict(code: string) { return code === "RESOURCE_VERSION_CONFLICT"; }
 
-export type BuyerDisplayState = "PENDING_PAYMENT" | "PENDING_ACCEPT" | "ACCEPTED" | "IN_SERVICE" | "PENDING_BUYER_CONFIRM" | "COMPLETED" | "REVIEWED" | "CANCELLED" | "CLOSED" | "SELLER_REJECTED" | "AFTER_SALE" | "REFUNDED";
+export type BuyerDisplayState = "PENDING_PAYMENT" | "PENDING_ACCEPT" | "ACCEPTED" | "PENDING_SERVICE" | "IN_SERVICE" | "PENDING_BUYER_CONFIRM" | "COMPLETED" | "REVIEWED" | "CANCELLED" | "CLOSED" | "SELLER_REJECTED" | "AFTER_SALE" | "REFUNDED";
 export function buyerDisplayState(order: Pick<OrderDetailApiView, "status" | "payment_status" | "after_sale_status" | "review">): BuyerDisplayState {
   if (order.payment_status === "REFUNDED") return "REFUNDED";
   if (order.after_sale_status === "IN_PROGRESS") return "AFTER_SALE";

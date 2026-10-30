@@ -1,36 +1,38 @@
-import { Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions } from "react-native";
 import { Tabs } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { tabBarMetrics } from "@/components/tab-bar-metrics";
 import { useAuth } from "@/auth/auth-provider";
 import { useConversationUnread, useNotificationUnread } from "@/features/chat/chat-api";
 import { shouldPollChat } from "@/features/chat/chat-domain";
 import { useAppActivity } from "@/hooks/use-app-activity";
 import { useOnlineStatus } from "@/hooks/use-online-status";
-import { HomeTabIcon, MessageTabIcon, MineTabIcon, OrderTabIcon } from "@/components/tab-icons";
+import { ApprovedIllustration } from "@/components/approved-illustration";
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { colors } from "@/theme/tokens";
 
 const icons = {
-  index: HomeTabIcon,
-  orders: OrderTabIcon,
-  messages: MessageTabIcon,
-  mine: MineTabIcon
-};
+  index: "home", orders: "order", messages: "message", mine: "mine"
+} as const;
 
 export default function BuyerTabsLayout() {
+  const { fontScale } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const metrics = tabBarMetrics("buyer", fontScale, insets.bottom);
   const { user } = useAuth(); const online = useOnlineStatus(); const polling = shouldPollChat(useAppActivity(), online); const chatUnread = useConversationUnread(Boolean(user), polling); const notificationUnread = useNotificationUnread(Boolean(user), polling); const unread = (chatUnread.data?.unread_count ?? 0) + (notificationUnread.data?.unread_count ?? 0);
   return (
     <Tabs
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: "#FF5A1F",
-        tabBarInactiveTintColor: "#6E706F",
-        tabBarStyle: styles.tabBar,
-        tabBarItemStyle: styles.item,
+        tabBarActiveTintColor: colors.brand,
+        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarBackground: () => <BrandBackdrop dock />,
+        tabBarStyle: [styles.tabBar, { height: metrics.height, paddingBottom: metrics.paddingBottom }],
+        tabBarItemStyle: [styles.item, { height: metrics.itemHeight }],
         tabBarLabelStyle: styles.label,
         tabBarIconStyle: styles.iconSlot,
         tabBarButton: ({ children, onPress, onLongPress, accessibilityLabel, accessibilityState, testID, style }) => <Pressable accessibilityRole="tab" accessibilityLabel={accessibilityLabel} accessibilityState={accessibilityState} testID={testID} onPress={onPress} onLongPress={onLongPress} android_ripple={{ color: "transparent" }} style={({ pressed }) => [style, pressed && styles.tabPressed]}>{children}</Pressable>,
-        tabBarIcon: ({ color }) => {
-          const Icon = icons[route.name as keyof typeof icons];
-          return <Icon color={color} size={40} />;
-        }
+        tabBarIcon: () => <ApprovedIllustration kind={icons[route.name as keyof typeof icons]} size={36} />
       })}
     >
       <Tabs.Screen name="index" options={{ title: "首页" }} />
@@ -42,7 +44,7 @@ export default function BuyerTabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  tabBar: { height: 86, paddingTop: 4, paddingHorizontal: 15, paddingBottom: 8, borderTopColor: "rgba(82,70,48,0.08)", backgroundColor: "rgba(255,255,255,0.97)", shadowColor: "#4B3A23", shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.06, shadowRadius: 24, elevation: 6 },
+  tabBar: { paddingTop: 4, paddingHorizontal: 15, borderTopColor: colors.border, backgroundColor: "transparent", shadowColor: "#126BB2", shadowOffset: { width: 0, height: -8 }, shadowOpacity: 0.06, shadowRadius: 24, elevation: 6 },
   item: { height: 68 },
   label: { marginTop: 3, fontSize: 13, lineHeight: 18, fontWeight: "700" },
   iconSlot: { width: 40, height: 40, marginBottom: 0 },

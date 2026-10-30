@@ -1,4 +1,19 @@
 export const payoutAccountTypes = ["WECHAT", "ALIPAY"] as const;
+export const sellerBusinessPeriods = ["TODAY", "YESTERDAY", "WEEK", "MONTH", "YEAR", "ALL"] as const;
+export type SellerBusinessPeriod = (typeof sellerBusinessPeriods)[number];
+export interface SellerBusinessStatistics {
+  period: SellerBusinessPeriod;
+  timezone: "Asia/Shanghai";
+  attribution: "ORDER_CREATED_AT";
+  scope: string;
+  start_at: string | null;
+  end_at_exclusive: string;
+  server_time: string;
+  created_order_count: string;
+  paid_order_count: string;
+  paid_amount_cent: string;
+  refunded_amount_cent: string;
+}
 export const payoutVerificationStatuses = ["PENDING", "VERIFIED", "REJECTED", "REVOKED"] as const;
 export const withdrawalStatuses = [
   "CREATED", "RISK_REVIEW", "APPROVED", "PAYOUT_PROCESSING",

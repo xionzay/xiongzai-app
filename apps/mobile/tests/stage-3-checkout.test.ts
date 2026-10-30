@@ -14,9 +14,10 @@ const paymentScreenSource = readFileSync(fileURLToPath(new URL("../src/features/
 const paymentProcessingSource = readFileSync(fileURLToPath(new URL("../src/features/checkout/payment-processing-screen.tsx", import.meta.url).href), "utf8");
 const paymentResultSource = readFileSync(fileURLToPath(new URL("../src/features/checkout/payment-result-screen.tsx", import.meta.url).href), "utf8");
 const paymentErrorSource = readFileSync(fileURLToPath(new URL("../src/features/checkout/payment-error-screen.tsx", import.meta.url).href), "utf8");
+const paymentErrorPresentation = readFileSync(fileURLToPath(new URL("../src/features/checkout/payment-error-presentation.ts", import.meta.url).href), "utf8");
 
 const draft: OrderDraftApi = { product_id: "product-1", sku_id: "sku-1", slot_id: "slot-1", quantity: 1, service_starts_at: "2030-01-02T10:00:00.000Z", buyer_note: null };
-const preview = (price = "2500"): OrderPreviewApiView => ({ product_id: "product-1", product_title: "上分服务", product_image_file_id: null, seller_id: "seller-1", seller_name: "小熊", sku_id: "sku-1", sku_name: "一小时", sku_price_cent: price, sku_duration_minutes: 60, quantity: 1, total_amount_cent: price, discount_cent: "0", payable_amount_cent: price, commission_rate_bps: 1000, platform_fee_cent: "250", seller_income_cent: "2250", service_starts_at: draft.service_starts_at, service_ends_at: "2030-01-02T11:00:00.000Z" });
+const preview = (price = "2500"): OrderPreviewApiView => ({ product_id: "product-1", product_title: "上分服务", product_image_file_id: null, seller_id: "seller-1", seller_name: "小熊", sku_id: "sku-1", sku_name: "一小时", sku_price_cent: price, sku_duration_minutes: 60, quantity: 1, total_amount_cent: price, discount_cent: "0", payable_amount_cent: price, commission_rate_bps: 1000, platform_fee_cent: "250", seller_income_cent: "2250", service_starts_at: draft.service_starts_at!, service_ends_at: "2030-01-02T11:00:00.000Z" });
 
 test("真实开放区间按规格时长生成可选开始时间并排除过期时段", () => {
   const slots = [{ id: "past", starts_at: "2029-01-01T10:00:00.000Z", ends_at: "2029-01-01T12:00:00.000Z", status: "OPEN" as const, version: 1 }, { id: "slot-1", starts_at: "2030-01-02T10:00:00.000Z", ends_at: "2030-01-02T12:00:00.000Z", status: "OPEN" as const, version: 1 }];
@@ -26,7 +27,7 @@ test("真实开放区间按规格时长生成可选开始时间并排除过期�
 
 test("预约时间页按原 UI 提供陪玩卡、三列时段、预约保护和底部确认栏", () => {
   for (const label of ["选择预约时间", "可预约时段", "下单后由陪玩确认", "预约保护", "已选", "确认时间"]) assert.match(scheduleScreenSource, new RegExp(label, "u"));
-  assert.match(scheduleScreenSource, /buildStartOptions\(availability\.data \?\? \[\], sku\.duration_minutes\)/u);
+  assert.match(scheduleScreenSource, /buildStartOptions\(availability\.data \?\? \[\], sku\.duration_minutes \?\? 0\)/u);
   assert.match(scheduleScreenSource, /options\.find[\s\S]*\?\? options\[0\]/u);
   assert.match(scheduleScreenSource, /slotGrid[\s\S]*width: "31\.6%"/u);
   assert.match(scheduleScreenSource, /pathname: "\/checkout\/confirm"/u);
@@ -89,12 +90,13 @@ test("支付结果页按原 UI 展示五种真实结果、支付明细、沟通�
 });
 
 test("支付异常页按原 UI 自动映射真实错误并提供安全恢复路径", () => {
-  for (const label of ["支付异常处理", "支付前再次核对金额与服务状态", "价格变化", "服务失效", "渠道异常", "订单金额已更新", "当前服务不可购买", "支付渠道暂时不可用", "订单服务", "陪玩", "原订单金额", "最新规格价格", "异常编号", "稍后处理", "确认新价格", "查看其他服务", "重新支付", "联系平台客服"]) assert.match(paymentErrorSource, new RegExp(label, "u"));
+  for (const label of ["支付异常处理", "支付前再次核对金额与服务状态", "价格变化", "服务失效", "渠道异常", "订单金额已更新", "当前服务不可购买", "支付渠道暂时不可用", "订单服务", "陪玩", "原订单金额", "最新规格价格", "异常编号", "稍后处理", "确认新价格", "查看其他服务", "重新支付", "联系平台客服"]) assert.match(paymentErrorSource + paymentErrorPresentation, new RegExp(label, "u"));
   assert.match(paymentErrorSource, /exceptionKind\(code\)/u);
   assert.match(paymentErrorSource, /orderErrorMessage\(code\)/u);
   assert.match(paymentErrorSource, /useOrderDetail\(orderId, Boolean\(orderId\)\)/u);
   assert.match(paymentErrorSource, /useServiceDetail\(order\.data\?\.product_id \?\? "", kind === "价格变化"/u);
   assert.match(paymentErrorSource, /current\.available_actions\.includes\("PAY"\)/u);
+  assert.match(paymentErrorSource, /canPayOrder\(current\) && kind !== "订单状态"/u);
   assert.match(paymentErrorSource, /pathname: "\/orders\/\[id\]\/pay"[\s\S]*retry: "1"/u);
   assert.match(paymentErrorSource, /pathname: "\/support\/new"/u);
   assert.doesNotMatch(paymentErrorSource, /微信支付|支付宝|¥25\.00|¥28\.00|Kirito/u);
@@ -168,6 +170,8 @@ test("服务端订单和支付错误映射为明确用户状态", () => {
 test("买家订单筛选栏保持紧凑并保留原设计的售后入口", () => {
   assert.match(ordersScreenSource, /filtersViewport:\s*\{[^}]*flexGrow:\s*0[^}]*maxHeight:\s*50/u);
   assert.match(ordersScreenSource, /filterUnderline/u);
-  assert.match(ordersScreenSource, /只显示我购买的服务/u);
+  assert.match(ordersScreenSource, /只显示我购买的商品订单/u);
+  assert.match(ordersScreenSource, /routeFilter \?\? manualFilter/u);
+  assert.match(ordersScreenSource, /router\.setParams\(\{ filter: undefined \}\)/u);
   assert.match(ordersScreenSource, /售后与平台介入/u);
 });

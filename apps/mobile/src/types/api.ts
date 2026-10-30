@@ -1,7 +1,7 @@
-import type { AfterSaleStatus, BuyerOrderAction, BuyerRefundAction, ComplaintStatus, ConversationMemberRole, ConversationType, MessageSendStatus, NotificationCategory, NotificationReadStatus, OrderStatus, PaymentStatus, PolicyAcceptanceScene, PolicyConfirmationMethod, PolicyType, RefundStatus, RelatedObjectType, ReviewStatus, StoredPolicyAcceptanceScene, SupportCaseStatus, SupportPriority } from "@xiongzai/contracts";
+import type { AfterSaleStatus, BuyerOrderAction, BuyerRefundAction, ComplaintStatus, CommunityNotificationCategory as NotificationCategory, CommunityRelatedObjectType as NotificationRelatedObjectType, ConversationMemberRole, ConversationType, MessageSendStatus, NotificationReadStatus, OrderStatus, PaymentStatus, PolicyAcceptanceScene, PolicyConfirmationMethod, PolicyType, RefundStatus, RelatedObjectType, ReviewStatus, StoredPolicyAcceptanceScene, SupportCaseStatus, SupportPriority } from "@xiongzai/contracts";
 
 export type { AfterSaleStatus, BuyerOrderAction, BuyerRefundAction, ComplaintStatus, OrderStatus, PaymentStatus, PolicyAcceptanceScene, PolicyConfirmationMethod, PolicyType, RefundStatus, ReviewStatus, StoredPolicyAcceptanceScene };
-export type { ConversationMemberRole, ConversationType, MessageSendStatus, NotificationCategory, NotificationReadStatus, RelatedObjectType, SupportCaseStatus, SupportPriority };
+export type { ConversationMemberRole, ConversationType, MessageSendStatus, NotificationCategory, NotificationReadStatus, NotificationRelatedObjectType, RelatedObjectType, SupportCaseStatus, SupportPriority };
 
 export type UserStatus = "NORMAL" | "DISABLED" | "CANCELLED";
 
@@ -117,6 +117,8 @@ export interface CursorPage<T> {
 }
 
 export interface CompanionApiView {
+  public_product_count?: number;
+  main_games?: import("@xiongzai/contracts").ProductGame[];
   id: string;
   user_id: string;
   status: string;
@@ -142,6 +144,9 @@ export interface CompanionDetailApiView extends CompanionApiView {
 }
 
 export interface ServiceApiView {
+  game?: import("@xiongzai/contracts").ProductGame;
+  pricing_mode?: "SINGLE" | "MULTI";
+  fulfillment_seconds?: number | null;
   id: string;
   seller_id: string;
   title: string;
@@ -163,13 +168,14 @@ export interface ServiceSkuApiView {
   sku_name: string;
   description: string | null;
   price_cent: string;
-  duration_minutes: number;
+  duration_minutes: number | null;
   status: "ACTIVE" | "INACTIVE" | "DELETED";
   sort_order: number;
   version: number;
 }
 
 export interface ServiceImageApiView {
+  image_kind?: "GALLERY" | "DETAIL";
   id: string;
   product_id: string;
   file_id: string;
@@ -193,6 +199,7 @@ export interface AvailabilityApiView {
 
 export interface ReviewApiView {
   id: string;
+  order_id?: string;
   product_id: string;
   seller_id: string;
   rating: number;
@@ -230,7 +237,7 @@ export interface CompanionVoiceAccessApiView {
   access: { url: string; expires_at: string | null };
 }
 
-export type FileType = "USER_AVATAR" | "SELLER_AVATAR" | "SELLER_COVER" | "PRODUCT_IMAGE" | "VOICE_SAMPLE" | "PAYMENT_PAYLOAD" | "COMPLAINT_EVIDENCE" | "ADMIN_EVIDENCE";
+export type FileType = "USER_AVATAR" | "SELLER_AVATAR" | "SELLER_COVER" | "PRODUCT_IMAGE" | "VOICE_SAMPLE" | "PAYMENT_PAYLOAD" | "COMPLAINT_EVIDENCE" | "ADMIN_EVIDENCE" | "ORDER_FULFILLMENT_IMAGE" | "ORDER_FULFILLMENT_VIDEO" | "CHAT_IMAGE" | "CHAT_VOICE";
 export type FileUploadStatus = "PENDING" | "UPLOADED" | "VERIFIED" | "FAILED" | "DELETED";
 export type FileModerationStatus = "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
 export type FileVisibility = "PUBLIC" | "PRIVATE" | "SIGNED";
@@ -260,7 +267,7 @@ export interface FileApiView {
   updated_at: string;
 }
 
-export type RecoverableFileApiView = Omit<FileApiView, "owner_user_id">;
+export type RecoverableFileApiView = Omit<FileApiView, "owner_user_id"> & { bound_order_id?: string | null; bound_message_id?: string | null };
 
 export interface FileUploadRequestApiView {
   file: FileApiView;
@@ -278,15 +285,18 @@ export interface OwnedFileApiView extends FileApiView {
 
 export interface OrderDraftApi {
   product_id: string;
-  sku_id: string;
-  slot_id: string;
+  sku_id?: string;
+  slot_id?: string;
   quantity: number;
-  service_starts_at: string;
+  service_starts_at?: string;
   buyer_note?: string | null;
   expected_payable_amount_cent?: string;
 }
 
 export interface OrderPreviewApiView {
+  rule_version?: string;
+  game?: import("@xiongzai/contracts").ProductGame;
+  fulfillment_seconds?: number | null;
   product_id: string;
   product_title: string;
   product_image_file_id: string | null;
@@ -295,7 +305,7 @@ export interface OrderPreviewApiView {
   sku_id: string;
   sku_name: string;
   sku_price_cent: string;
-  sku_duration_minutes: number;
+  sku_duration_minutes: number | null;
   quantity: number;
   total_amount_cent: string;
   discount_cent: string;
@@ -303,8 +313,8 @@ export interface OrderPreviewApiView {
   commission_rate_bps: number;
   platform_fee_cent: string;
   seller_income_cent: string;
-  service_starts_at: string;
-  service_ends_at: string;
+  service_starts_at: string | null;
+  service_ends_at: string | null;
 }
 
 export interface PaymentApiView {
@@ -324,6 +334,15 @@ export interface PaymentApiView {
 }
 
 export interface OrderApiView {
+  rule_version?: string;
+  game?: import("@xiongzai/contracts").ProductGame;
+  fulfillment_seconds?: number | null;
+  fulfillment_due_at?: string | null;
+  fulfillment_evidence?: { file_id: string; kind: "IMAGE" | "VIDEO" }[];
+  evidence_review_pending?: boolean;
+  receipt_extension_used?: boolean;
+  last_reminded_at?: string | null;
+  review_deadline_at?: string | null;
   id: string;
   order_no: string;
   buyer_id: string;
@@ -339,7 +358,7 @@ export interface OrderApiView {
   sku_name: string;
   sku_description: string | null;
   sku_price_cent: string;
-  sku_duration_minutes: number;
+  sku_duration_minutes: number | null;
   quantity: number;
   total_amount_cent: string;
   discount_cent: string;
@@ -349,8 +368,8 @@ export interface OrderApiView {
   commission_rate_bps: number;
   platform_fee_cent: string;
   seller_income_cent: string;
-  service_starts_at: string;
-  service_ends_at: string;
+  service_starts_at: string | null;
+  service_ends_at: string | null;
   buyer_note: string | null;
   status: OrderStatus;
   payment_status: PaymentStatus;
@@ -368,6 +387,7 @@ export interface OrderApiView {
 export type SellerOrderAction = "ACCEPT" | "REJECT" | "START" | "COMPLETE" | "PROCESS_REFUND" | "CONTACT_BUYER";
 
 export interface OrderDetailApiView extends OrderApiView {
+  after_sale_capabilities?: { basic_refund: boolean; platform_refund_review: boolean; remedy_fulfillment: boolean; negotiated_receipt_clock: boolean; automatic_liability_ruling: boolean };
   available_actions: BuyerOrderAction[];
   available_refund_amount_cent: string;
   reservation: { id: string; slot_id: string; starts_at: string; ends_at: string; status: string; expires_at: string | null; released_at: string | null; version: number } | null;
@@ -385,10 +405,10 @@ export interface ComplaintApiView extends ComplaintSummaryApiView { target_type:
 export interface MyReviewApiView extends ReviewApiView { order_id: string; buyer_id: string; status: ReviewStatus; hidden_at: string | null; hidden_reason: string | null }
 
 export interface ConversationApiView { id: string; conversation_no: string; conversation_type: ConversationType; product_id: string | null; order_id: string | null; last_message_preview: string | null; last_message_at: string | null; unread_count: number; member_role: ConversationMemberRole; version: number; created_at: string; can_send: boolean; send_block_reason: string | null; counterpart: { user_id: string | null; kind: "SELLER" | "BUYER" | "PLATFORM"; nickname: string; avatar_file_id: string | null; seller_id: string | null; account_status: UserStatus }; support_case: { id: string; case_no: string; status: SupportCaseStatus; version: number } | null }
-export interface MessageApiView { id: string; conversation_id: string; client_message_id: string; sequence_no: string; sender_user_id: string | null; sender_admin_id: string | null; sender_role: ConversationMemberRole; message_type: "TEXT" | "SYSTEM"; content: string; send_status: MessageSendStatus; moderation_status: "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED"; created_at: string; read_by_recipient: boolean }
+export interface MessageApiView { id: string; conversation_id: string; client_message_id: string; sequence_no: string; sender_user_id: string | null; sender_admin_id: string | null; sender_role: ConversationMemberRole; message_type: "TEXT" | "SYSTEM" | "STICKER" | "IMAGE" | "VOICE"; media_file_id?: string; sticker?: import("@xiongzai/contracts").BearSticker; content: string; send_status: MessageSendStatus; moderation_status: "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED"; created_at: string; read_by_recipient: boolean }
 export interface SupportCaseApiView { id: string; case_no: string; requester_id: string; conversation_id: string; topic: string; priority: SupportPriority; status: SupportCaseStatus; queue_key: string; assigned_admin_id: string | null; related_type: RelatedObjectType | null; related_id: string | null; source_page: string | null; first_response_at: string | null; closed_at: string | null; close_reason: string | null; version: number; created_at: string; updated_at: string }
 export interface SupportCaseDetailApiView extends SupportCaseApiView { assigned_admin: { id: string; display_name: string } | null; logs: { id: string; action: string; old_status: SupportCaseStatus | null; new_status: SupportCaseStatus; old_queue_key: string | null; new_queue_key: string | null; reason: string | null; created_at: string }[] }
-export interface NotificationApiView { id: string; category: NotificationCategory; notification_type: string; title: string; content_template_id: string; content_variables: Record<string, unknown>; related_type: RelatedObjectType | null; related_id: string | null; read_status: NotificationReadStatus; read_at: string | null; created_at: string }
+export interface NotificationApiView { id: string; category: NotificationCategory; notification_type: string; title: string; content_template_id: string; content_variables: Record<string, unknown>; related_type: NotificationRelatedObjectType | null; related_id: string | null; read_status: NotificationReadStatus; read_at: string | null; created_at: string }
 export interface PublicUserApiView {
   id: string;
   nickname: string;
@@ -413,7 +433,7 @@ export type SellerProductStatus = "DRAFT" | "PENDING_REVIEW" | "ON_SALE" | "REVI
 export interface SellerApplicationApiView { id: string; seller_id: string; version_no: number; status: SellerApplicationStatus; submitted_at: string | null; reviewed_at: string | null; rejection_reason: string | null; required_fields: string[] | null; version: number; created_at: string; revision_kind?: "INITIAL_ONBOARDING" | "PROFILE_UPDATE" }
 export interface SellerProfileRevisionApiView extends SellerApplicationApiView { revision_kind: "PROFILE_UPDATE"; snapshot: { seller_nickname: string; seller_avatar_file_id: string | null; cover_file_id: string | null; introduction: string | null; game_rank: string | null; kd: string | null; preferred_mode: string | null; play_style: string | null; game_experience: string | null; voice_file_id: string | null; voice_duration_ms: number | null } }
 export interface SellerProfileApiView { id: string; user_id: string; status: SellerStatus; seller_nickname: string; seller_avatar_file_id: string | null; cover_file_id: string | null; introduction: string | null; game_rank: string | null; kd: string | null; preferred_mode: string | null; play_style: string | null; game_experience: string | null; voice_file_id: string | null; voice_duration_ms: number | null; accepting_orders: boolean; rating_avg: string; review_count: number; completed_order_count: number; favorite_count: number; approved_at: string | null; suspended_reason: string | null; version: number; created_at: string; updated_at: string; latest_application?: SellerApplicationApiView | null; pending_profile_revision?: SellerProfileRevisionApiView | null }
-export interface SellerServiceApiView { id: string; seller_id: string; title: string; description: string; service_time_description: string | null; cover_file_id: string | null; status: SellerProductStatus; rejection_reason: string | null; rating_avg: string; review_count: number; sold_count: number; min_price_cent: string; current_version_no: number; submitted_at: string | null; approved_at: string | null; version: number; created_at: string; updated_at: string }
+export interface SellerServiceApiView { game?:import("@xiongzai/contracts").ProductGame; pricing_mode?:"SINGLE"|"MULTI"; fulfillment_seconds?:number|null; id: string; seller_id: string; title: string; description: string; service_time_description: string | null; cover_file_id: string | null; status: SellerProductStatus; rejection_reason: string | null; rating_avg: string; review_count: number; sold_count: number; min_price_cent: string; current_version_no: number; submitted_at: string | null; approved_at: string | null; version: number; created_at: string; updated_at: string }
 export interface SellerServiceDetailApiView extends SellerServiceApiView { seller: SellerProfileApiView; skus: ServiceSkuApiView[]; images: ServiceImageApiView[] }
 export interface SellerFinanceSummaryApiView { seller_id: string; total_earned_cent: string; pending_cent: string; available_cent: string; locked_cent: string; withdrawn_cent: string; liability_cent: string; withdrawal_paused: boolean; withdrawal_pause_reason: "LIABILITY" | "RISK" | null }
 export interface SellerOverviewApiView { seller: SellerProfileApiView; service_counts: Partial<Record<SellerProductStatus, number>>; order_counts: Partial<Record<OrderStatus, number>>; finance: SellerFinanceSummaryApiView }

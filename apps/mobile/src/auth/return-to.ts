@@ -8,7 +8,8 @@ const staticRoutes = new Set<string>([
   "/settings", "/settings/identity", "/settings/media-avatar", "/settings/permissions",
   "/settings/privacy", "/settings/profile", "/settings/security", "/settings/sessions",
   "/seller/status", "/seller/apply", "/(seller-tabs)", "/(seller-tabs)/earnings",
-  "/(seller-tabs)/orders", "/(seller-tabs)/services", "/seller/services/new"
+  "/(seller-tabs)/orders", "/(seller-tabs)/services", "/seller/services/new",
+  "/(seller-tabs)/messages", "/(seller-tabs)/mine", "/seller/finance", "/seller/reviews"
 ]);
 
 const dynamicRoutePatterns = [
@@ -40,6 +41,15 @@ export function isAllowedInternalRoute(candidate: string): boolean {
   let url: URL;
   try { url = new URL(candidate, "https://app.invalid"); } catch { return false; }
   if (url.origin !== "https://app.invalid" || url.hash) return false;
+  // Feedback can resume after authentication, but only a single real object ID
+  // may accompany it. Resource ownership is still verified by the feedback API.
+  if (url.pathname === "/feedback") {
+    if (url.search === "") return true;
+    const ids = url.searchParams.getAll("id");
+    return [...url.searchParams.keys()].every((key) => key === "id")
+      && ids.length === 1
+      && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(ids[0]!);
+  }
   if (staticRoutes.has(url.pathname)) return url.search === "";
   if (dynamicRoutePatterns.some((pattern) => pattern.test(url.pathname))) return url.search === "" && hasSafeSegments(url.pathname);
   const required = queryRoutes.get(url.pathname);

@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { useEffect, useRef, useState } from "react";
 import { Image, Linking, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -163,7 +164,7 @@ function ImageUploadSlotReady({ fileType, label, currentFileId, expectedVisibili
     {currentFileId && expectedVisibility === "PUBLIC" ? <FileImage fileId={currentFileId} style={styles.currentImage} label={`当前${label}`} /> : null}
     {asset ? <Image source={{ uri: asset.uri }} style={styles.preview} accessibilityLabel={`${label}本地预览`} /> : null}
     <Text style={styles.stage}>{imageStageCopy(stage, label)}</Text>
-    {asset ? <Text style={styles.meta}>{asset.width} × {asset.height}{asset.fileSize ? ` · ${Math.ceil(asset.fileSize / 1024)} KB` : ""}</Text> : null}
+    {asset ? <Text style={styles.meta}>{asset.width} <JellyIcon kind="close" label="关闭" />{asset.height}{asset.fileSize ? ` · ${Math.ceil(asset.fileSize / 1024)} KB` : ""}</Text> : null}
     {file ? <Text style={styles.meta}>服务端状态：{file.upload_status} / {file.moderation_status} / {file.visibility}</Text> : null}
     {message ? <NoticeBanner tone={stage === "bound" || stage === "approved" ? "success" : stage === "pending_review" || stage === "cancelled" ? "info" : "danger"} message={message} /> : null}
     {canChoose ? <PrimaryButton tone="plain" label={asset ? `重新选择${label}` : `从相册选择${label}`} disabled={policies.isPending} onPress={() => void choose()} /> : null}

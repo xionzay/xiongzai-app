@@ -4,6 +4,7 @@ import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { PrimaryButton } from "@/components/primary-button";
 import type { VoiceAudioControlsProps } from "@/features/files/voice-audio-controls";
 import { colors, spacing, typography } from "@/theme/tokens";
+import { audioProgressSeconds, resumeAudioPlayer } from "./audio-playback-domain";
 
 export function VoiceAudioControls({ url, label, onDurationMs }: VoiceAudioControlsProps) {
   return <VoiceAudioPlayer key={url} url={url} label={label} onDurationMs={onDurationMs} />;
@@ -53,9 +54,9 @@ function VoiceAudioPlayer({ url, label, onDurationMs }: VoiceAudioControlsProps)
     if (!player) return;
     try {
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: false, shouldPlayInBackground: false, shouldRouteThroughEarpiece: false });
-      if (playerRef.current === player) player.play();
+      await resumeAudioPlayer(player, () => playerRef.current === player);
     } catch {
-      setLifecycleError(true);
+      if (playerRef.current === player) setLifecycleError(true);
     }
   };
   const pause = () => {
@@ -72,7 +73,7 @@ function VoiceAudioPlayer({ url, label, onDurationMs }: VoiceAudioControlsProps)
       player.pause();
       await player.seekTo(0);
     } catch {
-      setLifecycleError(true);
+      if (playerRef.current === player) setLifecycleError(true);
     }
   };
 
@@ -80,7 +81,7 @@ function VoiceAudioPlayer({ url, label, onDurationMs }: VoiceAudioControlsProps)
   const playing = status?.playing === true;
 
   return <View accessibilityLabel={label} style={styles.controls}>
-    <Text style={styles.meta}>{loaded ? `${status.currentTime.toFixed(1)} / ${status.duration.toFixed(1)} 秒` : "正在读取音频信息…"}</Text>
+    <Text style={styles.meta}>{loaded ? audioProgressSeconds(status.currentTime, status.duration) : "正在读取音频信息…"}</Text>
     {status?.error || lifecycleError ? <Text style={styles.error}>音频暂时无法播放，请重新申请试听地址或重新选择。</Text> : null}
     <View style={styles.buttons}>
       <View style={styles.button}><PrimaryButton tone="plain" label={playing ? "暂停" : "播放"} disabled={!loaded} onPress={() => playing ? pause() : void play()} /></View>

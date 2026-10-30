@@ -29,7 +29,7 @@ export function AuthRequiredScreen() {
 
 const styles = StyleSheet.create({
   content: { gap: 13 },
-  card: { alignItems: "center", padding: 22, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 19, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  card: { alignItems: "center", padding: 22, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   markWrap: { width: 74, height: 74, alignItems: "center", justifyContent: "center", borderRadius: 25, backgroundColor: "#DCEEFF" },
   mark: { color: colors.brandDeep, fontSize: 28, lineHeight: 34, fontWeight: "900" },
   title: { marginTop: 17, color: colors.text, fontSize: 19, lineHeight: 25, fontWeight: "900", textAlign: "center" },
