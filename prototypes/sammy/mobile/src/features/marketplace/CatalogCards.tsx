@@ -1,5 +1,5 @@
 import {useEffect,useState} from 'react';
-import {Image,Pressable,StyleSheet,Text,View} from 'react-native';
+import {Image,ImageBackground,Pressable,StyleSheet,Text,View} from 'react-native';
 import {money} from '../../components/FormUI';
 import {useLanguage} from '../../i18n/LanguageProvider';
 import {gameName,serviceTypeName} from './catalog';
@@ -12,7 +12,7 @@ export function CatalogCover({game,url,sample=false,serviceType}:{game:string;ur
  const {language}=useLanguage();const look=gameLook(game);const [failed,setFailed]=useState(false);useEffect(()=>setFailed(false),[url]);
  const source=url&&!failed?{uri:url}:catalogArtwork(game,serviceType);
  return <View accessible={false} style={[s.cover,{backgroundColor:look.color}]}>
-  {source?<><Image source={source} onError={()=>setFailed(true)} style={StyleSheet.absoluteFill} resizeMode="cover"/><View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(4,16,34,0.24)'}]}/></>:<>
+  {source?<><ImageBackground source={source} onError={()=>setFailed(true)} style={StyleSheet.absoluteFill} resizeMode="cover"/><View style={[StyleSheet.absoluteFill,{backgroundColor:'rgba(4,16,34,0.24)'}]}/></>:<>
    <View style={[s.orbit,{borderColor:look.accent}]}/><View style={[s.orbitSmall,{borderColor:look.accent}]}/>
    <View style={[s.slash,{backgroundColor:look.accent}]}/><Text style={[s.emblem,{color:look.accent}]}>{look.mark}</Text>
    <Text style={s.coverWord}>{language==='zh'?(serviceType==='coaching'?'一起练习 / 一起进步':'一起开黑 / 一起精彩'):(serviceType==='coaching'?'PLAY / LEARN':'PLAY / TOGETHER')}</Text>
