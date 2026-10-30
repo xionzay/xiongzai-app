@@ -4,7 +4,7 @@ export const showcaseProviders = [
   {
     key: 'peace-elite',
     phone: '00000000001',
-    nickname: 'Xiongzai Showcase · PE',
+    nickname: 'Cloud Scout / 云游',
     game: 'peaceElite',
     gameName: 'Peace Elite showcase',
     gameId: 'PEshowcase01',
@@ -37,7 +37,7 @@ export const showcaseProviders = [
   {
     key: 'delta-force',
     phone: '00000000002',
-    nickname: 'Xiongzai Showcase · DF',
+    nickname: 'Echo / 回声',
     game: 'deltaForce',
     gameName: 'Delta Force showcase',
     gameId: 'DFshowcase01',
@@ -70,7 +70,7 @@ export const showcaseProviders = [
   {
     key: 'honor-of-kings',
     phone: '00000000003',
-    nickname: 'Xiongzai Showcase · HoK',
+    nickname: 'Mochi / 糯米',
     game: 'honorOfKings',
     gameName: 'Honor of Kings showcase',
     gameId: 'HOKshowcase01',
@@ -103,7 +103,7 @@ export const showcaseProviders = [
   {
     key: 'valorant',
     phone: '00000000004',
-    nickname: 'Xiongzai Showcase · VAL',
+    nickname: 'Orbit / 星轨',
     game: 'valorant',
     gameName: 'VALORANT China showcase',
     gameId: 'XiongzaiShowcase#CN01',

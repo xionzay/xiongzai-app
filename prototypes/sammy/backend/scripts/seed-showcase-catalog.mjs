@@ -4,6 +4,7 @@ import { Pool } from 'pg';
 import { showcaseBio, showcaseProviders } from './showcase-catalog-data.mjs';
 
 const namespace = 'xiongzai-sammy-showcase-catalog-v1';
+const legacyNames = { 'peace-elite':'Xiongzai Showcase · PE', 'delta-force':'Xiongzai Showcase · DF', 'honor-of-kings':'Xiongzai Showcase · HoK', valorant:'Xiongzai Showcase · VAL' };
 
 function stableUuid(key) {
   const bytes = createHash('sha256').update(`${namespace}:${key}`).digest().subarray(0, 16);
@@ -30,6 +31,7 @@ function assertSame(actual, expected, description) {
 /** Add an idempotent, clearly labeled example catalog. Intended for the dedicated demo database only. */
 export async function seedShowcaseCatalog(pool) {
   let insertedProviders = 0;
+  let updatedProviders = 0;
   let insertedListings = 0;
   const listingIds = [];
 
@@ -50,6 +52,12 @@ export async function seedShowcaseCatalog(pool) {
         mode: provider.mode,
         voiceMediaId: null,
       };
+      // Upgrade only untouched names from the original curated seed. Never rename a real or edited profile.
+      const renamed = await client.query(
+        'UPDATE users SET nickname=$1 WHERE id=$2 AND is_showcase=true AND nickname=$3 AND bio=$4',
+        [provider.nickname, userId, legacyNames[provider.key], showcaseBio],
+      );
+      updatedProviders += renamed.rowCount ?? 0;
       const userInsert = await client.query(
         `INSERT INTO users(id,phone,password_hash,nickname,bio,draft,is_showcase)
          VALUES($1,$2,$3,$4,$5,$6::jsonb,true) ON CONFLICT(id) DO NOTHING RETURNING id`,
@@ -108,6 +116,7 @@ export async function seedShowcaseCatalog(pool) {
     providers: showcaseProviders.length,
     listings: listingIds.length,
     insertedProviders,
+    updatedProviders,
     insertedListings,
     listingIds,
   };
@@ -125,10 +134,11 @@ async function main() {
     await pool.query("SELECT to_regclass('public.users'), to_regclass('public.applications'), to_regclass('public.listings')");
     const result = await seedShowcaseCatalog(pool);
     console.log(JSON.stringify({
-      message: 'Browse-only showcase catalog is ready. No provider applications, approvals, orders, sales, or reviews were created.',
+      message: 'Catalog is ready for the simulation-gated checkout. No provider applications, approvals, orders, sales, or reviews were created.',
       providers: result.providers,
       listings: result.listings,
       insertedProviders: result.insertedProviders,
+      updatedProviders: result.updatedProviders,
       insertedListings: result.insertedListings,
     }));
   } finally {

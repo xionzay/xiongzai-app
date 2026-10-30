@@ -44,6 +44,7 @@ type OrderInfo={workflow:typeof workflows.$inferSelect|null;displayStatus:string
 export function orderRoutes(app:FastifyInstance,db:Database){
  const enabled=simulationAvailable();
  const simulation=()=>{if(!enabled)throw new ApiError(403,'orderSimulationDisabled');};
+ const orderable=(listing:typeof listings.$inferSelect,seller:typeof users.$inferSelect,approved:boolean)=>!seller.suspended&&!seller.providerSuspended&&listing.status==='published'&&!listing.moderationBlocked&&(listing.isShowcase?enabled&&seller.isShowcase&&listing.reviewStatus==='draft'&&listing.applicationId===null&&listing.publicationConsentAt===null:!seller.isShowcase&&listing.reviewStatus==='approved'&&!!listing.publicationConsentAt&&approved);
  const user=(req:{headers:{authorization?:string}},allowRestricted=false)=>authenticate(db,req.headers.authorization,{allowRestricted});
  const infoQuery=()=>db.select(infoSelection).from(orders).leftJoin(workflows,eq(workflows.orderId,orders.id)).leftJoin(cases,and(eq(sql`${cases.id}::text`,sql`${workflows.data}->>'activeCaseId'`),eq(cases.orderId,orders.id))).leftJoin(orderReviews,eq(orderReviews.orderId,orders.id));
  const view=async(order:typeof orders.$inferSelect,viewerId?:string,info?:OrderInfo)=>({order:{...order,viewerRole:viewerId===order.sellerId?'seller':'buyer'},attempts:await db.select().from(paymentAttempts).where(eq(paymentAttempts.orderId,order.id)).orderBy(desc(paymentAttempts.createdAt),desc(paymentAttempts.id)).limit(20),...(info??(await infoQuery().where(eq(orders.id,order.id)))[0]),simulationEnabled:enabled});
@@ -61,14 +62,13 @@ export function orderRoutes(app:FastifyInstance,db:Database){
    if(previous){if(previous.requestHash!==hash)throw new ApiError(409,'orderRequestConflict');return previous;}
    if(lockedBuyer.suspended)throw new ApiError(403,'accountSuspended');if(input.rulesVersion!==orderRules.version)throw new ApiError(409,'ruleVersionUnsupported');
    const [current]=await tx.select().from(listings).where(eq(listings.id,input.listingId)).for('update');
-   if(current.isShowcase)throw new ApiError(409,'showcaseNotOrderable');
    const [approved]=current.applicationId?await tx.select().from(applications).where(and(eq(applications.id,current.applicationId),eq(applications.userId,seller.id),eq(applications.status,'approved'))):[];
-   if(seller.suspended||seller.providerSuspended||current.status!=='published'||current.reviewStatus!=='approved'||current.moderationBlocked||!current.publicationConsentAt||!approved)throw new ApiError(409,'listingUnavailable');
+   if(!orderable(current,seller,!!approved))throw new ApiError(409,'listingUnavailable');
    if(current.revision!==input.listingRevision||current.priceFen!==input.expectedUnitPriceFen)throw new ApiError(409,'orderQuoteChanged');
    // Delivery rules come from the purchased listing, never a caller's game.
    const details=delivery.extend(gameAccountSchema(current.game).shape).parse(input.delivery);
    const totalFen=current.priceFen*input.quantity;if(!Number.isSafeInteger(totalFen))throw new ApiError(400,'invalidOrder');
-   const [created]=await tx.insert(orders).values({buyerId:buyer.id,sellerId:seller.id,listingId:current.id,requestId:input.requestId,requestHash:hash,quantity:input.quantity,totalFen,delivery:details,rules:orderRules,service:{id:current.id,revision:current.revision,title:current.title,description:current.description,providerName:approved.snapshot.nickname,mode:current.mode,category:current.category,game:current.game,serviceType:current.serviceType,unitPriceFen:current.priceFen,photoMediaIds:current.photoMediaIds}}).returning();return created;
+   const [created]=await tx.insert(orders).values({buyerId:buyer.id,sellerId:seller.id,listingId:current.id,requestId:input.requestId,requestHash:hash,quantity:input.quantity,totalFen,delivery:details,rules:orderRules,service:{id:current.id,revision:current.revision,title:current.title,description:current.description,providerName:approved?.snapshot.nickname??seller.nickname,isShowcase:current.isShowcase,mode:current.mode,category:current.category,game:current.game,serviceType:current.serviceType,unitPriceFen:current.priceFen,photoMediaIds:current.photoMediaIds}}).returning();return created;
   });return view(order,buyer.id);
  });
  app.get('/v1/orders',async req=>{
@@ -96,7 +96,8 @@ export function orderRoutes(app:FastifyInstance,db:Database){
    const seller=participants.find(p=>p.id===item.sellerId)!,buyer=participants.find(p=>p.id===item.buyerId)!;
    // Restricted participants can resolve an existing pending test as failed, never pay.
    if((buyer.suspended||seller.suspended||seller.providerSuspended)&&!(attempt&&desired==='failed'))throw new ApiError(403,'publicationRestricted');
-   if(!attempt){const [listing]=await tx.select().from(listings).where(eq(listings.id,item.listingId)).for('update');if(!listing||listing.isShowcase||listing.status!=='published'||listing.reviewStatus!=='approved'||listing.moderationBlocked||!listing.publicationConsentAt)throw new ApiError(409,'listingUnavailable');const [approved]=listing.applicationId?await tx.select().from(applications).where(and(eq(applications.id,listing.applicationId),eq(applications.userId,seller.id),eq(applications.status,'approved'))):[];if(!approved)throw new ApiError(409,'listingUnavailable');}
+   if(!attempt){const [listing]=await tx.select().from(listings).where(eq(listings.id,item.listingId)).for('update');if(!listing)throw new ApiError(409,'listingUnavailable');const [approved]=listing.applicationId?await tx.select().from(applications).where(and(eq(applications.id,listing.applicationId),eq(applications.userId,seller.id),eq(applications.status,'approved'))):[];if(!orderable(listing,seller,!!approved))throw new ApiError(409,'listingUnavailable');}
+
    const [pending]=await tx.select().from(paymentAttempts).where(and(eq(paymentAttempts.orderId,id),eq(paymentAttempts.status,'pending')));if(pending&&pending.requestId!==input.requestId)throw new ApiError(409,'paymentPending');
    const resolvedAt=desired==='pending'?null:new Date();
    if(attempt)await tx.update(paymentAttempts).set({status:desired,resolvedAt}).where(eq(paymentAttempts.id,attempt.id));else await tx.insert(paymentAttempts).values({orderId:id,requestId:input.requestId,status:desired,resolvedAt});

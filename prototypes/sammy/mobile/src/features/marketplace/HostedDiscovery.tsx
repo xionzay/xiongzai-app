@@ -1,3 +1,5 @@
+import {CatalogCover,CompanionCard,ServiceCard} from './CatalogCards';
+import {listingCopy,providerCopy} from './catalogPresentation';
 import {games,gameName,serviceTypeName,type Game} from './catalog';
 import {commerceApi,type CommerceObject} from './commerceApi';
 import { useEffect, useRef, useState } from 'react';
@@ -46,16 +48,16 @@ export function HostedDiscovery({onOpen,onStore,onShortcut,active=true}:{active?
  };
  return <ScrollView contentContainerStyle={ui.content} keyboardShouldPersistTaps="handled">
   <Field label={language==='zh'?'搜索店铺或服务':'Search companions or services'} value={q} onChangeText={setQ} maxLength={80} returnKeyType="search"/>
-  <View style={discoveryStyles.sections}>{(['recommended','companions','services'] as const).map((v,i)=><Pressable key={v} accessibilityRole="tab" accessibilityState={{selected:section===v}} onPress={()=>{setSection(v);setSort('recent');}} style={[discoveryStyles.sectionTab,section===v&&discoveryStyles.sectionTabSelected]}><Text style={[discoveryStyles.sectionText,section===v&&discoveryStyles.sectionTextSelected]}>{(language==='zh'?['推荐','陪玩','服务']:['Recommended','Companions','Services'])[i]}</Text></Pressable>)}</View>
+  <View style={discoveryStyles.sections}>{(['recommended','companions','services'] as const).map((v,i)=><Pressable key={v} accessibilityRole="tab" accessibilityState={{selected:section===v}} onPress={()=>{setSection(v);setSort('recent');}} style={[discoveryStyles.sectionTab,section===v&&discoveryStyles.sectionTabSelected]}><Text style={[discoveryStyles.sectionText,section===v&&discoveryStyles.sectionTextSelected]}>{(language==='zh'?['发现','陪玩','服务']:['Discover','Companions','Services'])[i]}</Text></Pressable>)}</View>
   {section==='recommended'&&<><View style={{borderRadius:26,overflow:'hidden',backgroundColor:'white'}}>{active&&<HeroVideo/>}<View style={{padding:20,gap:12}}><Text style={ui.title}>{t('heroTitle')}</Text><Text style={ui.body}>{t('heroBody')}</Text></View></View>
   <View style={{flexDirection:'row',gap:3}}>{['match','coupons','rules','feedback','notices'].map((v,i)=><Pressable key={v} accessibilityRole="button" style={{flex:1,alignItems:'center',backgroundColor:'white',paddingVertical:14,borderRadius:14,gap:6}} onPress={()=>onShortcut(v)}><Text style={{fontSize:21}}>{['⚡','◇','≡','✎','♧'][i]}</Text><Text style={{fontSize:10,lineHeight:15,textAlign:'center',color:'#25405F'}}>{(language==='zh'?['快速匹配','领券中心','平台规则','意见反馈','官方通知']:['Quick Match','Coupons','Platform Rules','Feedback','Notices'])[i]}</Text></Pressable>)}</View>
   {!!home?.announcements?.length&&<ScrollView horizontal pagingEnabled>{home.announcements.map((n:CommerceObject)=><View key={n.id} style={[ui.card,{width:280}]}><Text style={ui.heading}>{n.title[language]??n.title}</Text><Text style={ui.body}>{n.body[language]??n.body}</Text></View>)}</ScrollView>}
-  <Text style={ui.heading}>{language==='zh'?'热销服务':'Xiongzai Best Sellers'}</Text>{home?.bestsellers?.length?home.bestsellers.map((l:CommerceObject)=><Pressable key={l.id} style={ui.card} accessibilityRole="button" onPress={()=>onOpen(l.id)}><Photo url={l.files?.find((f:CommerceObject)=>f.id===l.photoMediaIds?.[0])?.url} label={l.title}/><Text style={ui.heading}>{l.title}</Text><Text style={ui.label}>{money(l.priceFen,language)}</Text></Pressable>):<Text style={ui.caption}>{language==='zh'?'有真实成交后将在此展示。':'Best sellers will appear as orders are completed.'}</Text>}<ActionButton secondary label={language==='zh'?'查看全部服务':'View all services'} onPress={()=>setSection('services')}/>
-  <Text style={ui.heading}>{language==='zh'?'人气陪玩':'Popular Companions'}</Text>{home?.popularCompanions?.map((c:CommerceObject)=><Pressable key={c.id} style={ui.card} accessibilityRole="button" onPress={()=>onStore(c.id)}><Text style={ui.heading}>{c.nickname}</Text><Text style={ui.body}>{c.bio}</Text><Text style={ui.caption}>{c.reviewCount?Number(c.rating).toFixed(1)+' ★':(language==='zh'?'暂无评价':'No reviews yet')}</Text></Pressable>)}<ActionButton secondary label={language==='zh'?'查看全部陪玩':'View all companions'} onPress={()=>setSection('companions')}/></>}
+  {!!home?.bestsellers?.length&&<><Text style={ui.heading}>{language==='zh'?'热销服务':'Most booked'}</Text>{home.bestsellers.map((l:CommerceObject)=><ServiceCard key={l.id} listing={l as PublicListing} onPress={()=>onOpen(l.id)}/>)}</>}
+  {!!home?.popularCompanions?.length&&<><Text style={ui.heading}>{language==='zh'?'人气陪玩':'Popular companions'}</Text>{home.popularCompanions.map((c:CommerceObject)=><CompanionCard key={c.id} store={c} onPress={()=>onStore(c.id)}/>)}</>}</>}
   <View style={discoveryStyles.discoveryPanel}>
    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={discoveryStyles.gameRow}>{(['all',...games] as const).map(g=><FilterChip key={g} label={g==='all'?(language==='zh'?'全部游戏':'All games'):gameName(g,language)} selected={g===game} onPress={()=>setGame(g)}/>)}</ScrollView>
    <View style={discoveryStyles.resultsToolbar}>
-    <View style={{flex:1,minWidth:100,gap:3}}><Text accessibilityRole="header" style={ui.heading}>{section==='companions'?(language==='zh'?'发现陪玩':'Find a companion'):section==='services'?(language==='zh'?'发现服务':'Explore services'):(language==='zh'?'为你推荐':'For you')}</Text><Text style={ui.caption}>{sortLabel(sort)}</Text></View>
+    <View style={{flex:1,minWidth:100,gap:3}}><Text accessibilityRole="header" style={ui.heading}>{section==='companions'?(language==='zh'?'发现陪玩':'Find a companion'):section==='services'?(language==='zh'?'全部服务':'All services'):(language==='zh'?'开启下一场精彩':'For your next session')}</Text><Text style={ui.caption}>{sortLabel(sort)}</Text></View>
     <Pressable accessibilityRole="button" accessibilityLabel={(language==='zh'?'筛选与排序':'Filters and sorting')+(filterCount?' · '+filterCount:'')} onPress={openFilters} style={[discoveryStyles.filterButton,filterCount>0&&discoveryStyles.filterButtonActive]}><Text style={discoveryStyles.filterButtonText}>☷ {language==='zh'?'筛选':'Filters'}{filterCount?' · '+filterCount:''}</Text></Pressable>
    </View>
   </View>
@@ -70,16 +72,13 @@ export function HostedDiscovery({onOpen,onStore,onShortcut,active=true}:{active?
    <ActionButton label={language==='zh'?'应用筛选':'Apply filters'} onPress={()=>{setSort(filterDraft.sort);setServiceType(filterDraft.serviceType);setCategory(filterDraft.category);setMode(filterDraft.mode);setFiltersOpen(false);}}/>
    <ActionButton secondary label={language==='zh'?'重置筛选':'Reset filters'} onPress={()=>setFilterDraft({sort:'recent',serviceType:'all',category:'all',mode:'all'})}/>
   </Sheet>
-  {section==='companions'&&stores.map(c=><Pressable key={c.id} accessibilityRole="button" style={ui.card} onPress={()=>onStore(c.id)}>{c.isShowcase&&<Text style={ui.caption}>{language==='zh'?'熊崽示范':'Xiongzai showcase'}</Text>}<Text style={ui.heading}>{c.nickname}</Text><Text style={ui.body}>{c.bio}</Text><Text style={ui.caption}>{c.games.map((g:string)=>gameName(g,language)).join(' · ')} · {c.reviewCount?Number(c.rating).toFixed(1)+' ★':(language==='zh'?'暂无评价':'No reviews yet')}</Text>{c.minPriceFen!=null&&<Text style={ui.label}>{money(c.minPriceFen,language)} / {language==='zh'?'小时起':'hour from'}</Text>}</Pressable>)}
-  {section!=='companions'&&items.map(item=><Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`${item.title}, ${item.provider.nickname}, ${money(item.priceFen,language)}`} onPress={()=>onOpen(item.id)} style={ui.card}>
-   <Photo url={item.files.find(f=>f.id===(item.photoMediaIds[0]??item.provider.avatarMediaId))?.url} label={item.provider.nickname}/>
-   {item.isShowcase&&<Text style={ui.caption}>{language==='zh'?'熊崽示范':'Xiongzai showcase'} · {language==='zh'?'仅供浏览':'Browse only'}</Text>}<Text style={ui.caption}>{item.provider.nickname} · {gameName(item.game,language)} · {serviceTypeName(item.serviceType??'companion',language)} · {t(item.category)}</Text><Text style={ui.heading}>{item.title}</Text><Text numberOfLines={2} style={ui.body}>{item.description}</Text>
-   <Text style={ui.label}>{money(item.priceFen,language)} {t('perHour')} · {t(item.mode==='duo'?'modeDuo':'modeSquad')}</Text>
-  </Pressable>)}
+  {section==='companions'&&stores.map(c=><CompanionCard key={c.id} store={c} onPress={()=>onStore(c.id)}/>)}
+  {section!=='companions'&&(section==='recommended'?items.slice(0,4):items).map(item=><ServiceCard key={item.id} listing={item} onPress={()=>onOpen(item.id)}/>)}
+  {section==='recommended'&&items.length>0&&<ActionButton secondary label={language==='zh'?'浏览全部服务':'Browse all services'} onPress={()=>setSection('services')}/>}
   {loading&&<ActivityIndicator accessibilityLabel={t('loading')}/>}
   {error&&<View style={ui.notice}><Text accessibilityRole="alert" style={ui.error}>{t(error)}</Text><ActionButton label={t('retry')} onPress={()=>setRefresh(v=>v+1)}/></View>}
   {!loading&&!error&&!(section==='companions'?stores.length:items.length)&&<EmptyState title={t('listingPublicEmpty')} body={t('listingPublicEmptyBody')} mood="curious"/>}
-  {section!=='companions'&&!!cursor&&!error&&<ActionButton secondary label={t('listingLoadMore')} busy={loading} onPress={()=>void loadMore()}/>}
+  {section==='services'&&!!cursor&&!error&&<ActionButton secondary label={t('listingLoadMore')} busy={loading} onPress={()=>void loadMore()}/>}
   {section==='companions'&&storeMore&&!loading&&<ActionButton secondary label={t('listingLoadMore')} onPress={()=>{setLoading(true);void api<CommerceObject>('/stores?q='+encodeURIComponent(q.trim())+'&game='+game+'&sort='+sort+'&page='+(page+1),null).then(d=>{setStores(old=>[...old,...d.stores.filter((c:CommerceObject)=>!old.some(o=>o.id===c.id))]);setPage(p=>p+1);setStoreMore(d.hasMore);}).catch(e=>setError(errorKey(e))).finally(()=>setLoading(false));}}/>}
  </ScrollView>;
 }
@@ -90,21 +89,24 @@ export function HostedListingDetail({id,onBack,onPurchase,onContact,onStore,onSi
  useEffect(()=>{let active=true;void api<OrderPolicy>('/orders/policy',null).then(p=>{if(active)setPolicy(p);}).catch(e=>{if(active)setError(errorKey(e));});return()=>{active=false;};},[id,refresh]);
  const [favorite,setFavorite]=useState(false),[favoriteBusy,setFavoriteBusy]=useState(false);
  useEffect(()=>{let active=true;if(signedIn)void commerceApi('/me/favorites').then(d=>{if(active)setFavorite(d.products.some((p:CommerceObject)=>p.id===id));}).catch(()=>{});return()=>{active=false;};},[id,signedIn]);
- const service=listing&&policy?purchaseSnapshot(listing,policy):null;
+ const service=listing&&policy?purchaseSnapshot(listing,policy,language):null;
  const photos=listing?(listing.photoMediaIds.length?listing.photoMediaIds:listing.provider.avatarMediaId?[listing.provider.avatarMediaId]:[]):[];
  const voice=listing?.files.find(f=>f.id===listing.provider.voiceMediaId);
+ const copy=listing?listingCopy(listing,language):null;
+ const provider=listing?providerCopy({...listing.provider,isShowcase:listing.isShowcase},listing.game,language):null;
  return <ScrollView contentContainerStyle={ui.content}>
   <ActionButton secondary label={t('back')} onPress={onBack}/>
   {loading&&<ActivityIndicator accessibilityLabel={t('loading')}/>}
   {error&&<><Text accessibilityRole="alert" style={ui.error}>{t(error)}</Text><ActionButton label={t('retry')} onPress={()=>setRefresh(v=>v+1)}/></>}
   {listing&&<>
+   {!photos.length&&<CatalogCover game={listing.game} sample={listing.isShowcase} serviceType={listing.serviceType}/>}
    {photos.map(photo=><Photo key={photo} large url={listing.files.find(f=>f.id===photo)?.url} label={listing.provider.nickname}/>)}
-   {listing.isShowcase&&<View style={ui.notice}><Text style={ui.body}>{language==='zh'?'熊崽示范服务，仅供浏览体验；目前没有真实服务者提供此服务，不能下单。':'Xiongzai showcase listing for browsing only. No real provider offers this service, so it cannot be ordered.'}</Text></View>}<Text accessibilityRole="header" style={ui.title}>{listing.title}</Text><Text style={ui.label}>{money(listing.priceFen,language)} {t('perHour')} · {t(listing.mode==='duo'?'modeDuo':'modeSquad')}</Text>
-   <Text style={ui.caption}>{gameName(listing.game,language)} · {serviceTypeName(listing.serviceType??'companion',language)} · {t(listing.category)}</Text><Text style={ui.body}>{listing.description}</Text>
-   <View style={ui.card}><Text style={ui.heading}>{listing.provider.nickname}</Text><Text style={ui.body}>{listing.provider.bio}</Text><Text style={ui.caption}>{listing.provider.rank} · {listing.provider.playStyle}</Text></View>
+   <Text accessibilityRole="header" style={ui.title}>{copy?.title}</Text><Text style={ui.label}>{money(listing.priceFen,language)} {t('perHour')} · {t(listing.mode==='duo'?'modeDuo':'modeSquad')}</Text>
+   <Text style={ui.caption}>{gameName(listing.game,language)} · {serviceTypeName(listing.serviceType??'companion',language)} · {t(listing.category)}</Text><Text style={ui.body}>{copy?.description}</Text>
+   <View style={ui.card}><Text style={ui.heading}>{provider?.name}</Text><Text style={ui.body}>{provider?.bio}</Text>{!listing.isShowcase&&<Text style={ui.caption}>{listing.provider.rank} · {listing.provider.playStyle}</Text>}</View>
    {(listing.provider.id??listing.ownerId)&&<ActionButton secondary label={language==='zh'?'查看陪玩店铺':'View companion store'} onPress={()=>onStore((listing.provider.id??listing.ownerId)!)}/>}<ActionButton secondary busy={favoriteBusy} label={favorite?(language==='zh'?'取消收藏':'Remove favorite'):(language==='zh'?'收藏服务':'Favorite service')} onPress={()=>{if(!signedIn){onSignIn();return;}setFavoriteBusy(true);void commerceApi('/me/favorites/products/'+id,{favorite:!favorite},'PUT').then(()=>setFavorite(v=>!v)).catch(()=>setError('saveFailed')).finally(()=>setFavoriteBusy(false));}}/>
    {voice?.url&&<PublicVoice key={voice.url} url={voice.url}/>}
-   <Text style={ui.caption}>{t('listingContentLanguage')}</Text>{!listing.isShowcase&&<><View style={ui.notice}><Text style={ui.body}>{t('simulationNotice')}</Text></View><ActionButton secondary label={language==='zh'?'联系陪玩':'Message provider'} onPress={onContact}/><ActionButton label={t('book')} disabled={!policy?.simulationEnabled} onPress={()=>setOptions(true)}/>{policy&&!policy.simulationEnabled&&<Text style={ui.caption}>{t('orderSimulationDisabled')}</Text>}</>}
+   {!listing.isShowcase&&<Text style={ui.caption}>{t('listingContentLanguage')}</Text>}{!listing.isShowcase&&<ActionButton secondary label={language==='zh'?'联系陪玩':'Message provider'} onPress={onContact}/>}<ActionButton label={t('book')} disabled={!policy?.simulationEnabled} onPress={()=>setOptions(true)}/>{policy&&!policy.simulationEnabled&&<Text style={ui.caption}>{t('orderSimulationDisabled')}</Text>}
    <ActionButton secondary label={t('listingRefresh')} onPress={()=>setRefresh(v=>v+1)}/>
   </>}
   {service&&<VariantSheet visible={options} service={service} choice={{mode:service.mode,quantity}} onChange={v=>setQuantity(v.quantity)} onClose={()=>setOptions(false)} onConfirm={()=>{setOptions(false);onPurchase(service,quantity);}}/>}

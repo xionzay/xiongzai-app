@@ -107,7 +107,7 @@ Use that server in the development client. The ordinary demo session on port 808
 
 ## Showcase catalog for the dedicated demo database
 
-`npm run db:seed-showcase` adds eight bilingual, browse-only catalog examples: one companionship service and one coaching service for each of Peace Elite, Delta Force, Honor of Kings, and VALORANT. The provider names and profiles identify them as Xiongzai showcase entries, not independent players. They have no provider applications or review approvals, cannot be ordered, and are excluded from admin user/service totals. The script creates no orders, sales, or reviews, never overwrites existing rows, and is not part of deploy/startup.
+`npm run db:seed-showcase` adds eight bilingual catalog entries: one companionship service and one coaching service for each of Peace Elite, Delta Force, Honor of Kings, and VALORANT. The mobile UI uses normal catalog copy; simulated checkout keeps an explicit no-real-charge notice. The stored names include both languages so profile searches match the displayed names. They have no provider applications or review approvals, can be ordered only through the existing simulation-gated order/payment endpoints, and are excluded from admin user/service totals. The script creates no orders, sales, or reviews, only upgrades untouched original placeholder names and never overwrites edited rows, and is not part of deploy/startup.
 
 Run migrations first, then seed only the dedicated Sammy demo Neon database:
 
@@ -115,7 +115,7 @@ Run migrations first, then seed only the dedicated Sammy demo Neon database:
 SAMMY_HOSTED_DEMO=true SAMMY_SHOWCASE_CATALOG_CONFIRM=YES npm run db:seed-showcase
 ```
 
-It refuses non-Neon targets and requires both explicit flags. If the same showcase IDs already exist with changed content, it stops rather than replacing them. `npm run test:integration` verifies all four games, both service types, public discovery, browse-only ordering, and repeat-run idempotence against a disposable PostgreSQL database.
+It refuses non-Neon targets and requires both explicit flags. If the same showcase IDs already exist with changed content, it stops rather than replacing them. `npm run test:integration` verifies all four games, both service types, public discovery, simulated checkout and payment, simulation-disabled rejection, and repeat-run idempotence against a disposable PostgreSQL database.
 
 Publication requires provider approval and explicit consent to expose the selected listing photos and approved profile photo/voice/name/bio. Phone and in-game identifiers remain private. Drafts are never returned by public endpoints. Editing published content returns it to draft; re-publishing requires consent. Concurrent stale edits return a conflict rather than overwriting newer data. Unpublishing removes public API access immediately; already issued media links can remain valid for their five-minute lifetime. These discovery features do not enable payments or replace identity checks.
 

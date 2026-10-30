@@ -79,6 +79,7 @@ export function CheckoutFlow({ service, quantity, delivery = emptyDelivery, onDe
         <Text style={[styles.progressText, step === 'review' && styles.progressActive]}>2 · {t('reviewTitle')}</Text></View>
       <Text accessibilityRole="header" style={ui.title}>{t(step === 'details' ? 'deliveryTitle' : 'reviewTitle')}</Text>
       <ServiceSummary service={service} quantity={quantity} />
+      {market.hosted&&<View style={ui.notice}><Text style={ui.body}>{language==='zh'?'支付为模拟流程，不会产生真实扣款或安排实际服务。':'Payment is simulated. No real charge or live service booking is made.'}</Text></View>}
       {step === 'details' ? <>
         <Text style={ui.body}>{t('deliveryBody')}</Text>
         <Field label={t('gameName')} value={delivery.gameName} placeholder={t('gameNamePlaceholder')}

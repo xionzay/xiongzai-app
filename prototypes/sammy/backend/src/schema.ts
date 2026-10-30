@@ -40,7 +40,7 @@ export const listings=pgTable('listings',{
 
 export const adminActions=pgTable('admin_actions',{id:uuid().primaryKey().defaultRandom(),actorId:uuid('actor_id').notNull().references(()=>users.id),action:text().notNull(),targetId:uuid('target_id').notNull(),reason:text(),createdAt:timestamp('created_at',{withTimezone:true}).defaultNow().notNull()});
 
-export type OrderServiceSnapshot={id:string;revision:number;title:string;description:string;providerName:string;mode:'duo'|'squad';category:'relaxed'|'ranked';unitPriceFen:number;game:CatalogGame;serviceType?:ServiceType;photoMediaIds:string[]};
+export type OrderServiceSnapshot={isShowcase?:boolean;id:string;revision:number;title:string;description:string;providerName:string;mode:'duo'|'squad';category:'relaxed'|'ranked';unitPriceFen:number;game:CatalogGame;serviceType?:ServiceType;photoMediaIds:string[]};
 export type OrderRules={version:string;transactionReference:string;text:{en:string;zh:string}};
 export type OrderDelivery={gameName:string;gameId:string;server:'wechat'|'qq'|'china';note:string};
 export const orders=pgTable('orders',{
