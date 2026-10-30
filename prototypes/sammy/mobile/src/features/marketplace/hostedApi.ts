@@ -28,7 +28,11 @@ export async function api<T>(path: string, token: string | null, body?: unknown,
   try {
     const response = await fetch(`${API_URL}/v1${path}`, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}), signal: controller.signal });
     const data = await response.json();
-    if (!response.ok) throw new HostedError(errors[data.error] ?? data.error ?? 'hostedUnavailable', response.status);
+    if (!response.ok) {
+      // Failed content reads have no form fields for the user to correct.
+      const contentFailure = method === 'GET' && (response.status === 400 || response.status === 404) && ['invalidInput', 'Not Found'].includes(data.error);
+      throw new HostedError(contentFailure ? 'hostedContentUnavailable' : errors[data.error] ?? data.error ?? 'hostedUnavailable', response.status);
+    }
     return data as T;
   } catch (error) { if (error instanceof HostedError) throw error; throw new Error('hostedUnavailable'); }
   finally { clearTimeout(timer); }

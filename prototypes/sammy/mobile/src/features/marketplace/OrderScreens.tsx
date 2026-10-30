@@ -1,6 +1,9 @@
+import {commerceApi} from './commerceApi';
+import {hostedOrder,type HostedOrderResponse} from './hostedOrders';
+import {OrderReview} from './MarketplaceScreens';
 import { customerRulesText } from './rulesCopy';
 import { OrderWorkflowPanel,commerceStateLabel } from './CommerceScreens';
-import { useRef, useState } from 'react';
+import { useEffect,useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ActionButton, Choice, dateTime, EmptyState, errorKey, Field, localized, money, ServiceSummary, Sheet, SummaryRow, ui } from '../../components/FormUI';
 import { useLanguage, type TranslationKey } from '../../i18n/LanguageProvider';
@@ -28,37 +31,41 @@ function CancelSheet({ order, market, onClose }: { order: Order | null; market: 
   </Sheet>;
 }
 
-export type OrderFilter = 'all' | OrderStatus | 'afterSales' | 'inService' | 'awaitingAcceptance' | 'completed' | 'refunded';
+export type OrderFilter = 'all' | OrderStatus | 'afterSales' | 'inService' | 'awaitingAcceptance' | 'completed' | 'refunded' | 'refundProcessing' | 'awaitingReview';
 const filters: { value: OrderFilter; label: TranslationKey }[] = [
   { value: 'all', label: 'ordersAll' }, { value: 'unpaid', label: 'statusUnpaid' },
   { value: 'awaitingService', label: 'statusAwaitingService' }, { value: 'afterSales', label: 'statusAfterSales' },
-  { value: 'closed', label: 'statusClosed' },{value:'inService',label:'commerceInService'},{value:'awaitingAcceptance',label:'commerceAwaitingAcceptance'},{value:'completed',label:'commerceCompleted'},{value:'refunded',label:'commerceRefunded'},
+  { value: 'closed', label: 'statusClosed' },{value:'inService',label:'commerceInService'},{value:'awaitingAcceptance',label:'commerceAwaitingAcceptance'},{value:'completed',label:'commerceCompleted'},{value:'refunded',label:'commerceRefunded'}, {value:'awaitingReview',label:'ordersAwaitingReview'}, {value:'refundProcessing',label:'ordersRefundProcessing'},
 ];
-export function OrdersScreen({ market, onOpen, onPay, onContact, onStore, onSignIn, onExplore, initialFilter = 'all' }: {
+export function OrdersScreen({ market, onOpen, onPay, onContact, onStore, onSignIn, onExplore, initialRole='buyer', initialFilter = 'all' }: {
   market: Marketplace; onOpen: (id: string) => void; onPay: (id: string) => void; onContact: (serviceId: string) => void;
-  onStore: (serviceId: string) => void; onSignIn: () => void; onExplore: () => void; initialFilter?: OrderFilter;
+  onStore: (serviceId: string) => void; onSignIn: () => void; onExplore: () => void; initialRole?:'buyer'|'seller';initialFilter?: OrderFilter;
 }) {
   const { t, language } = useLanguage();
   const [filter, setFilter] = useState<OrderFilter>(initialFilter);
   const [search, setSearch] = useState('');
-  const [role,setRole]=useState<'buyer'|'seller'>('buyer');
-  const source=role==='seller'?market.sellerOrders:market.orders;
+  const [role,setRole]=useState<'buyer'|'seller'>(initialRole);
+  const [remote,setRemote]=useState<Order[]>([]),[remoteLoading,setRemoteLoading]=useState(false),[remoteError,setRemoteError]=useState(false),[remoteCursor,setRemoteCursor]=useState<string|null>(null),[version,setVersion]=useState(0);const generation=useRef(0),fetching=useRef(false);
+  const source=market.hosted?remote:role==='seller'?market.sellerOrders:market.orders;
+  const loadRemote=async(more=false)=>{if(fetching.current)return;fetching.current=true;const current=generation.current;setRemoteLoading(true);setRemoteError(false);try{const data=await commerceApi<{orders:HostedOrderResponse[];nextCursor:string|null}>('/orders?role='+role+'&filter='+filter+'&q='+encodeURIComponent(search.trim())+(more&&remoteCursor?'&after='+remoteCursor:''));if(current===generation.current){const rows=data.orders.map(o=>hostedOrder(o,market.profile?.phone??''));setRemote(old=>more?[...old,...rows.filter(o=>!old.some(a=>a.id===o.id))]:rows);setRemoteCursor(data.nextCursor);}}catch{if(current===generation.current)setRemoteError(true);}finally{if(current===generation.current){fetching.current=false;setRemoteLoading(false);}}};
+  useEffect(()=>{if(!market.hosted||!market.profile)return;generation.current++;fetching.current=false;setRemote([]);setRemoteCursor(null);const timer=setTimeout(()=>void loadRemote(),200);return()=>{generation.current++;clearTimeout(timer);};},[role,filter,search,version,market.profile?.phone,market.orders,market.sellerOrders]);
   const [cancelling, setCancelling] = useState<Order | null>(null);
-  const visible = source.filter(order =>
+  const visible = market.hosted?source:source.filter(order =>
     (filter === 'all' || (filter === 'afterSales' ? !!order.refund||!!order.activeCaseId : (market.hosted?order.fulfillmentStage??order.status:order.status) === filter)) &&
     (order.id + ' ' + order.service.name + ' ' + localized(order.service.title, language)).toLowerCase().includes(search.trim().toLowerCase()));
   return <ScrollView contentContainerStyle={ui.content} keyboardShouldPersistTaps="handled">
     <Text accessibilityRole="header" style={ui.title}>{t('ordersTitle')}</Text>
     {!market.profile ? <><EmptyState mood="welcome" title={t('signInTitle')} body={t('signInRequired')} /><ActionButton label={t('signIn')} onPress={onSignIn} /></> : <>
-      {market.hosted&&<><View style={ui.choiceRow}><Choice label={t('buyerOrders')} selected={role==='buyer'} onPress={()=>setRole('buyer')}/><Choice label={t('sellerOrders')} selected={role==='seller'} onPress={()=>setRole('seller')}/></View><View style={ui.notice}><Text style={ui.caption}>{t('simulationNotice')}</Text></View><ActionButton secondary busy={market.ordersLoading} label={t('ordersRefresh')} onPress={()=>void market.reload()}/>{market.ordersError&&<Text style={ui.error}>{t(market.ordersError)}</Text>}</>}
-      <Field label={t(market.hosted?'ordersLoadedSearch':'orderSearch')} value={search} onChangeText={setSearch} placeholder={t('orderSearch')} returnKeyType="search" />
+      {market.hosted&&<><View style={ui.choiceRow}><Choice label={t('buyerOrders')} selected={role==='buyer'} onPress={()=>setRole('buyer')}/><Choice label={t('sellerOrders')} selected={role==='seller'} onPress={()=>setRole('seller')}/></View><View style={ui.notice}><Text style={ui.caption}>{t('simulationNotice')}</Text></View><ActionButton secondary busy={market.ordersLoading} label={t('ordersRefresh')} onPress={()=>{setVersion(v=>v+1);void market.reload();}}/>{market.ordersError&&<Text style={ui.error}>{t(market.ordersError)}</Text>}</>}
+      {remoteLoading&&<Text style={ui.caption}>{t('loading')}</Text>}{remoteError&&<Text accessibilityRole="alert" style={ui.error}>{t('hostedUnavailable')}</Text>}
+      <Field label={t('orderSearch')} value={search} onChangeText={setSearch} placeholder={t('orderSearch')} returnKeyType="search" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>
         {filters.filter(item=>market.hosted||!['inService','awaitingAcceptance','completed','refunded'].includes(item.value)).map(item => <Choice key={item.value} label={t(item.label)} selected={filter === item.value} onPress={() => setFilter(item.value)} />)}
       </ScrollView>
       {visible.map(order => <View key={order.id} style={ui.card}>
         <View style={ui.summaryRow}><Pressable accessibilityRole="button" onPress={() => onStore(order.service.id)} style={styles.store}>
           <Text style={ui.label}>{order.service.name} ›</Text></Pressable>
-          <Text style={styles.status}>{market.hosted?(order.activeCaseId?t('statusAfterSales'):commerceStateLabel(order.fulfillmentStage??order.status,language)):t(order.refund ? 'statusAfterSales' : statusLabels[order.status])}</Text></View>
+          <Text style={styles.status}>{market.hosted?commerceStateLabel(order.displayStatus??order.fulfillmentStage??order.status,language):t(order.refund ? 'statusAfterSales' : statusLabels[order.status])}</Text></View>
         <Pressable accessibilityRole="button" accessibilityLabel={localized(order.service.title, language) + ', ' + order.id}
           onPress={() => onOpen(order.id)} style={styles.orderBody}>
           <View style={ui.row}><View style={[ui.avatar, { backgroundColor: order.service.tint }]}><Text style={ui.initial}>{order.service.initials}</Text></View>
@@ -76,8 +83,8 @@ export function OrdersScreen({ market, onOpen, onPay, onContact, onStore, onSign
           {role==='buyer'&&order.status === 'unpaid' && <ActionButton disabled={market.hosted&&!market.simulationEnabled} label={t('payNow')} onPress={() => onPay(order.id)} />}
         </View>
       </View>)}
-      {market.hosted&&market.ordersMore[role]&&<ActionButton secondary busy={market.ordersLoading} label={t('ordersLoadMore')} onPress={()=>void market.loadMoreOrders(role)}/>}
-      {!visible.length && <><EmptyState mood={source.length ? 'curious' : 'waiting'} title={t('ordersTitle')} body={t(source.length ? 'filteredOrdersEmpty' : 'ordersBody')} />
+      {market.hosted&&remoteCursor&&<ActionButton secondary busy={remoteLoading} label={t('ordersLoadMore')} onPress={()=>void loadRemote(true)}/>}
+      {!visible.length&&!remoteLoading&&!remoteError && <><EmptyState mood={source.length ? 'curious' : 'waiting'} title={t('ordersTitle')} body={t(source.length ? 'filteredOrdersEmpty' : 'ordersBody')} />
         {!source.length && <ActionButton label={t('explore')} onPress={onExplore} />}</>}
     </>}
     <CancelSheet order={cancelling} market={market} onClose={() => setCancelling(null)} />
@@ -122,8 +129,8 @@ function RefundSheet({ visible, order, market, onClose }: { visible: boolean; or
   </Sheet>;
 }
 
-export function OrderDetailScreen({ order, market, onBack, onPay, onContact }: {
-  order: Order; market: Marketplace; onBack: () => void; onPay: () => void; onContact: () => void;
+export function OrderDetailScreen({ order, market, onBack, onPay, onContact,onOrder,onProduct }: {
+  order: Order; market: Marketplace; onBack: () => void; onPay: () => void; onContact: () => void;onOrder?:(id:string)=>void;onProduct?:(id:string)=>void;
 }) {
   const { t, language } = useLanguage();
   const [cancelling, setCancelling] = useState(false);
@@ -135,7 +142,8 @@ export function OrderDetailScreen({ order, market, onBack, onPay, onContact }: {
       <Text accessibilityRole="header" style={ui.title}>{t('orderDetails')}</Text>
       {!market.hosted&&<View style={ui.notice}><Text style={ui.heading}>{t(order.refund ? 'statusAfterSales' : statusLabels[order.status])}</Text>
         <Text style={ui.body}>{t(market.hosted?'orderStageBoundary':order.refund ? 'refundPendingBody' : order.status === 'unpaid' ? 'unpaidBody' : order.status === 'closed' ? 'closedBody' : 'awaitingServiceBody')}</Text></View>}
-      {market.hosted&&<OrderWorkflowPanel id={order.id} onChanged={()=>void market.refreshOrder(order.id).catch(()=>{})}/>}
+      {market.hosted&&order.role==='buyer'&&order.paidAt&&<OrderReview key={order.id+':'+order.fulfillmentStage+':'+order.totalRefundedFen} id={order.id}/>}
+      {market.hosted&&<OrderWorkflowPanel onOrder={onOrder} onProduct={onProduct} id={order.id} onChanged={()=>void market.refreshOrder(order.id).catch(()=>{})}/>}
       {market.hosted&&<View style={ui.notice}><Text style={ui.body}>{t('simulationNotice')}</Text><Text style={ui.caption}>{t(order.paymentStatus==='pending'?'simulationPending':order.paymentStatus==='failed'?'simulationFailed':'simulationOnly')}</Text></View>}
       {market.hosted&&<ActionButton secondary label={t('ordersRefresh')} onPress={()=>void market.refreshOrder(order.id).catch(()=>{})}/>}
       <ServiceSummary service={order.service} quantity={order.quantity} />

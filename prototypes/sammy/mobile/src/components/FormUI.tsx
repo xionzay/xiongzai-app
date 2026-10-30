@@ -1,3 +1,4 @@
+import {gameName} from '../features/marketplace/catalog';
 import { NotificationHost } from './Notifications';
 import type { ReactNode } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
@@ -58,7 +59,7 @@ export function ServiceSummary({ service, quantity }: { service: ServiceSnapshot
     <View style={ui.row}><View style={[ui.avatar, { backgroundColor: service.tint }]}><Text style={ui.initial}>{service.initials}</Text></View>
       <View style={ui.flex}><Text style={ui.label}>{service.name}</Text><Text style={ui.body}>{localized(service.title, language)}</Text></View>
     </View>
-    <Text style={ui.caption}>{t('game')} · {t(service.mode === 'duo' ? 'modeDuo' : 'modeSquad')}</Text>
+    <Text style={ui.caption}>{gameName(service.game??'peaceElite',language)} · {t(service.mode === 'duo' ? 'modeDuo' : 'modeSquad')}</Text>
     <SummaryRow label={t('unitPrice')} value={money(service.unitPriceFen, language) + ' ' + t('perHour')} />
     <SummaryRow label={t('duration')} value={String(quantity) + ' ' + t(quantity === 1 ? 'hour' : 'hours')} />
   </View>;
@@ -82,7 +83,7 @@ export function Sheet({ visible, title, onClose, children, closeDisabled = false
     {visible && <NotificationHost />}
   </Modal>;
 }
-const knownErrors = new Set<string>(['ruleVersionUnsupported','orderSimulationDisabled','ownServicePurchase','orderQuoteChanged','orderRequestConflict','paymentRequestConflict','paymentPending','accountSuspended','publicationRestricted','listingHostedRequired','listingUnavailable','listingConflict','listingLimit','providerApprovalRequired','hostedUnavailable','hostedMediaUnavailable','hostedMediaInvalid','hostedBuildRequired','apiUrlInvalid','invalidCredentials','sessionExpired','hostedFeatureUnavailable','hostedAccountMediaRetry','storageNotConfigured','tooManyAttempts','applicationIncomplete', 'applicationAgreementRequired', "voiceInvalid","voiceBuildRequired","voicePermissionDenied","voiceLengthError","voiceFormatError","voiceSizeError","voiceUnavailable","voiceInterrupted", 'avatarTooLarge', 'avatarBuildRequired', 'providerFieldsRequired', 'accountNotFound', 'accountExists', 'codeInvalid', 'phoneInvalid', 'loginRulesRequired',
+const knownErrors = new Set<string>(['hostedContentUnavailable','productApprovalRequired','productReviewPending','ruleVersionUnsupported','orderSimulationDisabled','ownServicePurchase','orderQuoteChanged','orderRequestConflict','paymentRequestConflict','paymentPending','accountSuspended','publicationRestricted','listingHostedRequired','listingUnavailable','listingConflict','listingLimit','providerApprovalRequired','hostedUnavailable','hostedMediaUnavailable','hostedMediaInvalid','hostedBuildRequired','apiUrlInvalid','invalidCredentials','sessionExpired','hostedFeatureUnavailable','hostedAccountMediaRetry','storageNotConfigured','tooManyAttempts','applicationIncomplete', 'applicationAgreementRequired', "voiceInvalid","voiceBuildRequired","voicePermissionDenied","voiceLengthError","voiceFormatError","voiceSizeError","voiceUnavailable","voiceInterrupted", 'avatarTooLarge', 'avatarBuildRequired', 'providerFieldsRequired', 'accountNotFound', 'accountExists', 'codeInvalid', 'phoneInvalid', 'loginRulesRequired',
   'signInRequired', 'orderUnavailable', 'orderNotPayable', 'orderCannotCancel', 'refundUnavailableNow',
   'invalidRefund', 'invalidQuote', 'invalidOrder', 'checkFields', 'messageInvalid', 'storageUnavailable',
 ]);

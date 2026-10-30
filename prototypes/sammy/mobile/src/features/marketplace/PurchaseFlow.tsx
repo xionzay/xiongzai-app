@@ -5,7 +5,7 @@ import { AnimatedMascot } from '../../components/AnimatedMascot';
 import { ActionButton, CheckRow, Choice, errorKey, Field, money, ServiceSummary, Sheet, SummaryRow, ui } from '../../components/FormUI';
 import { useLanguage, type TranslationKey } from '../../i18n/LanguageProvider';
 import { colors } from '../../theme';
-import { emptyDelivery, quoteTotal, serverLabels, validateDelivery, type DeliveryDetails, type Order, type PlayMode, type ServiceSnapshot } from './domain';
+import { deliveryServers, emptyDelivery, quoteTotal, serverLabels, validateDelivery, type DeliveryDetails, type Order, type PlayMode, type ServiceSnapshot } from './domain';
 import { localId, type Marketplace } from './useMarketplace';
 
 export type SessionChoice = { mode: PlayMode; quantity: number };
@@ -55,13 +55,13 @@ export function CheckoutFlow({ service, quantity, delivery = emptyDelivery, onDe
     setErrors(current => ({ ...current, [key]: undefined }));
   };
   const review = () => {
-    const next = validateDelivery(delivery); setErrors(next);
+    const next = validateDelivery(delivery,service.game); setErrors(next);
     if (!Object.keys(next).length) setStep('review');
   };
   const submit = async () => {
     if (submitting.current) return;
     if (!market.profile) { onSignIn(); return; }
-    const next = validateDelivery(delivery);
+    const next = validateDelivery(delivery,service.game);
     if (Object.keys(next).length) { setErrors(next); setStep('details'); return; }
     if (!accepted) { setRulesError(true); return; }
     submitting.current = true; setBusy(true); setNotice(null);
@@ -83,17 +83,17 @@ export function CheckoutFlow({ service, quantity, delivery = emptyDelivery, onDe
         <Text style={ui.body}>{t('deliveryBody')}</Text>
         <Field label={t('gameName')} value={delivery.gameName} placeholder={t('gameNamePlaceholder')}
           maxLength={32} onChangeText={value => update('gameName', value)} error={errors.gameName && t(errors.gameName)} />
-        <Field label={t('gameId')} value={delivery.gameId} placeholder={t('gameIdPlaceholder')}
-          maxLength={32} autoCapitalize="none" autoCorrect={false} onChangeText={value => update('gameId', value)} error={errors.gameId && t(errors.gameId)} />
+        <Field label={t(service.game==='valorant'?'valorantGameId':'gameId')} value={delivery.gameId} placeholder={t(service.game==='valorant'?'valorantGameIdPlaceholder':'gameIdPlaceholder')}
+          maxLength={service.game==='valorant'?80:32} autoCapitalize="none" autoCorrect={false} onChangeText={value => update('gameId', value)} error={errors.gameId && t(errors.gameId)} />
         <Text style={ui.label}>{t('gameServer')}</Text>
-        <View style={ui.choiceRow}>{(['wechat', 'qq'] as const).map(server => <Choice key={server} label={t(serverLabels[server])}
+        <View style={ui.choiceRow}>{deliveryServers(service.game).map(server => <Choice key={server} label={t(serverLabels[server])}
           selected={delivery.server === server} onPress={() => update('server', server)} />)}</View>
         {errors.server && <Text accessibilityRole="alert" style={ui.error}>{t(errors.server)}</Text>}
         <Field label={t('orderNote')} value={delivery.note} placeholder={t('orderNotePlaceholder')} multiline maxLength={300}
           onChangeText={value => update('note', value)} error={errors.note && t(errors.note)} hint={t('orderNoteHint')} />
       </> : <>
         <View style={ui.card}><Text style={ui.heading}>{t('deliveryTitle')}</Text>
-          <SummaryRow label={t('gameName')} value={delivery.gameName} /><SummaryRow label={t('gameId')} value={delivery.gameId} />
+          <SummaryRow label={t('gameName')} value={delivery.gameName} /><SummaryRow label={t(service.game==='valorant'?'valorantGameId':'gameId')} value={delivery.gameId} />
           <SummaryRow label={t('gameServer')} value={delivery.server ? t(serverLabels[delivery.server]) : '—'} />
           {!!delivery.note && <><Text style={ui.label}>{t('orderNote')}</Text><Text style={ui.body}>{delivery.note}</Text><Text style={ui.caption}>{t('orderNoteHint')}</Text></>}
           <Pressable accessibilityRole="button" disabled={busy} accessibilityState={{ disabled: busy }} onPress={() => setStep('details')} style={ui.back}><Text style={ui.link}>{t('editDetails')}</Text></Pressable>

@@ -1,3 +1,4 @@
+import {games,gameName,serviceTypeName,reviewStatusName,type Game} from './catalog';
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { ActionButton, CheckRow, Choice, Field, Sheet, errorKey, money, ui } from '../../components/FormUI';
@@ -11,7 +12,7 @@ export function ProviderListings({market}:{market:Marketplace}){
  const [editing,setEditing]=useState<Listing|null|undefined>(undefined),[publishing,setPublishing]=useState<Listing|null>(null);
  const [accepted,setAccepted]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState<TranslationKey|null>(null);const lock=useRef(false);
  const approved=market.profile?.providerApplication?.status==='approved';
- const change=async(item:Listing,action:'publish'|'unpublish')=>{
+ const change=async(item:Listing,action:'publish'|'unpublish'|'submit-review')=>{
   if(lock.current)return;lock.current=true;setBusy(true);setError(null);
   try{await market.changeListingStatus(item,action,accepted);setPublishing(null);}catch(e){setError(errorKey(e));}finally{lock.current=false;setBusy(false);}
  };
@@ -24,10 +25,11 @@ export function ProviderListings({market}:{market:Marketplace}){
   {market.listingsError&&<><Text accessibilityRole="alert" style={ui.error}>{t(market.listingsError)}</Text><ActionButton secondary label={t('retry')} onPress={()=>void market.reload()}/></>}
   {!market.listingsLoading&&!market.listingsError&&!market.myListings.length&&<Text style={ui.caption}>{t('listingOwnerEmpty')}</Text>}
   {market.myListings.map(item=><View key={item.id} style={ui.card}>
-   <Text style={ui.caption}>{t(item.status==='published'?'listingPublished':'listingDraft')}</Text><Text style={ui.heading}>{item.title}</Text>
+   <Text style={ui.caption}>{reviewStatusName(item.reviewStatus??'draft',language)} · {gameName(item.game,language)} · {serviceTypeName(item.serviceType??'companion',language)}</Text>{item.reviewReason&&<Text style={ui.error}>{item.reviewReason}</Text>}<Text style={ui.caption}>{t(item.status==='published'?'listingPublished':'listingDraft')}</Text><Text style={ui.heading}>{item.title}</Text>
    <Text style={ui.body}>{money(item.priceFen,language)} {t('perHour')} · {t(item.mode==='duo'?'modeDuo':'modeSquad')}</Text>
    <ActionButton secondary label={t('listingEdit')} disabled={busy} onPress={()=>setEditing(item)}/>
-   <ActionButton secondary label={t(item.status==='published'?'listingUnpublish':'listingPublish')} disabled={busy||(item.status==='draft'&&!approved)} onPress={()=>{setError(null);if(item.status==='published')void change(item,'unpublish');else{setAccepted(false);setPublishing(item);}}}/>
+   {item.status==='draft'&&item.reviewStatus!=='approved'&&<ActionButton secondary label={language==='zh'?'提交服务审核':'Submit service for review'} disabled={busy||!approved||item.reviewStatus==='pending'} onPress={()=>void change(item,'submit-review')}/>}
+   <ActionButton secondary label={t(item.status==='published'?'listingUnpublish':'listingPublish')} disabled={busy||(item.status==='draft'&&(!approved||item.reviewStatus!=='approved'))} onPress={()=>{setError(null);if(item.status==='published')void change(item,'unpublish');else{setAccepted(false);setPublishing(item);}}}/>
   </View>)}
   {error&&!publishing&&<Text accessibilityRole="alert" style={ui.error}>{t(error)}</Text>}
   {editing!==undefined&&<ListingEditor market={market} listing={editing} onClose={()=>setEditing(undefined)}/>}
@@ -41,8 +43,9 @@ export function ProviderListings({market}:{market:Marketplace}){
 }
 
 function ListingEditor({market,listing,onClose}:{market:Marketplace;listing:Listing|null;onClose:()=>void}){
- const {t}=useLanguage();
+ const {t,language}=useLanguage();
  const [title,setTitle]=useState(listing?.title??''),[description,setDescription]=useState(listing?.description??''),[price,setPrice]=useState(listing?(listing.priceFen/100).toFixed(2):'');
+ const [game,setGame]=useState<Game>(listing?.game??'peaceElite'),[serviceType,setServiceType]=useState<'companion'|'coaching'>(listing?.serviceType??'companion');
  const [mode,setMode]=useState<'duo'|'squad'>(listing?.mode??'duo'),[category,setCategory]=useState<'relaxed'|'ranked'>(listing?.category??'relaxed');
  const [photos,setPhotos]=useState<string[]>(listing?.photoMediaIds.map(id=>market.listingFiles.find(f=>f.id===id)?.file).filter((f):f is string=>!!f)??[]);
  const [busy,setBusy]=useState(false),[mediaBusy,setMediaBusy]=useState(false),[error,setError]=useState<TranslationKey|null>(null),[errors,setErrors]=useState<Record<string,TranslationKey>>({});
@@ -52,11 +55,11 @@ function ListingEditor({market,listing,onClose}:{market:Marketplace;listing:List
   if(title.trim().length<3)issues.title='listingTitleError';if(description.trim().length<10)issues.description='listingDescriptionError';if(fen===null)issues.price='listingPriceError';
   setErrors(issues);if(Object.keys(issues).length)return;
   lock.current=true;setBusy(true);setError(null);
-  try{if(!id.current)id.current=await market.newListingId();const draft:ListingDraft={id:id.current,revision:listing?.revision??0,title:title.trim(),description:description.trim(),game:'peaceElite',mode,category,priceFen:fen!,photoFiles:photos};await market.saveListing(draft);onClose();}catch(e){setError(errorKey(e));}finally{lock.current=false;setBusy(false);}
+  try{if(!id.current)id.current=await market.newListingId();const draft:ListingDraft={id:id.current,revision:listing?.revision??0,title:title.trim(),description:description.trim(),game,serviceType,mode,category,priceFen:fen!,photoFiles:photos};await market.saveListing(draft);onClose();}catch(e){setError(errorKey(e));}finally{lock.current=false;setBusy(false);}
  };
  return <Sheet visible title={t(listing?'listingEdit':'listingCreate')} closeDisabled={busy||mediaBusy} onClose={onClose}>
   <Text style={ui.body}>{t('listingEditorHint')}</Text>
-  <Field label={t('game')} value={t('game')} editable={false}/>
+  <Text style={ui.label}>{language==='zh'?'游戏':'Game'}</Text><View style={[ui.choiceRow,{flexWrap:'wrap'}]}>{games.map(g=><Choice key={g} label={gameName(g,language)} selected={g===game} disabled={busy} onPress={()=>setGame(g)}/>)}</View><Text style={ui.label}>{language==='zh'?'服务类型':'Service type'}</Text><View style={ui.choiceRow}>{(['companion','coaching'] as const).map(v=><Choice key={v} label={serviceTypeName(v,language)} selected={v===serviceType} disabled={busy} onPress={()=>setServiceType(v)}/>)}</View>
   <Field label={t('listingTitle')} value={title} onChangeText={setTitle} maxLength={80} editable={!busy} error={errors.title&&t(errors.title)}/>
   <Field label={t('listingDescription')} value={description} onChangeText={setDescription} maxLength={1500} multiline editable={!busy} error={errors.description&&t(errors.description)}/>
   <Field label={t('listingPrice')} hint={t('listingPriceHint')} value={price} onChangeText={setPrice} keyboardType="decimal-pad" editable={!busy} error={errors.price&&t(errors.price)}/>

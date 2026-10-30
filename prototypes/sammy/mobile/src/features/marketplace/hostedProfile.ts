@@ -11,6 +11,8 @@ export type AccountResponse = {
 export function accountProfile(data: AccountResponse): Profile {
   const file = (id: string | null) => data.files.find(item => item.id === id);
   const draft = (value: RemoteDraft): ProviderDraft => {
+    // Preserve historical snapshot shape: a missing game is read as Peace Elite
+    // by validators/UI, without inserting a field into the submitted snapshot.
     const { voiceMediaId, ...fields } = value, voice = file(voiceMediaId);
     return { ...fields, voiceIntroduction: voice && voice.durationMs ? { file: voice.file, durationMs: voice.durationMs } : null };
   };

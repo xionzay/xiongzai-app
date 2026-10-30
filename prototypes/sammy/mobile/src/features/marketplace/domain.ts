@@ -1,19 +1,22 @@
 import type { TranslationKey } from '../../i18n/LanguageProvider';
+import type { Game } from './catalog';
 
 export type LocalizedText = { en: string; zh: string };
 export type PlayMode = 'duo' | 'squad';
 export type GameServer = 'wechat' | 'qq';
+export type DeliveryServer = GameServer | 'china';
 export type OrderStatus = 'unpaid' | 'awaitingService' | 'closed';
 export type RefundReason = 'changedPlans' | 'incorrectDetails' | 'serviceUnavailable';
-export type DeliveryDetails = { gameName: string; gameId: string; server: GameServer | ''; note: string };
+export type DeliveryDetails = { gameName: string; gameId: string; server: DeliveryServer | ''; note: string };
 export type AccountType = 'player' | 'provider';
 export type VoiceIntroduction = { file: string; durationMs: number };
 export function validVoiceIntroduction(value: unknown): value is VoiceIntroduction {
   return object(value) && typeof value.file === 'string' && /^voice-[a-z0-9-]+\.(m4a|mp3|aac)$/.test(value.file) &&
     typeof value.durationMs === 'number' && Number.isSafeInteger(value.durationMs) && value.durationMs >= 10_000 && value.durationMs <= 30_000;
 }
-export type ProviderDraft = { gameName: string; gameId: string; server: GameServer | ''; rank: string; kd: string; experience: string; playStyle: string; mode: PlayMode | ''; voiceIntroduction?: VoiceIntroduction | null };
-export const emptyProviderDraft: ProviderDraft = { gameName: '', gameId: '', server: '', rank: '', kd: '', experience: '', playStyle: '', mode: '' };
+export type ProviderDraft = { game?: Game; gameName: string; gameId: string; server: DeliveryServer | ''; rank: string; kd: string; experience: string; playStyle: string; mode: PlayMode | ''; voiceIntroduction?: VoiceIntroduction | null };
+export const emptyProviderDraft: ProviderDraft = { game:'peaceElite',gameName: '', gameId: '', server: '', rank: '', kd: '', experience: '', playStyle: '', mode: '' };
+export function providerRequiresKd(game?:Game){return !game||game==='peaceElite'||game==='deltaForce';}
 export type ProviderApplication = { id?: string; status: 'pending' | 'approved' | 'changes_requested'; reason?: string | null; submittedAt: number; agreementVersion: 'preview-v1' | 'prototype-hosted-v1'; snapshot: { nickname: string; bio: string; avatarFile: string; draft: ProviderDraft } };
 export type Profile = {accountRestricted?:boolean; providerApplication?: ProviderApplication; phone: string; nickname: string; bio: string; avatarFile?: string | null; accountType?: AccountType; providerDraft?: ProviderDraft };
 export function applicationStatusKey(profile: Profile, hosted: boolean): TranslationKey {
@@ -22,11 +25,11 @@ export function applicationStatusKey(profile: Profile, hosted: boolean): Transla
 }
 export function validateProviderDraft(draft: ProviderDraft): Partial<Record<keyof ProviderDraft, TranslationKey>> {
   const errors: Partial<Record<keyof ProviderDraft, TranslationKey>> = {};
-  if (!draft.gameName.trim() || draft.gameName.trim().length > 32) errors.gameName = 'invalidGameName';
-  if (!/^[A-Za-z0-9_-]{4,32}$/.test(draft.gameId.trim())) errors.gameId = 'invalidGameId';
-  if (draft.server !== 'wechat' && draft.server !== 'qq') errors.server = 'serverRequired';
+  if(draft.game!==undefined&&!['peaceElite','deltaForce','honorOfKings','valorant'].includes(draft.game))errors.game='checkFields';
+  const account=validateDelivery({gameName:draft.gameName,gameId:draft.gameId,server:draft.server,note:''},draft.game);
+  for(const key of ['gameName','gameId','server'] as const)if(account[key])errors[key]=account[key];
   if (!draft.rank.trim() || draft.rank.trim().length > 40) errors.rank = 'providerRankError';
-  if (!/^\d{1,3}(\.\d{1,2})?$/.test(draft.kd.trim())) errors.kd = 'providerKdError';
+  if ((providerRequiresKd(draft.game)&&!draft.kd.trim())||(!!draft.kd.trim()&&!/^\d{1,3}(\.\d{1,2})?$/.test(draft.kd.trim()))) errors.kd = 'providerKdError';
   if (!draft.experience.trim() || draft.experience.trim().length > 160) errors.experience = 'providerExperienceError';
   if (!draft.playStyle.trim() || draft.playStyle.trim().length > 160) errors.playStyle = 'providerStyleError';
   if (draft.mode !== 'duo' && draft.mode !== 'squad') errors.mode = 'providerModeError';
@@ -71,12 +74,12 @@ function validProviderApplication(value: unknown): value is ProviderApplication 
     typeof snap.avatarFile === 'string' && validAvatarFile(snap.avatarFile) && validProviderDraft(snap.draft) && validVoiceIntroduction(snap.draft.voiceIntroduction);
 }
 export type ServiceSnapshot = {
-  id: string; name: string; initials: string; tint: string; title: LocalizedText;
+  id: string; game?: Game; name: string; initials: string; tint: string; title: LocalizedText;
   mode: PlayMode; unitPriceFen: number; maxQuantity: number; fulfillmentHours: number | null; listingRevision?:number; rulesVersion?:string; rulesText?:LocalizedText;
 };
 export type RefundRequest = { reason: RefundReason; description: string; amountFen: number; submittedAt: number };
 export type Order = {
-  fulfillmentStage?:string;activeCaseId?:string|null;totalRefundedFen?:number;role?:'buyer'|'seller'; simulated?:boolean; paymentStatus?:'none'|'pending'|'failed'|'succeeded'; paymentRequestId?:string;
+  displayStatus?:string;activeCaseState?:string|null;fulfillmentStage?:string;activeCaseId?:string|null;totalRefundedFen?:number;role?:'buyer'|'seller'; simulated?:boolean; paymentStatus?:'none'|'pending'|'failed'|'succeeded'; paymentRequestId?:string;
   id: string; requestId: string; buyerPhone: string; service: ServiceSnapshot; quantity: number;
   delivery: DeliveryDetails; totalFen: number; status: OrderStatus; createdAt: number;
   paidAt: number | null; deadlineAt: number | null; closedAt: number | null; refund: RefundRequest | null;
@@ -88,7 +91,8 @@ export type MarketplaceState = { version: 1; accounts?: Profile[]; onboardingDon
 export const emptyMarketplace: MarketplaceState = { version: 1, profile: null, orders: [], conversations: [] };
 export const emptyDelivery: DeliveryDetails = { gameName: '', gameId: '', server: '', note: '' };
 export const modeLabels: Record<PlayMode, TranslationKey> = { duo: 'modeDuo', squad: 'modeSquad' };
-export const serverLabels: Record<GameServer, TranslationKey> = { wechat: 'serverWechat', qq: 'serverQQ' };
+export const serverLabels: Record<DeliveryServer, TranslationKey> = { wechat: 'serverWechat', qq: 'serverQQ', china:'serverChina' };
+export function deliveryServers(game?:Game): readonly DeliveryServer[] { return game==='valorant'?['china']:['wechat','qq']; }
 export const statusLabels: Record<OrderStatus, TranslationKey> = { unpaid: 'statusUnpaid', awaitingService: 'statusAwaitingService', closed: 'statusClosed' };
 export const refundLabels: Record<RefundReason, TranslationKey> = { changedPlans: 'refundChangedPlans', incorrectDetails: 'refundIncorrectDetails', serviceUnavailable: 'refundUnavailable' };
 
@@ -100,11 +104,17 @@ export function quoteTotal(unitPriceFen: number, quantity: number, maximum: numb
   return unitPriceFen * quantity;
 }
 
-export function validateDelivery(details: DeliveryDetails): Partial<Record<keyof DeliveryDetails, TranslationKey>> {
+export function validateDelivery(details: DeliveryDetails,game?:Game): Partial<Record<keyof DeliveryDetails, TranslationKey>> {
   const errors: Partial<Record<keyof DeliveryDetails, TranslationKey>> = {};
   if (!details.gameName.trim() || details.gameName.trim().length > 32) errors.gameName = 'invalidGameName';
-  if (!/^[A-Za-z0-9_-]{4,32}$/.test(details.gameId.trim())) errors.gameId = 'invalidGameId';
-  if (details.server !== 'wechat' && details.server !== 'qq') errors.server = 'serverRequired';
+  if(game==='valorant'){
+    const id=details.gameId.trim(),parts=id.split('#');
+    if(id.length>80||parts.length!==2||!parts[0]||parts[0]!==parts[0].trim()||!parts[1]||/[\p{C}]/u.test(id)||/\s/u.test(parts[1]))errors.gameId='invalidValorantGameId';
+    if(details.server!=='china')errors.server='valorantServerRequired';
+  }else{
+    if (!/^[A-Za-z0-9_-]{4,32}$/.test(details.gameId.trim())) errors.gameId = 'invalidGameId';
+    if (details.server !== 'wechat' && details.server !== 'qq') errors.server = 'serverRequired';
+  }
   if (details.note.trim().length > 300) errors.note = 'noteTooLong';
   return errors;
 }
@@ -161,7 +171,7 @@ export function createOrder(state: MarketplaceState, input: {
   if (!nonempty(input.requestId)) throw new Error('invalidOrder');
   const repeated = state.orders.find(order => order.requestId === input.requestId && order.buyerPhone === state.profile!.phone);
   if (repeated) return repeated;
-  if (Object.keys(validateDelivery(input.delivery)).length) throw new Error('checkFields');
+  if (Object.keys(validateDelivery(input.delivery,input.service.game)).length) throw new Error('checkFields');
   const totalFen = quoteTotal(input.service.unitPriceFen, input.quantity, input.service.maxQuantity);
   if (!nonempty(input.id) || state.orders.some(order => order.id === input.id) || !validService(input.service) ||
       !validText(input.rules) || !validTimestamp(input.now) ||
@@ -224,6 +234,7 @@ function validText(value: unknown): value is LocalizedText {
 function validService(value: unknown): value is ServiceSnapshot {
   if (!object(value) || !nonempty(value.id) || !nonempty(value.name) || !nonempty(value.initials) || !nonempty(value.tint) ||
       !validText(value.title) || (value.mode !== 'duo' && value.mode !== 'squad') ||
+      (value.game!==undefined&&!['peaceElite','deltaForce','honorOfKings','valorant'].includes(String(value.game))) ||
       typeof value.unitPriceFen !== 'number' || typeof value.maxQuantity !== 'number' ||
       typeof value.fulfillmentHours !== 'number' || value.fulfillmentHours <= 0 ||
       !validTimestamp(value.fulfillmentHours * 3_600_000) || value.fulfillmentHours * 3_600_000 < 1) return false;
@@ -251,12 +262,12 @@ function validOrder(value: unknown): value is Order {
   const s = value.service, d = value.delivery;
   if (!nonempty(value.id) || !nonempty(value.requestId) || !validPhone(value.buyerPhone) ||
       typeof value.quantity !== 'number' || typeof d.gameName !== 'string' || typeof d.gameId !== 'string' ||
-      typeof d.note !== 'string' || (d.server !== 'wechat' && d.server !== 'qq') ||
+      typeof d.note !== 'string' || typeof d.server !== 'string' ||
       !validTimestamp(value.createdAt) || !validTimestamp(value.createdAt + (s.fulfillmentHours??0) * 3_600_000) ||
       typeof value.status !== 'string' || !['unpaid', 'awaitingService', 'closed'].includes(value.status)) return false;
   try {
     if (quoteTotal(s.unitPriceFen, value.quantity, s.maxQuantity) !== value.totalFen ||
-        Object.keys(validateDelivery(d as DeliveryDetails)).length) return false;
+        Object.keys(validateDelivery(d as DeliveryDetails,s.game)).length) return false;
   } catch { return false; }
   if (value.status === 'awaitingService') {
     if (!validTimestamp(value.paidAt) || value.paidAt < value.createdAt || !validTimestamp(value.deadlineAt) ||

@@ -1,5 +1,6 @@
 import { ProviderListings } from './ListingScreens';
-import { applicationStatusKey, providerApplicationChecklist } from './domain';
+import { applicationStatusKey, providerApplicationChecklist, providerRequiresKd } from './domain';
+import { gameName } from './catalog';
 import { ProviderApplicationReview } from './ProviderApplicationReview';
 import { useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -12,7 +13,7 @@ import { avatarUri } from './avatar';
 import { ProviderReview, ProviderSheet } from './ProviderSetup';
 import type { Marketplace } from './useMarketplace';
 export function ProviderProfileScreen({ market, onBack, onAccount }: { market: Marketplace; onBack: () => void; onAccount: () => void }) {
-  const { t } = useLanguage();
+  const { t,language } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [resubmit, setResubmit] = useState(false);
   const [reviewing, setReviewing] = useState(false);
@@ -36,7 +37,7 @@ export function ProviderProfileScreen({ market, onBack, onAccount }: { market: M
           <Text style={s.badge}>{t(pending ? applicationStatusKey(profile, market.hosted) : 'providerDraftBadge')}</Text>
           <Text accessibilityRole="header" style={s.name}>{profile.nickname}</Text>
           <Text style={s.bio}>{profile.bio || t('providerBioMissing')}</Text>
-          {draft && <View style={s.stats}>{[[t('providerRank'), draft.rank], ['K/D', draft.kd], [t('providerMode'), t(draft.mode === 'duo' ? 'modeDuo' : 'modeSquad')]].map(([label, text]) => <View key={label} style={s.stat}><Text style={s.statLabel}>{label}</Text><Text style={s.statValue}>{text}</Text></View>)}</View>}
+          {draft && <><Text style={s.bio}>{gameName(draft.game??'peaceElite',language)}</Text><View style={s.stats}>{[[t('providerRank'), draft.rank], ...(providerRequiresKd(draft.game)?[['K/D', draft.kd]]:[]), [t('providerMode'), t(draft.mode === 'duo' ? 'modeDuo' : 'modeSquad')]].map(([label, text]) => <View key={label} style={s.stat}><Text style={s.statLabel}>{label}</Text><Text style={s.statValue}>{text}</Text></View>)}</View></>}
           <ActionButton secondary label={t('providerEditPhotoBio')} onPress={onAccount} />
         </View>
         <View style={ui.card}>

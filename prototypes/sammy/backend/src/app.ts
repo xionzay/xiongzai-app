@@ -1,3 +1,6 @@
+import {accountRightsRoutes} from './account-rights.js';
+import {contentRoutes} from './content.js';
+import {marketplaceRoutes} from './marketplace.js';
 import { commerceRoutes } from './commerce.js';
 import { orderRoutes } from './orders.js';
 import { adminRoutes } from './admin.js';
@@ -129,6 +132,9 @@ export function buildApp({db,storage,logger=true}:{db:Database;storage?:MediaSto
      await tx.insert(adminActions).values({actorId:admin.id,action:'application.'+input.decision,targetId:id,reason:input.reason||null});return updated;
    });return {application};
  });
+ accountRightsRoutes(app,db);
+ contentRoutes(app,db);
+ marketplaceRoutes(app,db,storage);
  commerceRoutes(app,db,storage);
  orderRoutes(app,db);
  adminRoutes(app,db,storage);

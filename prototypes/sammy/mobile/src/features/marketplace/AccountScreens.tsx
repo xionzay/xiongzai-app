@@ -131,8 +131,8 @@ export function AccountSheet({ visible, market, onClose, onSaved, initialMode = 
   </Sheet>;
 }
 
-export function AccountScreen({ market, languageSwitch, onAccount, onOrders, onMessages, onIntroduction, onProvider }: {
-  onProvider: () => void; onIntroduction: () => void; market: Marketplace; languageSwitch: ReactNode; onAccount: () => void;
+export function AccountScreen({ market, languageSwitch, onAccount, onOrders, onMessages, onIntroduction, onProvider, actions }: {
+  actions?: ReactNode; onProvider: () => void; onIntroduction: () => void; market: Marketplace; languageSwitch: ReactNode; onAccount: () => void;
   onOrders: (filter?: OrderFilter) => void; onMessages: () => void;
 }) {
   const { t, language } = useLanguage();
@@ -149,12 +149,13 @@ export function AccountScreen({ market, languageSwitch, onAccount, onOrders, onM
     catch (problem) { setError(errorKey(problem)); }
     finally { submitting.current = false; setBusy(false); }
   };
-  const shortcuts: { filter: OrderFilter; label: TranslationKey; icon: ProfileIconKind; count: number }[] = [
-    { filter: 'unpaid', label: 'profileToPay', icon: 'receipt', count: market.orders.filter(order => order.status === 'unpaid').length },
-    { filter: 'awaitingService', label: 'profileToPlay', icon: 'controller', count: market.orders.filter(order => order.status === 'awaitingService').length },
-    { filter: 'afterSales', label: 'profileAfterSales', icon: 'refund', count: market.orders.filter(order => !!order.refund).length },
+  const shortcuts: { filter: OrderFilter; label: TranslationKey; icon: ProfileIconKind; count: number|null }[] = [
+    { filter: 'unpaid', label: 'profileToPay', icon: 'receipt', count: market.hosted?(market.accountSummary?.buyer.unpaid??null):market.orders.filter(order => order.status === 'unpaid').length },
+    { filter: 'awaitingService', label: 'profileToPlay', icon: 'controller', count: market.hosted?(market.accountSummary?.buyer.awaitingService??null):market.orders.filter(order => order.status === 'awaitingService').length },
+    { filter: 'afterSales', label: 'profileAfterSales', icon: 'refund', count: market.hosted?(market.accountSummary?.buyer.afterSales??null):market.orders.filter(order => !!order.refund).length },
   ];
   return <>
+    {market.summaryError&&<Text accessibilityRole="alert" style={ui.error}>{t(market.summaryError)}</Text>}
     <View style={profileStyles.hero}>
       <View style={[profileStyles.heroTop, compact && profileStyles.heroTopCompact]}>
         <View style={ui.flex}>
@@ -187,22 +188,22 @@ export function AccountScreen({ market, languageSwitch, onAccount, onOrders, onM
       </View>
       <View style={[profileStyles.shortcuts, compact && profileStyles.shortcutsCompact]}>
         {shortcuts.map(item => <Pressable key={item.filter} accessibilityRole="button"
-          accessibilityLabel={t(item.label) + (market.profile ? `: ${item.count}` : '')}
+          accessibilityLabel={t(item.label) + (market.profile ? `: ${item.count??'—'}` : '')}
           onPress={() => onOrders(item.filter)} style={({ pressed }) => [profileStyles.shortcut, compact && profileStyles.shortcutCompact, pressed && ui.pressed]}>
           <View style={profileStyles.iconTile}>
             <ProfileIcon kind={item.icon} />
-            {!!market.profile && item.count > 0 && <View style={profileStyles.badge}><Text style={profileStyles.badgeText}>{item.count > 99 ? '99+' : item.count}</Text></View>}
+            {!!market.profile && (item.count??0) > 0 && <View style={profileStyles.badge}><Text style={profileStyles.badgeText}>{(item.count??0) > 99 ? '99+' : item.count}</Text></View>}
           </View>
           <Text style={profileStyles.shortcutLabel}>{t(item.label)}</Text>
         </Pressable>)}
       </View>
     </View>
 
-    <Pressable accessibilityRole="button" accessibilityLabel={t('messages') + (market.profile ? `: ${market.conversations.length}` : '')}
+    <Pressable accessibilityRole="button" accessibilityLabel={t('messages') + (market.profile ? `: ${(market.hosted?(market.accountSummary?.unreadMessages??0):market.conversations.length)}` : '')}
       onPress={onMessages} style={({ pressed }) => [profileStyles.messageCard, pressed && ui.pressed]}>
       <View style={profileStyles.smallIconTile}><ProfileIcon kind="chat" /></View>
       <View style={ui.flex}><Text style={profileStyles.sectionTitle}>{t('messages')}</Text><Text style={profileStyles.caption}>{t('profileChatsBody')}</Text></View>
-      {market.profile && market.conversations.length > 0 && <View style={profileStyles.countPill}><Text style={profileStyles.countText}>{market.conversations.length}</Text></View>}
+      {market.profile && (market.hosted?(market.accountSummary?.unreadMessages??0):market.conversations.length) > 0 && <View style={profileStyles.countPill}><Text style={profileStyles.countText}>{(market.hosted?(market.accountSummary?.unreadMessages??0):market.conversations.length)}</Text></View>}
       <Text accessible={false} style={profileStyles.chevron}>›</Text>
     </Pressable>
 
@@ -215,6 +216,7 @@ export function AccountScreen({ market, languageSwitch, onAccount, onOrders, onM
         {languageSwitch}
       </View>
       <Text style={profileStyles.caption}>{t('languageNote')}</Text>
+      {actions}
       <ActionButton secondary label={t('onboardReplay')} onPress={onIntroduction} />
       {market.profile && <Pressable accessibilityRole="button" onPress={() => { setError(null); setConfirmSignOut(true); }}
         style={({ pressed }) => [profileStyles.signOut, pressed && ui.pressed]}>

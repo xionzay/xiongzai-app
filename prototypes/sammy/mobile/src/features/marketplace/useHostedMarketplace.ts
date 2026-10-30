@@ -7,11 +7,12 @@ import { errorKey } from '../../components/FormUI';
 import type { TranslationKey } from '../../i18n/LanguageProvider';
 import { hostedOrder, type HostedOrderResponse } from './hostedOrders';
 import type { Order, Profile } from './domain';
-import type { Marketplace } from './useMarketplace';
+import type { Marketplace,AccountSummary } from './useMarketplace';
 import { api, secure, readToken, storeToken, cacheMedia, accountProfile, uploadMedia, remoteDraft, HostedError, type AccountResponse } from './hostedApi';
 
 export function useHostedMarketplace(): Marketplace {
   const { notify } = useNotifications();
+  const [accountSummary,setAccountSummary]=useState<AccountSummary|null>(null),[summaryError,setSummaryError]=useState<TranslationKey|null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [myListings,setMyListings]=useState<Listing[]>([]),[listingFiles,setListingFiles]=useState<RemoteFile[]>([]),[listingsError,setListingsError]=useState<TranslationKey|null>(null);
@@ -42,12 +43,13 @@ export function useHostedMarketplace(): Marketplace {
     try{const data=await api<{orders:HostedOrderResponse[];nextCursor:string|null;simulationEnabled:boolean}>('/orders?role='+role+(more&&cursors.current[role]?'&after='+cursors.current[role]:''),token.current);const rows=data.orders.map(item=>hostedOrder(item,response.current?.profile.phone??''));const setter=role==='buyer'?setOrders:setSellerOrders;setter(previous=>more?[...previous,...rows.filter(row=>!previous.some(old=>old.id===row.id))]:rows);cursors.current[role]=data.nextCursor;setOrdersMore(previous=>({...previous,[role]:!!data.nextCursor}));setSimulationEnabled(data.simulationEnabled);}
     catch(error){if(error instanceof HostedError&&error.status===401)throw error;setOrdersError(errorKey(error));}finally{setOrdersLoading(false);}
   };
-  const refreshOrders=async()=>{await loadOrders('buyer');await loadOrders('seller');};
-  const storeOrder=(data:HostedOrderResponse)=>{const item=hostedOrder(data,response.current?.profile.phone??'');const setter=item.role==='seller'?setSellerOrders:setOrders;setter(rows=>[item,...rows.filter(row=>row.id!==item.id)]);return item;};
+  const loadSummary=async()=>{const auth=token.current;if(!auth)return;try{const data=await api<AccountSummary>('/me/summary',auth);if(auth===token.current){setAccountSummary(data);setSummaryError(null);}}catch(e){setSummaryError(errorKey(e));}};
+  const refreshOrders=async()=>{await loadOrders('buyer');await loadOrders('seller');await loadSummary();};
+  const storeOrder=(data:HostedOrderResponse)=>{const item=hostedOrder(data,response.current?.profile.phone??'');const setter=item.role==='seller'?setSellerOrders:setOrders;setter(rows=>[item,...rows.filter(row=>row.id!==item.id)]);void loadSummary();return item;};
   const run = <T,>(action: () => Promise<T>): Promise<T> => {
     const pending = queue.current.then(action).catch(async error => {
       if (error instanceof HostedError && error.status === 401 && error.message !== 'invalidCredentials') {
-        await storeToken(null); token.current = null; response.current = null; setProfile(null);setMyListings([]);setListingFiles([]);setListingsError(null);setOrders([]);setSellerOrders([]);
+        await storeToken(null); token.current = null; response.current = null; setAccountSummary(null);setSummaryError(null);setProfile(null);setMyListings([]);setListingFiles([]);setListingsError(null);setOrders([]);setSellerOrders([]);
       }
       notify(errorKey(error), 'error'); throw error;
     });
@@ -100,7 +102,7 @@ export function useHostedMarketplace(): Marketplace {
   const unavailable = async (): Promise<never> => { notify('hostedFeatureUnavailable', 'info'); throw new Error('hostedFeatureUnavailable'); };
   return {
     refreshOrder:id=>run(async()=>storeOrder(await api<HostedOrderResponse>('/orders/'+id,authenticated()))),
-    myListings,listingFiles,listingsError,listingsLoading,sellerOrders,ordersLoading,ordersError,simulationEnabled,ordersMore,loadMoreOrders:role=>run(()=>loadOrders(role,true)),
+    accountSummary,summaryError,myListings,listingFiles,listingsError,listingsLoading,sellerOrders,ordersLoading,ordersError,simulationEnabled,ordersMore,loadMoreOrders:role=>run(()=>loadOrders(role,true)),
     newListingId: async()=>{ const {uuid}=await import('expo-modules-core');return uuid.v4(); },
     saveListing: input=>run(async()=>{
       const auth=authenticated(),photoMediaIds:string[]=[];
@@ -108,7 +110,7 @@ export function useHostedMarketplace(): Marketplace {
       const {id,photoFiles,...fields}=input;
       await api(`/me/listings/${id}`,auth,{...fields,photoMediaIds},'PUT');await loadListings();notify('listingSaved');
     }),
-    changeListingStatus: (item,action,accepted)=>run(async()=>{await api(`/me/listings/${item.id}/${action}`,authenticated(),{revision:item.revision,...(action==='publish'?{accepted}:{})});await loadListings();notify(action==='publish'?'listingPublishSuccess':'listingUnpublishSuccess');}),
+    changeListingStatus: (item,action,accepted)=>run(async()=>{await api(`/me/listings/${item.id}/${action}`,authenticated(),{revision:item.revision,...(action==='publish'?{accepted}:{})});await loadListings();notify(action==='publish'?'listingPublishSuccess':action==='submit-review'?'listingReviewSubmitted':'listingUnpublishSuccess');}),
     hosted: true, profile, ready, storageNotice, reload, orders, conversations: [], onboardingDone,
     authenticate,
     saveProvider: (draft, avatarFile) => run(async () => {
@@ -120,7 +122,7 @@ export function useHostedMarketplace(): Marketplace {
     completeOnboarding: () => run(async () => { await (await secure()).setItemAsync('sammy-hosted-onboarding', 'done'); setOnboardingDone(true); return undefined; }),
     signOut: () => run(async () => {
       await api('/auth/logout', authenticated(), {});
-      await storeToken(null); token.current = null; response.current = null; setProfile(null);setMyListings([]);setListingFiles([]);setListingsError(null);setOrders([]);setSellerOrders([]); notify('noticeSignedOut'); return undefined;
+      await storeToken(null); token.current = null; response.current = null; setAccountSummary(null);setSummaryError(null);setProfile(null);setMyListings([]);setListingFiles([]);setListingsError(null);setOrders([]);setSellerOrders([]); notify('noticeSignedOut'); return undefined;
     }),
     placeOrder:(service,quantity,delivery,requestId)=>run(async()=>{const result=await api<HostedOrderResponse>('/orders',authenticated(),{listingId:service.id,listingRevision:service.listingRevision,expectedUnitPriceFen:service.unitPriceFen,quantity,delivery,requestId,rulesVersion:service.rulesVersion,accepted:true});const item=storeOrder(result);notify('noticeOrderCreated');return item;}),
     payOrder:(id,outcome='success')=>run(async()=>{const current=await api<HostedOrderResponse>('/orders/'+id,authenticated());storeOrder(current);if(current.order.status!=='unpaid')return hostedOrder(current,response.current?.profile.phone??'');const pending=current.attempts.find(a=>a.status==='pending');if(current.attempts[0]?.status==='failed')delete paymentKeys.current[id];const {uuid}=await import('expo-modules-core');const requestId=pending?.requestId??paymentKeys.current[id]??uuid.v4();paymentKeys.current[id]=requestId;const result=await api<HostedOrderResponse>('/orders/'+id+'/simulate-payment',authenticated(),{requestId,outcome});if(result.attempts[0]?.status!=='pending')delete paymentKeys.current[id];return storeOrder(result);}),

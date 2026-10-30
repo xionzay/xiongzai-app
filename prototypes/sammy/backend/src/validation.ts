@@ -2,11 +2,20 @@ import { z } from 'zod';
 export const phone=z.string().regex(/^1[3-9][0-9]{9}$/);
 const password=z.string().min(12).max(128);
 export const credentials=z.object({phone,password}).strict();
+const catalogGame=z.enum(['peaceElite','deltaForce','honorOfKings','valorant']);
+const legacyGameAccount=z.object({gameId:z.string().trim().regex(/^[A-Za-z0-9_-]{4,32}$/),server:z.enum(['wechat','qq'])});
+const valorantGameAccount=z.object({gameId:z.string().trim().min(1).max(80).refine(id=>{const parts=id.split('#');return parts.length===2&&!!parts[0]&&parts[0]===parts[0].trim()&&!!parts[1]&&!/[\p{C}]/u.test(id)&&!/\s/u.test(parts[1]);}),server:z.literal('china')});
+export function gameAccountSchema(game?:z.infer<typeof catalogGame>){return game==='valorant'?valorantGameAccount:legacyGameAccount;}
 export const draftSchema=z.object({
-  gameName:z.string().trim().min(1).max(32),gameId:z.string().trim().regex(/^[A-Za-z0-9_-]{4,32}$/),
-  server:z.enum(['wechat','qq']),rank:z.string().trim().min(1).max(40),kd:z.string().trim().regex(/^\d{1,3}(\.\d{1,2})?$/),
+  game:catalogGame.optional(),
+  gameName:z.string().trim().min(1).max(32),gameId:z.string().trim().min(1).max(80),
+  server:z.enum(['wechat','qq','china']),rank:z.string().trim().min(1).max(40),kd:z.string().trim().regex(/^(?:\d{1,3}(\.\d{1,2})?)?$/).default(''),
   experience:z.string().trim().min(1).max(160),playStyle:z.string().trim().min(1).max(160),mode:z.enum(['duo','squad']),voiceMediaId:z.uuid().nullable().default(null),
-}).strict();
+}).strict().superRefine((draft,ctx)=>{
+  const account=gameAccountSchema(draft.game).safeParse({gameId:draft.gameId,server:draft.server});
+  if(!account.success)for(const issue of account.error.issues)ctx.addIssue({code:'custom',path:issue.path,message:issue.message});
+  if((!draft.game||draft.game==='peaceElite'||draft.game==='deltaForce')&&!draft.kd)ctx.addIssue({code:'custom',path:['kd'],message:'K/D is required for this game.'});
+});
 export const registerSchema=credentials.extend({nickname:z.string().trim().min(2).max(24),bio:z.string().trim().max(160).default(''),accepted:z.literal(true),draft:draftSchema.optional()}).strict();
 export const profileSchema=z.object({nickname:z.string().trim().min(2).max(24).optional(),bio:z.string().trim().max(160).optional(),avatarMediaId:z.uuid().nullable().optional(),draft:draftSchema.optional()}).strict().refine(value=>Object.keys(value).length>0,'At least one field is required.');
 export const submitSchema=z.object({accepted:z.literal(true)}).strict();

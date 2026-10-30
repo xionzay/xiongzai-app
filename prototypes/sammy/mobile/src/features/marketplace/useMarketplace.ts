@@ -142,7 +142,7 @@ function useLocalMarketplace() {
   const remoteOnly = async ():Promise<never> => { throw new Error('listingHostedRequired'); };
   return {
     listingsLoading: false, myListings: [] as Listing[], listingFiles: [] as RemoteFile[], listingsError: null as TranslationKey|null,
-    newListingId: async ():Promise<string> => remoteOnly(), saveListing: async (_draft:ListingDraft):Promise<void> => { await remoteOnly(); }, changeListingStatus: async (_item:Listing,_action:'publish'|'unpublish',_accepted:boolean):Promise<void> => { await remoteOnly(); },
+    newListingId: async ():Promise<string> => remoteOnly(), saveListing: async (_draft:ListingDraft):Promise<void> => { await remoteOnly(); }, changeListingStatus: async (_item:Listing,_action:'publish'|'unpublish'|'submit-review',_accepted:boolean):Promise<void> => { await remoteOnly(); },
     refreshOrder:async(id:string)=>ownedOrder(current.current,id),sellerOrders:[] as Order[],ordersLoading:false,ordersError:null as TranslationKey|null,simulationEnabled:true,ordersMore:{buyer:false,seller:false},loadMoreOrders:async(_role:'buyer'|'seller')=>{},
     hosted: false, profile: data.profile, ready, storageNotice, reload: load,
     orders: data.orders.filter(order => order.buyerPhone === data.profile?.phone),
@@ -150,5 +150,6 @@ function useLocalMarketplace() {
     submitApplication, authenticate, saveProvider, completeOnboarding, onboardingDone: data.onboardingDone ?? !!data.profile, signOut, placeOrder, payOrder, cancelOrder, submitRefund, sendMessage,
   };
 }
-export type Marketplace = ReturnType<typeof useLocalMarketplace>;
+export type AccountSummary={buyer:Record<string,number>;seller:Record<string,number>;unreadNotifications:number;unreadMessages:number;favoriteProducts:number;favoriteStores:number};
+export type Marketplace = ReturnType<typeof useLocalMarketplace> & {accountSummary?:AccountSummary|null;summaryError?:TranslationKey|null};
 export const useMarketplace = API_URL ? useHostedMarketplace : useLocalMarketplace;

@@ -22,21 +22,25 @@ export const applications=pgTable('applications',{
   reviewedAt:timestamp('reviewed_at',{withTimezone:true}), reviewerId:uuid('reviewer_id').references(()=>users.id), reason:text(),
 },t=>[index('applications_owner_time').on(t.userId,t.submittedAt)]);
 export const rateLimits=pgTable('rate_limits', {key:text().primaryKey(),count:integer().notNull(),expiresAt:timestamp('expires_at',{withTimezone:true}).notNull()});
+export type CatalogGame='peaceElite'|'deltaForce'|'honorOfKings'|'valorant';
+export type ServiceType='companion'|'coaching';
 export const listings=pgTable('listings',{
  id:uuid().primaryKey(),ownerId:uuid('owner_id').notNull().references(()=>users.id),title:text().notNull(),description:text().notNull(),
- game:text().$type<'peaceElite'>().notNull(),mode:text().$type<'duo'|'squad'>().notNull(),category:text().$type<'relaxed'|'ranked'>().notNull(),
+ game:text().$type<CatalogGame>().notNull(),serviceType:text('service_type').$type<ServiceType>().notNull().default('companion'),mode:text().$type<'duo'|'squad'>().notNull(),category:text().$type<'relaxed'|'ranked'>().notNull(),
  priceFen:integer('price_fen').notNull(),photoMediaIds:jsonb('photo_media_ids').$type<string[]>().notNull().default([]),
  moderationBlocked:boolean('moderation_blocked').notNull().default(false), moderationReason:text('moderation_reason'),
  status:text().$type<'draft'|'published'>().notNull().default('draft'),revision:integer().notNull().default(1),
+ reviewStatus:text('review_status').$type<'draft'|'pending'|'approved'|'changes_requested'>().notNull().default('draft'),reviewReason:text('review_reason'),
+ reviewSubmittedAt:timestamp('review_submitted_at',{withTimezone:true}),reviewedAt:timestamp('reviewed_at',{withTimezone:true}),reviewerId:uuid('reviewer_id').references(()=>users.id),
  applicationId:uuid('application_id').references(()=>applications.id),publicationConsentAt:timestamp('publication_consent_at',{withTimezone:true}),
  updatedAt:timestamp('updated_at',{withTimezone:true}).defaultNow().notNull(),
 });
 
 export const adminActions=pgTable('admin_actions',{id:uuid().primaryKey().defaultRandom(),actorId:uuid('actor_id').notNull().references(()=>users.id),action:text().notNull(),targetId:uuid('target_id').notNull(),reason:text(),createdAt:timestamp('created_at',{withTimezone:true}).defaultNow().notNull()});
 
-export type OrderServiceSnapshot={id:string;revision:number;title:string;description:string;providerName:string;mode:'duo'|'squad';category:'relaxed'|'ranked';unitPriceFen:number;game:'peaceElite';photoMediaIds:string[]};
+export type OrderServiceSnapshot={id:string;revision:number;title:string;description:string;providerName:string;mode:'duo'|'squad';category:'relaxed'|'ranked';unitPriceFen:number;game:CatalogGame;serviceType?:ServiceType;photoMediaIds:string[]};
 export type OrderRules={version:string;transactionReference:string;text:{en:string;zh:string}};
-export type OrderDelivery={gameName:string;gameId:string;server:'wechat'|'qq';note:string};
+export type OrderDelivery={gameName:string;gameId:string;server:'wechat'|'qq'|'china';note:string};
 export const orders=pgTable('orders',{
  id:uuid().primaryKey().defaultRandom(),buyerId:uuid('buyer_id').notNull().references(()=>users.id),sellerId:uuid('seller_id').notNull().references(()=>users.id),listingId:uuid('listing_id').notNull().references(()=>listings.id),
  requestId:text('request_id').notNull(),requestHash:text('request_hash').notNull(),service:jsonb().$type<OrderServiceSnapshot>().notNull(),rules:jsonb().$type<OrderRules>().notNull(),delivery:jsonb().$type<OrderDelivery>().notNull(),

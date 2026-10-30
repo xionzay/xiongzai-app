@@ -1,5 +1,11 @@
 import type { en } from './en';
 export const zh: Record<keyof typeof en, string> = {
+  listingReviewSubmitted: '服务已提交审核。',
+  productApprovalRequired: '请先提交服务审核，通过后再发布。',
+  productReviewPending: '该服务正在等待审核。',
+
+  ordersAwaitingReview: '待评价',
+  ordersRefundProcessing: '退款处理中',
   commerceInService: "服务中",
   commerceAwaitingAcceptance: "待验收",
   commerceCompleted: "已完成",
@@ -95,6 +101,7 @@ export const zh: Record<keyof typeof en, string> = {
   hostedApplicationSubmitted: "申请已提交审核。",
   hostedResubmit: "检查修改并重新提交",
   hostedRefresh: "刷新审核状态",
+  hostedContentUnavailable: "此内容暂不可用，请稍后重试。",
   hostedUnavailable: "暂时无法连接，请检查网络后重试。",
   hostedMediaUnavailable: "部分媒体加载或上传失败，请检查网络后重试。",
   hostedMediaInvalid: "无法验证该文件，请选择有效照片或语音。",
@@ -250,7 +257,12 @@ export const zh: Record<keyof typeof en, string> = {
   deliveryTitle: "填写游戏资料",
   deliveryBody: "陪玩会根据这些信息在游戏中联系你。",
   gameName: "游戏昵称",
-  gameNamePlaceholder: "填写和平精英中的昵称",
+  serverChina: "中国区",
+  valorantGameId: "无畏契约 ID（昵称#标签）",
+  valorantGameIdPlaceholder: "例如 小熊#CN1",
+  invalidValorantGameId: "请输入完整昵称#标签，最多80个字符。",
+  valorantServerRequired: "请选择中国区。",
+  gameNamePlaceholder: "填写游戏中的昵称",
   gameId: "游戏 ID",
   gameIdPlaceholder: "填写你的游戏 ID",
   gameServer: "游戏区服",

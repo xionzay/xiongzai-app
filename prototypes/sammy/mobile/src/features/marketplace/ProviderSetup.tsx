@@ -4,7 +4,8 @@ import { Text, View } from 'react-native';
 import { AnimatedMascot } from '../../components/AnimatedMascot';
 import { ActionButton, Choice, errorKey, Field, Sheet, SummaryRow, ui } from '../../components/FormUI';
 import { useLanguage, type TranslationKey } from '../../i18n/LanguageProvider';
-import { emptyProviderDraft, validateProviderDraft, type ProviderDraft } from './domain';
+import { deliveryServers, emptyProviderDraft, providerRequiresKd, serverLabels, validateProviderDraft, type ProviderDraft } from './domain';
+import { games, gameName } from './catalog';
 import { AvatarPicker } from '../../components/AvatarPicker';
 import { VoiceIntroduction } from '../../components/VoiceIntroduction';
 import type { Marketplace } from './useMarketplace';
@@ -12,19 +13,23 @@ import type { Marketplace } from './useMarketplace';
 export function ProviderFields({ draft, onChange, errors, disabled = false, onMediaBusyChange }: {
   draft: ProviderDraft; onChange: (draft: ProviderDraft) => void; errors: Partial<Record<keyof ProviderDraft, TranslationKey>>; disabled?: boolean; onMediaBusyChange?: (busy: boolean) => void;
 }) {
-  const { t } = useLanguage();
+  const { t,language } = useLanguage();
+  const game=draft.game??'peaceElite';
   const fields = [
     ['gameName', 'gameName', 32], ['gameId', 'gameId', 32], ['rank', 'providerRank', 40], ['kd', 'providerKd', 6],
     ['experience', 'providerExperience', 160], ['playStyle', 'providerStyle', 160],
   ] as const;
   return <>
-    <Text style={ui.heading}>{t('game')}</Text>
-    {fields.map(([key, label, length]) => <Field key={key} label={t(label)} value={draft[key]} maxLength={length} editable={!disabled}
+    <Text style={ui.heading}>{language==='zh'?'服务游戏':'Game'}</Text>
+    <View style={[ui.choiceRow,{flexWrap:'wrap'}]}>{games.map(value=><Choice key={value} label={gameName(value,language)} selected={game===value} disabled={disabled} onPress={()=>{if(value!==game)onChange({...draft,game:value,gameId:'',server:'',kd:''});}}/>)}</View>
+    {errors.game&&<Text style={ui.error}>{t(errors.game)}</Text>}
+    {fields.filter(([key])=>key!=='kd'||providerRequiresKd(game)).map(([key, label, length]) => <Field key={key} label={t(key==='gameId'&&game==='valorant'?'valorantGameId':label)} value={draft[key]} maxLength={key==='gameId'&&game==='valorant'?80:length} editable={!disabled}
+      placeholder={key==='gameId'&&game==='valorant'?t('valorantGameIdPlaceholder'):key==='gameName'?t('gameNamePlaceholder'):undefined}
       autoCapitalize={key === 'gameId' ? 'none' : 'sentences'} keyboardType={key === 'kd' ? 'decimal-pad' : 'default'}
       multiline={key === 'experience' || key === 'playStyle'} error={errors[key] && t(errors[key]!)}
       onChangeText={value => onChange({ ...draft, [key]: value })} />)}
     <Text style={ui.label}>{t('gameServer')}</Text>
-    <View style={ui.row}>{(['wechat', 'qq'] as const).map(value => <Choice key={value} label={t(value === 'wechat' ? 'serverWechat' : 'serverQQ')} selected={draft.server === value} disabled={disabled} onPress={() => onChange({ ...draft, server: value })} />)}</View>
+    <View style={ui.row}>{deliveryServers(game).map(value => <Choice key={value} label={t(serverLabels[value])} selected={draft.server === value} disabled={disabled} onPress={() => onChange({ ...draft, server: value })} />)}</View>
     {errors.server && <Text style={ui.error}>{t(errors.server)}</Text>}
     <Text style={ui.label}>{t('providerMode')}</Text>
     <View style={ui.row}>{(['duo', 'squad'] as const).map(value => <Choice key={value} label={t(value === 'duo' ? 'modeDuo' : 'modeSquad')} selected={draft.mode === value} disabled={disabled} onPress={() => onChange({ ...draft, mode: value })} />)}</View>
@@ -33,14 +38,15 @@ export function ProviderFields({ draft, onChange, errors, disabled = false, onMe
   </>;
 }
 export function ProviderReview({ draft, showVoice = true }: { draft: ProviderDraft; showVoice?: boolean }) {
-  const { t } = useLanguage();
+  const { t,language } = useLanguage();
+  const game=draft.game??'peaceElite';
   return <>
     <View style={ui.card}>
-      <Text style={ui.heading}>{t('game')}</Text>
+      <Text style={ui.heading}>{gameName(game,language)}</Text>
       <SummaryRow label={t('gameName')} value={draft.gameName} />
-      <SummaryRow label={t('gameId')} value={draft.gameId} />
-      <SummaryRow label={t('gameServer')} value={t(draft.server === 'wechat' ? 'serverWechat' : 'serverQQ')} />
-      <SummaryRow label={t('providerRank')} value={draft.rank} /><SummaryRow label={t('providerKd')} value={draft.kd} />
+      <SummaryRow label={t(game==='valorant'?'valorantGameId':'gameId')} value={draft.gameId} />
+      <SummaryRow label={t('gameServer')} value={draft.server?t(serverLabels[draft.server]):'—'} />
+      <SummaryRow label={t('providerRank')} value={draft.rank} />{providerRequiresKd(game)&&<SummaryRow label={t('providerKd')} value={draft.kd} />}
       <SummaryRow label={t('providerMode')} value={t(draft.mode === 'duo' ? 'modeDuo' : 'modeSquad')} />
       <Text style={ui.label}>{t('providerExperience')}</Text><Text style={ui.body}>{draft.experience}</Text>
       <Text style={ui.label}>{t('providerStyle')}</Text><Text style={ui.body}>{draft.playStyle}</Text>

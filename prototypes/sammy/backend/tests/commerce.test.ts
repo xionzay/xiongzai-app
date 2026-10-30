@@ -44,6 +44,55 @@ test('remaining simulation lifecycle, evidence, finance, cases, jobs, private co
   assert.equal((await req('POST',`/v1/admin/withdrawals/${withdrawal.id}/outcome`,{requestId:randomUUID(),status:'processing',reason:'Simulated dispatch'},staff.token)).status,200);assert.equal((await req('POST',`/v1/admin/withdrawals/${withdrawal.id}/outcome`,{requestId:randomUUID(),status:'failed',reason:'Confirmed no synthetic payout'},staff.token)).status,200);
   const conv=(await req('POST','/v1/conversations',{orderId:first.id},buyer.token)).data.conversation;
   const sent={requestId:randomUUID(),kind:'order',objectId:first.id};const message=await req('POST',`/v1/conversations/${conv.id}/messages`,sent,buyer.token);assert.equal(message.status,200);assert.equal((await req('POST',`/v1/conversations/${conv.id}/messages`,sent,buyer.token)).data.message.id,message.data.message.id);assert.equal((await req('GET',`/v1/conversations/${conv.id}/messages`,undefined,other.token)).status,404);
+  // Text replies persist for both parties; unread acknowledgements only cover fetched messages.
+  const [approvedApplication]=await db.select().from(applications).where(eq(applications.userId,seller.id));
+  await db.update(listings).set({status:'published',reviewStatus:'approved',applicationId:approvedApplication.id,publicationConsentAt:new Date()}).where(eq(listings.id,listing.id));
+  assert.equal((await req('POST','/v1/conversations',{listingId:listing.id},buyer.token)).data.conversation.id,conv.id);
+  assert.equal((await req('POST','/v1/conversations',{listingId:listing.id},seller.token)).status,409);
+  assert.equal((await req('GET',`/v1/conversations/${conv.id}/messages`)).status,401);
+  const textPayload={requestId:randomUUID(),kind:'text',text:'Hello, are you available?'};
+  const textMessage=await req('POST',`/v1/conversations/${conv.id}/messages`,textPayload,buyer.token);
+  assert.equal(textMessage.status,200);
+  assert.equal((await req('POST',`/v1/conversations/${conv.id}/messages`,textPayload,buyer.token)).data.message.id,textMessage.data.message.id);
+  assert.equal((await req('POST',`/v1/conversations/${conv.id}/messages`,{...textPayload,text:'Changed'},buyer.token)).status,409);
+  const inbox=(await req('GET','/v1/conversations',undefined,seller.token)).data.conversations;
+  assert.equal(inbox.find((c:any)=>c.id===conv.id).latestBody,textPayload.text);
+  assert.equal(inbox.find((c:any)=>c.id===conv.id).unreadCount,2);
+  assert.equal((await req('POST',`/v1/conversations/${conv.id}/read`,{messageIds:[message.data.message.id]},other.token)).status,404);
+  await req('POST',`/v1/conversations/${conv.id}/read`,{messageIds:[message.data.message.id]},seller.token);
+  assert.equal((await req('GET','/v1/conversations',undefined,seller.token)).data.conversations.find((c:any)=>c.id===conv.id).unreadCount,1);
+  const replyMessage=await req('POST',`/v1/conversations/${conv.id}/messages`,{requestId:randomUUID(),kind:'text',text:'Yes, welcome!'},seller.token);
+  assert.equal(replyMessage.status,200);
+  assert.ok((await req('GET',`/v1/conversations/${conv.id}/messages`,undefined,buyer.token)).data.messages.some((m:any)=>m.id===replyMessage.data.message.id));
+  // Historical product snapshots survive edits and retries after delisting.
+  const productPayload={requestId:randomUUID(),kind:'product',objectId:listing.id};
+  const productMessage=await req('POST',`/v1/conversations/${conv.id}/messages`,productPayload,seller.token);
+  assert.equal(productMessage.status,200);
+  await db.update(listings).set({title:'Updated title',priceFen:12000}).where(eq(listings.id,listing.id));
+  assert.equal((await req('POST',`/v1/conversations/${conv.id}/messages`,productPayload,seller.token)).data.message.id,productMessage.data.message.id);
+  assert.equal((await req('POST',`/v1/conversations/${conv.id}/messages`,{...productPayload,requestId:randomUUID()},seller.token)).status,403);
+  const cards=(await req('GET',`/v1/conversations/${conv.id}/messages`,undefined,buyer.token)).data.messages;
+  const historical=cards.find((m:any)=>m.id===productMessage.data.message.id).card;
+  assert.equal(historical.title,listing.title);assert.equal(historical.priceFen,10000);assert.equal(historical.available,false);
+  const orderCard=cards.find((m:any)=>m.id===message.data.message.id).card;
+  assert.equal(orderCard.quantity,first.quantity);assert.equal(orderCard.totalFen,first.totalFen);assert.equal(orderCard.paid,true);
+  assert.equal(orderCard.refundedFen,(await view(first.id)).workflow.data.refundedFen);
+  assert.equal(JSON.stringify(orderCard).includes('player-123'),false);
+  // Chat must remain usable when payment simulation is disabled.
+  process.env.SAMMY_SIMULATED_PAYMENTS='false';const chatApp=buildApp({db,logger:false});
+  try{
+   assert.equal((await chatApp.inject({method:'POST',url:`/v1/conversations/${conv.id}/messages`,headers:{authorization:`Bearer ${buyer.token}`},payload:{requestId:randomUUID(),kind:'text',text:'Messaging independently of payments'}})).statusCode,200);
+   for(const kind of ['support','feedback']){
+    const created=await chatApp.inject({method:'POST',url:'/v1/tickets',headers:{authorization:`Bearer ${buyer.token}`},payload:{requestId:randomUUID(),kind,category:'Help',text:'Assistance without payment simulation'}});
+    assert.equal(created.statusCode,200);const id=created.json().ticket.id;
+    assert.equal((await chatApp.inject({method:'POST',url:`/v1/admin/tickets/${id}/reply`,headers:{authorization:`Bearer ${staff.token}`},payload:{requestId:randomUUID(),status:'replied',text:'We can help'}})).statusCode,200);
+    if(kind==='support')assert.equal((await chatApp.inject({method:'POST',url:`/v1/tickets/${id}/replies`,headers:{authorization:`Bearer ${buyer.token}`},payload:{requestId:randomUUID(),text:'More information'}})).statusCode,200);
+   }
+   for(const kind of ['support','feedback']){
+    const list=await chatApp.inject({method:'GET',url:'/v1/tickets?kind='+kind,headers:{authorization:`Bearer ${buyer.token}`}});
+    assert.equal(list.statusCode,200);assert.ok(list.json().tickets.length>0);assert.ok(list.json().tickets.every((t:any)=>t.kind===kind));
+   }
+  }finally{await chatApp.close();process.env.SAMMY_SIMULATED_PAYMENTS='true';}
   const feedback=(await req('POST','/v1/tickets',{requestId:randomUUID(),kind:'feedback',category:'Suggestion',text:'Please improve search'},buyer.token)).data.ticket;const before=(await view(first.id)).workflow.version;const reply={requestId:randomUUID(),status:'replied',text:'Thanks, recorded for review.'};assert.equal((await req('POST',`/v1/admin/tickets/${feedback.id}/reply`,reply,staff.token)).status,200);await req('POST',`/v1/admin/tickets/${feedback.id}/reply`,reply,staff.token);assert.equal((await view(first.id)).workflow.version,before);const notices=(await req('GET','/v1/notifications',undefined,buyer.token)).data.notifications;assert.equal(notices.filter((n:any)=>n.objectId===feedback.id).length,1);
 
   assert.equal((await req('GET',`/v1/orders/${first.id}/evidence/${imageIds[0]}`,undefined,buyer.token)).data.error,'redactedEvidencePending');assert.equal((await req('GET',`/v1/orders/${first.id}/evidence/${imageIds[0]}`,undefined,other.token)).status,404);

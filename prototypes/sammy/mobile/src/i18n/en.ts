@@ -1,4 +1,11 @@
 export const en = {
+  listingReviewSubmitted: 'Service submitted for review.',
+  productApprovalRequired: 'Submit this service for review before publishing.',
+  productReviewPending: 'This service is already awaiting review.',
+
+  ordersAwaitingReview: 'Awaiting review',
+  ordersRefundProcessing: 'Refund processing',
+
   commerceInService: "In service",
   commerceAwaitingAcceptance: "Awaiting acceptance",
   commerceCompleted: "Completed",
@@ -94,6 +101,7 @@ export const en = {
   hostedApplicationSubmitted: "Application submitted for review.",
   hostedResubmit: "Review changes and resubmit",
   hostedRefresh: "Refresh review status",
+  hostedContentUnavailable: "This content is temporarily unavailable. Please try again later.",
   hostedUnavailable: "Unable to connect. Check your connection and try again.",
   hostedMediaUnavailable: "Some media could not load or upload. Check your connection and retry.",
   hostedMediaInvalid: "This media file could not be verified. Choose a valid photo or voice recording.",
@@ -249,7 +257,12 @@ export const en = {
   deliveryTitle: "Game details",
   deliveryBody: "Your companion will use these details to find you in the game.",
   gameName: "In-game nickname",
-  gameNamePlaceholder: "Your name in Peace Elite",
+  serverChina: "China server",
+  valorantGameId: "VALORANT ID (Name#Tag)",
+  valorantGameIdPlaceholder: "e.g. 小熊#CN1",
+  invalidValorantGameId: "Enter your full Name#Tag, up to 80 characters.",
+  valorantServerRequired: "Choose the China server.",
+  gameNamePlaceholder: "Your in-game nickname",
   gameId: "Game ID",
   gameIdPlaceholder: "Enter your game ID",
   gameServer: "Game server",
