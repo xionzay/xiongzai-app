@@ -61,6 +61,7 @@ export function orderRoutes(app:FastifyInstance,db:Database){
    if(previous){if(previous.requestHash!==hash)throw new ApiError(409,'orderRequestConflict');return previous;}
    if(lockedBuyer.suspended)throw new ApiError(403,'accountSuspended');if(input.rulesVersion!==orderRules.version)throw new ApiError(409,'ruleVersionUnsupported');
    const [current]=await tx.select().from(listings).where(eq(listings.id,input.listingId)).for('update');
+   if(current.isShowcase)throw new ApiError(409,'showcaseNotOrderable');
    const [approved]=current.applicationId?await tx.select().from(applications).where(and(eq(applications.id,current.applicationId),eq(applications.userId,seller.id),eq(applications.status,'approved'))):[];
    if(seller.suspended||seller.providerSuspended||current.status!=='published'||current.reviewStatus!=='approved'||current.moderationBlocked||!current.publicationConsentAt||!approved)throw new ApiError(409,'listingUnavailable');
    if(current.revision!==input.listingRevision||current.priceFen!==input.expectedUnitPriceFen)throw new ApiError(409,'orderQuoteChanged');
@@ -95,7 +96,7 @@ export function orderRoutes(app:FastifyInstance,db:Database){
    const seller=participants.find(p=>p.id===item.sellerId)!,buyer=participants.find(p=>p.id===item.buyerId)!;
    // Restricted participants can resolve an existing pending test as failed, never pay.
    if((buyer.suspended||seller.suspended||seller.providerSuspended)&&!(attempt&&desired==='failed'))throw new ApiError(403,'publicationRestricted');
-   if(!attempt){const [listing]=await tx.select().from(listings).where(eq(listings.id,item.listingId)).for('update');if(!listing||listing.status!=='published'||listing.reviewStatus!=='approved'||listing.moderationBlocked||!listing.publicationConsentAt)throw new ApiError(409,'listingUnavailable');const [approved]=listing.applicationId?await tx.select().from(applications).where(and(eq(applications.id,listing.applicationId),eq(applications.userId,seller.id),eq(applications.status,'approved'))):[];if(!approved)throw new ApiError(409,'listingUnavailable');}
+   if(!attempt){const [listing]=await tx.select().from(listings).where(eq(listings.id,item.listingId)).for('update');if(!listing||listing.isShowcase||listing.status!=='published'||listing.reviewStatus!=='approved'||listing.moderationBlocked||!listing.publicationConsentAt)throw new ApiError(409,'listingUnavailable');const [approved]=listing.applicationId?await tx.select().from(applications).where(and(eq(applications.id,listing.applicationId),eq(applications.userId,seller.id),eq(applications.status,'approved'))):[];if(!approved)throw new ApiError(409,'listingUnavailable');}
    const [pending]=await tx.select().from(paymentAttempts).where(and(eq(paymentAttempts.orderId,id),eq(paymentAttempts.status,'pending')));if(pending&&pending.requestId!==input.requestId)throw new ApiError(409,'paymentPending');
    const resolvedAt=desired==='pending'?null:new Date();
    if(attempt)await tx.update(paymentAttempts).set({status:desired,resolvedAt}).where(eq(paymentAttempts.id,attempt.id));else await tx.insert(paymentAttempts).values({orderId:id,requestId:input.requestId,status:desired,resolvedAt});

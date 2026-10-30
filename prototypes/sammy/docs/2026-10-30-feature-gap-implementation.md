@@ -44,3 +44,11 @@ These results demonstrate implemented prototype paths, not complete PRD acceptan
 ## Discovery layout follow-up
 
 The full-size game/sort/service/style/team controls overwhelmed Home. Discovery now keeps a compact horizontal game row and a single Filters control. Sort and relevant secondary filters live in a labelled sheet with draft selections, Apply and Reset; companion browsing omits service-only filters. Section tabs and discovery controls have contained backgrounds and compact spacing. Mobile TypeScript passed; updated on-device visual verification remains blocked by the computer-use approval usage limit. The original mobile API configuration was restored after isolated QA.
+
+## Hosted migration repair after user deployment — 30 October
+
+The user deployed the updated backend, but catalog/Home/announcements returned HTTP 500. Read-only inspection of the configured Neon database found only migrations 0001–0006; the required service review/type columns and marketplace/announcement tables were absent. A further read-only impact check found seven listings and zero published services.
+
+Automatic approval initially rejected migration because publication-to-draft changes lacked explicit authorization. A safer retry supplied the verified zero-publication evidence and a preflight that refuses if publications exist. It was approved. An ignored preservation snapshot was saved under backend/.local/deployment-checks; migration 0007–0010 then completed transactionally. All pre-existing user/application/listing/media IDs and historical order snapshot fingerprints were verified afterward. No listing was taken offline because none was published.
+
+Live Heroku proof after migration: listings with all current filters, Home, announcements, and stores each returned HTTP 200 with valid empty data. This connects the configured database repair to the deployed API behavior. Native re-check was not performed; the user can retry the failed screen. The remaining generic GET-500 message was also mapped to the bilingual content-unavailable message, and mobile TypeScript passed. No Heroku configuration, administrator roles or service approvals were changed.

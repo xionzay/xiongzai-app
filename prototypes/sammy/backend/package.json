@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts",
     "db:migrate": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/migrate.ts",
+    "db:seed-showcase": "node --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-showcase-catalog.mjs",
     "admin:grant": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/grant-admin.ts",
     "test:integration": "sh scripts/test-postgres.sh",
     "storage:check": "node --import tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/check-cloudinary.mjs"

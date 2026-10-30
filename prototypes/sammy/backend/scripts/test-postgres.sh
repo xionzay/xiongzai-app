@@ -9,3 +9,4 @@ export SAMMY_SIMULATED_PAYMENTS=true
 export TEST_DATABASE_URL="postgresql://sammy_test@/postgres?host=$SAMMY_TEST_DIR&port=55483"
 DATABASE_URL="$TEST_DATABASE_URL" ./node_modules/.bin/tsx scripts/migrate.ts
 ./node_modules/.bin/tsx --test tests/*.test.ts
+node --import tsx scripts/verify-showcase-catalog.mjs

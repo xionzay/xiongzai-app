@@ -103,7 +103,19 @@ For a separate backend-connected mobile preview, run this from `../mobile`:
 EXPO_PUBLIC_API_URL=http://127.0.0.1:3100 REACT_NATIVE_PACKAGER_HOSTNAME=localhost npx expo start --dev-client --localhost --port 8083
 ```
 
-Use that server in the development client. The ordinary demo session on port 8081 remains separate. With this prototype, services cover Peace Elite and hourly pricing. Provider-written titles/descriptions remain in their original language; surrounding UI supports English and Chinese.
+Use that server in the development client. The ordinary demo session on port 8081 remains separate. Hosted listings support all four games, companionship/coaching, and hourly pricing. Provider-written titles/descriptions remain in their original language; surrounding UI supports English and Chinese.
+
+## Showcase catalog for the dedicated demo database
+
+`npm run db:seed-showcase` adds eight bilingual, browse-only catalog examples: one companionship service and one coaching service for each of Peace Elite, Delta Force, Honor of Kings, and VALORANT. The provider names and profiles identify them as Xiongzai showcase entries, not independent players. They have no provider applications or review approvals, cannot be ordered, and are excluded from admin user/service totals. The script creates no orders, sales, or reviews, never overwrites existing rows, and is not part of deploy/startup.
+
+Run migrations first, then seed only the dedicated Sammy demo Neon database:
+
+```sh
+SAMMY_HOSTED_DEMO=true SAMMY_SHOWCASE_CATALOG_CONFIRM=YES npm run db:seed-showcase
+```
+
+It refuses non-Neon targets and requires both explicit flags. If the same showcase IDs already exist with changed content, it stops rather than replacing them. `npm run test:integration` verifies all four games, both service types, public discovery, browse-only ordering, and repeat-run idempotence against a disposable PostgreSQL database.
 
 Publication requires provider approval and explicit consent to expose the selected listing photos and approved profile photo/voice/name/bio. Phone and in-game identifiers remain private. Drafts are never returned by public endpoints. Editing published content returns it to draft; re-publishing requires consent. Concurrent stale edits return a conflict rather than overwriting newer data. Unpublishing removes public API access immediately; already issued media links can remain valid for their five-minute lifetime. These discovery features do not enable payments or replace identity checks.
 

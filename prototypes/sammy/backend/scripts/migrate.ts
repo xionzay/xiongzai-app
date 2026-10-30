@@ -8,7 +8,7 @@ try {
  await client.query('BEGIN');
  await client.query('SELECT pg_advisory_xact_lock(19731018)');
  await client.query('CREATE TABLE IF NOT EXISTS sammy_migrations(name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())');
- for(const name of ['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010']){
+ for(const name of ['0001','0002','0003','0004','0005','0006','0007','0008','0009','0010','0011_showcase_catalog']){
  const found=await client.query('SELECT name FROM sammy_migrations WHERE name=$1',[name]);
  if(!found.rowCount){await client.query(await readFile(new URL(`../migrations/${name}.sql`,import.meta.url),'utf8'));await client.query('INSERT INTO sammy_migrations(name) VALUES($1)',[name]);}
  }

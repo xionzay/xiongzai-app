@@ -4,6 +4,7 @@ export const users = pgTable('users', {
   id:uuid().primaryKey().defaultRandom(), phone:text().notNull().unique(), passwordHash:text('password_hash').notNull(),
   nickname:text().notNull(), bio:text().notNull().default(''), isAdmin:boolean('is_admin').notNull().default(false), isSupervisor:boolean('is_supervisor').notNull().default(false),
   suspended:boolean().notNull().default(false), suspensionReason:text('suspension_reason'), providerSuspended:boolean('provider_suspended').notNull().default(false), providerSuspensionReason:text('provider_suspension_reason'),
+  isShowcase:boolean('is_showcase').notNull().default(false),
   avatarMediaId:uuid('avatar_media_id'), draft:jsonb().$type<Draft>(), createdAt:timestamp('created_at',{withTimezone:true}).defaultNow().notNull(),
 });
 export const sessions=pgTable('sessions',{
@@ -29,6 +30,7 @@ export const listings=pgTable('listings',{
  game:text().$type<CatalogGame>().notNull(),serviceType:text('service_type').$type<ServiceType>().notNull().default('companion'),mode:text().$type<'duo'|'squad'>().notNull(),category:text().$type<'relaxed'|'ranked'>().notNull(),
  priceFen:integer('price_fen').notNull(),photoMediaIds:jsonb('photo_media_ids').$type<string[]>().notNull().default([]),
  moderationBlocked:boolean('moderation_blocked').notNull().default(false), moderationReason:text('moderation_reason'),
+ isShowcase:boolean('is_showcase').notNull().default(false),
  status:text().$type<'draft'|'published'>().notNull().default('draft'),revision:integer().notNull().default(1),
  reviewStatus:text('review_status').$type<'draft'|'pending'|'approved'|'changes_requested'>().notNull().default('draft'),reviewReason:text('review_reason'),
  reviewSubmittedAt:timestamp('review_submitted_at',{withTimezone:true}),reviewedAt:timestamp('reviewed_at',{withTimezone:true}),reviewerId:uuid('reviewer_id').references(()=>users.id),

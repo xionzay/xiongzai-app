@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, asc, desc, eq, inArray, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Database } from './db.js';
 import type { MediaStorage } from './storage.js';
@@ -16,7 +16,7 @@ const periodSchema=z.enum(['today','yesterday','week','month','year','all']);
 type Period=z.infer<typeof periodSchema>;
 type Review=typeof orderReviews.$inferSelect;
 type Order=typeof orders.$inferSelect;
-type ListingRow={listing:typeof listings.$inferSelect;application:typeof applications.$inferSelect};
+type ListingRow={listing:typeof listings.$inferSelect;application:typeof applications.$inferSelect|null;user:typeof users.$inferSelect};
 
 export function beijingPeriod(period:Period,now=new Date()){
  const shifted=new Date(now.getTime()+8*3600000);
@@ -42,34 +42,42 @@ function numeric(value:unknown){const n=Number(value??0);if(!Number.isSafeIntege
 export function marketplaceRoutes(app:FastifyInstance,db:Database,storage?:MediaStorage){
  const actor=(req:{headers:{authorization?:string}})=>authenticate(db,req.headers.authorization,{allowRestricted:true});
  const admin=async(req:{headers:{authorization?:string}})=>{const a=await authenticate(db,req.headers.authorization);if(!a.isAdmin)throw new ApiError(403,'adminRequired');return a;};
- const live=and(eq(listings.status,'published'),eq(listings.reviewStatus,'approved'),eq(listings.moderationBlocked,false),eq(applications.status,'approved'),eq(applications.userId,listings.ownerId),eq(users.suspended,false),eq(users.providerSuspended,false));
- const liveRows=(condition?:SQL)=>db.select({listing:listings,application:applications}).from(listings).innerJoin(applications,eq(applications.id,listings.applicationId)).innerJoin(users,eq(users.id,listings.ownerId)).where(and(live,condition));
+ const live=or(
+  and(eq(listings.isShowcase,false),eq(users.isShowcase,false),eq(listings.status,'published'),eq(listings.reviewStatus,'approved'),eq(listings.moderationBlocked,false),eq(applications.status,'approved'),eq(applications.userId,listings.ownerId),eq(users.suspended,false),eq(users.providerSuspended,false)),
+  and(eq(listings.isShowcase,true),eq(users.isShowcase,true),eq(listings.status,'published'),eq(listings.reviewStatus,'draft'),eq(listings.moderationBlocked,false),eq(users.suspended,false),eq(users.providerSuspended,false)),
+ );
+ const liveRows=(condition?:SQL)=>db.select({listing:listings,application:applications,user:users}).from(listings).leftJoin(applications,eq(applications.id,listings.applicationId)).innerJoin(users,eq(users.id,listings.ownerId)).where(and(live,condition));
  async function publicProduct(row:ListingRow){
-  const {id,ownerId,revision,title,description,game,serviceType,mode,category,priceFen,photoMediaIds}=row.listing;
-  const p=row.application.snapshot;
-  return {id,ownerId,revision,title,description,game,serviceType,mode,category,priceFen,photoMediaIds,provider:{id:ownerId,nickname:p.nickname,bio:p.bio,rank:p.draft.rank,playStyle:p.draft.playStyle,avatarMediaId:p.avatarMediaId,voiceMediaId:p.draft.voiceMediaId},files:await mediaFiles(db,storage,[...photoMediaIds,p.avatarMediaId,p.draft.voiceMediaId])};
+  const {id,ownerId,revision,title,description,game,serviceType,mode,category,priceFen,photoMediaIds,isShowcase}=row.listing;
+  const snapshot=row.application?.snapshot;
+  const nickname=snapshot?.nickname??row.user.nickname,bio=snapshot?.bio??row.user.bio;
+  const draft=snapshot?.draft??row.user.draft;
+  const avatarMediaId=snapshot?.avatarMediaId??row.user.avatarMediaId,voiceMediaId=draft?.voiceMediaId??null;
+  return {id,ownerId,revision,title,description,game,serviceType,mode,category,priceFen,photoMediaIds,isShowcase,provider:{id:ownerId,nickname,bio,rank:draft?.rank??'Showcase',playStyle:draft?.playStyle??'Catalog example',avatarMediaId,voiceMediaId,isShowcase},files:await mediaFiles(db,storage,[...photoMediaIds,avatarMediaId,voiceMediaId])};
  }
  // Only paid, terminated, retained sales without an active case can rank a store or product.
  const eligibleSales=sql`o.paid_at is not null and o.buyer_id<>o.seller_id and w.data->>'stage'='completed' and nullif(w.data->>'terminatedAt','') is not null and nullif(w.data->>'activeCaseId','') is null and o.total_fen>coalesce((w.data->>'refundedFen')::bigint,0)`;
  async function storeRows(options:{id?:string;q?:string;game?:string;sort?:'recent'|'rating'|'sales';page?:number;limit?:number;liveOnly?:boolean;positiveSales?:boolean}={}){
   const term='%'+(options.q??'').replace(/[\\%_]/g,'\\$&')+'%';
-  const orderBy=options.sort==='rating'?sql`r.rating desc nulls last,r.review_count desc,a.submitted_at desc,u.id`:options.sort==='sales'?sql`completed_sales desc,a.submitted_at desc,u.id`:sql`a.submitted_at desc,u.id`;
+  const orderBy=options.sort==='rating'?sql`r.rating desc nulls last,r.review_count desc,coalesce(a.submitted_at,u.created_at) desc,u.id`:options.sort==='sales'?sql`completed_sales desc,coalesce(a.submitted_at,u.created_at) desc,u.id`:sql`coalesce(a.submitted_at,u.created_at) desc,u.id`;
   const result=await db.execute(sql`
-   select u.id,a.snapshot,a.submitted_at as "submittedAt",r.rating,r.review_count as "reviewCount",s.completed_sales as "completedSales",p.min_price as "minPriceFen",p.games
+   select u.id,coalesce(a.snapshot,jsonb_build_object('nickname',u.nickname,'bio',u.bio,'avatarMediaId',u.avatar_media_id,'draft',u.draft)) as snapshot,
+    u.is_showcase as "isShowcase",r.rating,r.review_count as "reviewCount",s.completed_sales as "completedSales",p.min_price as "minPriceFen",p.games
    from users u
-   join lateral (select snapshot,submitted_at from applications where user_id=u.id and status='approved' order by submitted_at desc,id desc limit 1) a on true
+   left join lateral (select snapshot,submitted_at from applications where user_id=u.id and status='approved' order by submitted_at desc,id desc limit 1) a on true
    left join lateral (select avg(rating)::float8 as rating,count(*)::int as review_count from order_reviews where seller_id=u.id and status='visible') r on true
    left join lateral (select coalesce(sum(o.quantity),0)::bigint as completed_sales from orders o join order_workflows w on w.order_id=o.id where o.seller_id=u.id and ${eligibleSales}) s on true
-   left join lateral (select min(l.price_fen)::int as min_price,array_agg(distinct l.game) as games from listings l join applications la on la.id=l.application_id and la.user_id=u.id and la.status='approved' where l.owner_id=u.id and l.status='published' and l.review_status='approved' and l.moderation_blocked=false ${options.game&&options.game!=='all'?sql`and l.game=${options.game}`:sql``}) p on true
-   where u.suspended=false and u.provider_suspended=false
+   left join lateral (select min(l.price_fen)::int as min_price,array_agg(distinct l.game) as games from listings l left join applications la on la.id=l.application_id and la.user_id=u.id and la.status='approved'
+    where l.owner_id=u.id and l.status='published' and l.moderation_blocked=false and ((l.is_showcase=true and u.is_showcase=true and l.review_status='draft' and l.application_id is null) or (l.is_showcase=false and l.review_status='approved' and la.id is not null)) ${options.game&&options.game!=='all'?sql`and l.game=${options.game}`:sql``}) p on true
+   where u.suspended=false and u.provider_suspended=false and (a.snapshot is not null or (u.is_showcase=true and p.min_price is not null))
    ${options.id?sql`and u.id=${options.id}`:sql``}
-   ${options.q?sql`and (a.snapshot->>'nickname' ilike ${term} or a.snapshot->>'bio' ilike ${term})`:sql``}
+   ${options.q?sql`and (coalesce(a.snapshot->>'nickname',u.nickname) ilike ${term} or coalesce(a.snapshot->>'bio',u.bio) ilike ${term})`:sql``}
    ${options.liveOnly?sql`and p.min_price is not null`:sql``}
    ${options.positiveSales?sql`and s.completed_sales>0`:sql``}
    order by ${orderBy} limit ${options.limit??31} offset ${((options.page??1)-1)*30}`);
   return Promise.all(result.rows.map(async raw=>{
    const p=raw.snapshot as typeof applications.$inferSelect['snapshot'];
-   return {id:String(raw.id),nickname:p.nickname,bio:p.bio,rank:p.draft.rank,playStyle:p.draft.playStyle,avatarMediaId:p.avatarMediaId,voiceMediaId:p.draft.voiceMediaId,rating:raw.rating===null?null:Number(raw.rating),reviewCount:numeric(raw.reviewCount),completedSales:numeric(raw.completedSales),minPriceFen:raw.minPriceFen===null?null:numeric(raw.minPriceFen),games:(raw.games??[]) as string[],files:await mediaFiles(db,storage,[p.avatarMediaId,p.draft.voiceMediaId])};
+   return {id:String(raw.id),nickname:p.nickname,bio:p.bio,rank:p.draft.rank,playStyle:p.draft.playStyle,avatarMediaId:p.avatarMediaId,voiceMediaId:p.draft.voiceMediaId,isShowcase:Boolean(raw.isShowcase),rating:raw.rating===null?null:Number(raw.rating),reviewCount:numeric(raw.reviewCount),completedSales:numeric(raw.completedSales),minPriceFen:raw.minPriceFen===null?null:numeric(raw.minPriceFen),games:(raw.games??[]) as string[],files:await mediaFiles(db,storage,[p.avatarMediaId,p.draft.voiceMediaId])};
   }));
  }
 

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, asc, desc, eq, gt, ilike, isNotNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, ilike, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Database } from './db.js';
 import { listings, applications, users, adminActions } from './schema.js';
@@ -20,14 +20,21 @@ type Listing=typeof listings.$inferSelect;
 export function listingRoutes(app:FastifyInstance,db:Database,storage?:MediaStorage){
  const user=(req:{headers:{authorization?:string}})=>authenticate(db,req.headers.authorization);
  const privateView=async(listing:Listing)=>({listing,files:await mediaFiles(db,storage,listing.photoMediaIds)});
- async function publicView(row:{listing:Listing;application:typeof applications.$inferSelect}){
-  const {id,ownerId,revision,title,description,game,serviceType,reviewStatus,mode,category,priceFen,photoMediaIds}=row.listing;
-  const profile=row.application.snapshot;
-  return {id,ownerId,revision,title,description,game,serviceType,reviewStatus,mode,category,priceFen,photoMediaIds,
-   provider:{id:ownerId,nickname:profile.nickname,bio:profile.bio,rank:profile.draft.rank,playStyle:profile.draft.playStyle,avatarMediaId:profile.avatarMediaId,voiceMediaId:profile.draft.voiceMediaId},
-   files:await mediaFiles(db,storage,[...photoMediaIds,profile.avatarMediaId,profile.draft.voiceMediaId])};
+ async function publicView(row:{listing:Listing;application:typeof applications.$inferSelect|null;user:typeof users.$inferSelect}){
+  const {id,ownerId,revision,title,description,game,serviceType,reviewStatus,mode,category,priceFen,photoMediaIds,isShowcase}=row.listing;
+  const snapshot=row.application?.snapshot;
+  const nickname=snapshot?.nickname??row.user.nickname,bio=snapshot?.bio??row.user.bio;
+  const draft=snapshot?.draft??row.user.draft;
+  const avatarMediaId=snapshot?.avatarMediaId??row.user.avatarMediaId;
+  const voiceMediaId=draft?.voiceMediaId??null;
+  return {id,ownerId,revision,title,description,game,serviceType,reviewStatus,mode,category,priceFen,photoMediaIds,isShowcase,
+   provider:{id:ownerId,nickname,bio,rank:draft?.rank??'Showcase',playStyle:draft?.playStyle??'Catalog example',avatarMediaId,voiceMediaId,isShowcase},
+   files:await mediaFiles(db,storage,[...photoMediaIds,avatarMediaId,voiceMediaId])};
  }
- const published=and(eq(listings.status,'published'),eq(listings.reviewStatus,'approved'),isNotNull(listings.publicationConsentAt),eq(applications.userId,listings.ownerId),eq(applications.status,'approved'),eq(users.suspended,false),eq(users.providerSuspended,false),eq(listings.moderationBlocked,false));
+ const published=or(
+  and(eq(listings.isShowcase,false),eq(users.isShowcase,false),eq(listings.status,'published'),eq(listings.reviewStatus,'approved'),isNotNull(listings.publicationConsentAt),eq(applications.userId,listings.ownerId),eq(applications.status,'approved'),eq(users.suspended,false),eq(users.providerSuspended,false),eq(listings.moderationBlocked,false)),
+  and(eq(listings.isShowcase,true),eq(users.isShowcase,true),eq(listings.status,'published'),eq(listings.reviewStatus,'draft'),isNull(listings.applicationId),isNull(listings.publicationConsentAt),eq(users.suspended,false),eq(users.providerSuspended,false),eq(listings.moderationBlocked,false)),
+ );
  app.get('/v1/listings',async req=>{
   const query=z.object({q:z.string().trim().max(80).default(''),game:z.enum(['all',...games]).default('all'),serviceType:z.enum(['all',...serviceTypes]).default('all'),category:z.enum(['all','relaxed','ranked']).default('all'),mode:z.enum(['all','duo','squad']).default('all'),sort:z.enum(['recent','priceAsc','priceDesc']).default('recent'),after:z.string().max(300).optional()}).strict().parse(req.query);
   const term=`%${query.q.replace(/[\\%_]/g,'\\$&')}%`;
@@ -42,8 +49,8 @@ export function listingRoutes(app:FastifyInstance,db:Database,storage?:MediaStor
     after=or(compare(listings.priceFen,cursor.priceFen),and(eq(listings.priceFen,cursor.priceFen),compare(listings.id,cursor.id)));
    }
   }
-  const rows=await db.select({listing:listings,application:applications}).from(listings).innerJoin(applications,eq(listings.applicationId,applications.id)).innerJoin(users,eq(listings.ownerId,users.id)).where(and(published,
-   query.q?or(ilike(listings.title,term),ilike(listings.description,term),ilike(sql`${applications.snapshot}->>'nickname'`,term)):undefined,
+  const rows=await db.select({listing:listings,application:applications,user:users}).from(listings).leftJoin(applications,eq(listings.applicationId,applications.id)).innerJoin(users,eq(listings.ownerId,users.id)).where(and(published,
+   query.q?or(ilike(listings.title,term),ilike(listings.description,term),ilike(sql`coalesce(${applications.snapshot}->>'nickname',${users.nickname})`,term)):undefined,
    query.game!=='all'?eq(listings.game,query.game):undefined,query.serviceType!=='all'?eq(listings.serviceType,query.serviceType):undefined,
    query.category!=='all'?eq(listings.category,query.category):undefined,query.mode!=='all'?eq(listings.mode,query.mode):undefined,after))
    .orderBy(...(query.sort==='recent'?[desc(listings.id)]:query.sort==='priceAsc'?[asc(listings.priceFen),asc(listings.id)]:[desc(listings.priceFen),desc(listings.id)])).limit(21);
@@ -52,7 +59,7 @@ export function listingRoutes(app:FastifyInstance,db:Database,storage?:MediaStor
  });
  app.get('/v1/listings/:id',async req=>{
   const {id}=idInput.parse(req.params);
-  const [row]=await db.select({listing:listings,application:applications}).from(listings).innerJoin(applications,eq(listings.applicationId,applications.id)).innerJoin(users,eq(listings.ownerId,users.id)).where(and(published,eq(listings.id,id)));
+  const [row]=await db.select({listing:listings,application:applications,user:users}).from(listings).leftJoin(applications,eq(listings.applicationId,applications.id)).innerJoin(users,eq(listings.ownerId,users.id)).where(and(published,eq(listings.id,id)));
   if(!row)throw new ApiError(404,'listingUnavailable');return {listing:await publicView(row)};
  });
  app.get('/v1/me/listings',async req=>{
@@ -62,6 +69,7 @@ export function listingRoutes(app:FastifyInstance,db:Database,storage?:MediaStor
  });
  app.put('/v1/me/listings/:id',async req=>{
   const owner=await user(req),{id}=idInput.parse(req.params),{revision,...input}=listingInput.parse(req.body);
+  if(owner.isShowcase)throw new ApiError(403,'showcaseReadOnly');
   await limit(db,`listing:${owner.id}`,60);
   const listing=await db.transaction(async tx=>{
    const [lockedOwner]=await tx.select().from(users).where(eq(users.id,owner.id)).for('update');
@@ -77,6 +85,7 @@ export function listingRoutes(app:FastifyInstance,db:Database,storage?:MediaStor
  });
  for(const action of ['submit-review','publish','unpublish'] as const)app.post(`/v1/me/listings/:id/${action}`,async req=>{
   const owner=await user(req),{id}=idInput.parse(req.params);
+  if(owner.isShowcase)throw new ApiError(403,'showcaseReadOnly');
   const {revision}=(action==='publish'?revisionInput.extend({accepted:z.literal(true)}).strict():revisionInput).parse(req.body);
   const listing=await db.transaction(async tx=>{
    const [lockedOwner]=await tx.select().from(users).where(eq(users.id,owner.id)).for('update');
@@ -102,6 +111,7 @@ export function listingRoutes(app:FastifyInstance,db:Database,storage?:MediaStor
   const {id}=idInput.parse(req.params),input=reviewInput.parse(req.body);
   const listing=await db.transaction(async tx=>{
    const [read]=await tx.select().from(listings).where(eq(listings.id,id));if(!read)throw new ApiError(404,'notFound');
+   if(read.isShowcase)throw new ApiError(404,'notFound');
    if(read.ownerId===actor.id)throw new ApiError(403,'ownServiceReview');
    const [owner]=await tx.select().from(users).where(eq(users.id,read.ownerId)).for('update');
    const [existing]=await tx.select().from(listings).where(eq(listings.id,id)).for('update');
