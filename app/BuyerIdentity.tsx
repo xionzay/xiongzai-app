@@ -22,7 +22,7 @@ export function BuyerIdentity({ request, userId, onOpen, onBack, onNavigate, det
   const ready = Boolean(userId && current && !current.error);
   const title = !userId ? '登录后查看陪玩身份' : !ready ? '陪玩身份' : entry.title;
   const note = !userId ? '申请入驻或查看已有资格' : current?.error ?? (!current ? '正在读取身份状态…' : entry.note);
-  const open = () => { if (!userId) onNavigate('auth'); else if (current?.error) setRetry(n => n + 1); else if (ready && entry.target === 'seller') onNavigate('seller'); else if (ready) onOpen?.(); };
+  const open = () => { if (!userId) onNavigate('auth'); else if (current?.error) setRetry(n => n + 1); else if (ready && entry.target === 'seller') onNavigate('identitySwitch'); else if (ready) onOpen?.(); };
   if (!detail) return <button type="button" className="buyer-identity-entry" disabled={Boolean(userId && !current)} onClick={open}><i className="app-cartoon-icon menu-symbol" aria-hidden="true"><CartoonIcon kind="product" /></i><span><b>{title}</b><small>{note}</small></span><em aria-hidden="true"><CartoonIcon kind="back" className="toon-glyph toon-glyph-right" label="打开" /></em></button>;
   return <div className="app-screen buyer-identity-screen"><header className="buyer-identity-header"><button type="button" aria-label="返回" onClick={onBack}><CartoonIcon kind="back" /></button><h1>陪玩身份</h1><span /></header><section className="buyer-identity-content"><h2>{title}</h2><p role={current?.error ? 'alert' : undefined}>{note}</p>
     {current?.profile?.suspended_reason && <p>原因：{current.profile.suspended_reason}</p>}
@@ -30,7 +30,7 @@ export function BuyerIdentity({ request, userId, onOpen, onBack, onNavigate, det
     {current?.profile?.latest_application?.required_fields?.length ? <p>需补充：{current.profile.latest_application.required_fields.map(key => fieldLabels[key as keyof typeof fieldLabels] ?? key).join('、')}</p> : null}
     {current?.profile?.latest_application?.submitted_at && <p>提交时间：{new Date(current.profile.latest_application.submitted_at).toLocaleString('zh-CN')}</p>}
     {!userId ? <button type="button" onClick={() => onNavigate('auth')}>登录账号</button> : <>
-      {ready && entry.action && entry.target && <button type="button" onClick={() => onNavigate(entry.target!)}>{entry.action}</button>}
+      {ready && entry.action && entry.target && <button type="button" onClick={() => onNavigate(entry.target === 'seller' ? 'identitySwitch' : entry.target!)}>{entry.target === 'seller' ? '返回设置切换身份' : entry.action}</button>}
       <button type="button" disabled={!current} onClick={() => setRetry(n => n + 1)}>{current?.error ? '重新加载' : '刷新状态'}</button>
     </>}
   </section></div>;

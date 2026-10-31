@@ -1,3 +1,4 @@
+import { cursorColumns, cursorTimestamp, cursorTimeValue } from "./cursor-time.js";
 import { randomBytes, randomInt } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { issueAccessToken } from "@xiongzai/auth";
@@ -116,7 +117,7 @@ export class IdentityUserService {
       const verification = await this.verifyLoginCode(transaction, phoneHash, input.code);
       if (!verification.ok) return { verification } as const;
 
-      let [user] = await transaction.select().from(users).where(eq(users.phoneHash, phoneHash)).limit(1);
+      let [user] = await transaction.select(cursorColumns(users)).from(users).where(eq(users.phoneHash, phoneHash)).limit(1);
       let newUser = false;
       if (!user) {
         const inserted = await transaction.insert(users).values({
@@ -127,7 +128,7 @@ export class IdentityUserService {
           lastActiveAt: new Date(),
         }).onConflictDoNothing().returning();
         [user] = inserted;
-        if (!user) [user] = await transaction.select().from(users).where(eq(users.phoneHash, phoneHash)).limit(1);
+        if (!user) [user] = await transaction.select(cursorColumns(users)).from(users).where(eq(users.phoneHash, phoneHash)).limit(1);
         newUser = Boolean(inserted[0]);
       }
       if (!user || user.status !== "NORMAL") return { blocked: true } as const;
@@ -210,7 +211,7 @@ export class IdentityUserService {
         )).limit(1).for("share");
         if (!device) return undefined;
       }
-      const [user] = await transaction.select().from(users).where(eq(users.id, session.userId)).limit(1);
+      const [user] = await transaction.select(cursorColumns(users)).from(users).where(eq(users.id, session.userId)).limit(1);
       if (!user || user.status !== "NORMAL") return undefined;
       const rotated = await transaction.update(authSessions).set({ refreshTokenHash: nextHash, lastUsedAt: now })
         .where(and(eq(authSessions.id, session.id), eq(authSessions.refreshTokenHash, oldHash), isNull(authSessions.revokedAt)))
@@ -263,13 +264,13 @@ export class IdentityUserService {
   }
 
   async getMe(userId: string) {
-    const [user] = await this.database.db.select().from(users).where(eq(users.id, userId)).limit(1);
+    const [user] = await this.database.db.select(cursorColumns(users)).from(users).where(eq(users.id, userId)).limit(1);
     if (!user) throw new AppError({ code: errorCodes.USER_NOT_FOUND, message: "用户不存在", statusCode: 404 });
     const [profile] = await this.database.db.select().from(userProfiles).where(and(eq(userProfiles.userId, userId), isNull(userProfiles.deletedAt))).limit(1);
     const [identity] = await this.database.db.select({
       id: identityVerifications.id, status: identityVerifications.status, legalNameMask: identityVerifications.legalNameMask,
       documentMask: identityVerifications.documentMask, rejectionCode: identityVerifications.rejectionCode,
-      rejectionReason: identityVerifications.rejectionReason, submittedAt: identityVerifications.submittedAt,
+      rejectionReason: identityVerifications.rejectionReason, submittedAt: cursorTimestamp(identityVerifications.submittedAt),
       verifiedAt: identityVerifications.verifiedAt, version: identityVerifications.version,
     }).from(identityVerifications).where(eq(identityVerifications.userId, userId)).orderBy(desc(identityVerifications.submittedAt)).limit(1);
     return {
@@ -288,13 +289,13 @@ export class IdentityUserService {
   }
 
   async getPublicProfile(userId: string) {
-    const [row] = await this.database.db.select({ id: users.id, status: users.status, nickname: userProfiles.nickname, avatarFileId: userProfiles.avatarFileId, bio: userProfiles.bio, publicUserNo: userProfiles.publicUserNo, showPublicProfile: privacySettings.showPublicProfile, showOnlineStatus: privacySettings.showOnlineStatus, lastActiveAt: users.lastActiveAt, createdAt: users.createdAt })
+    const [row] = await this.database.db.select({ id: users.id, status: users.status, nickname: userProfiles.nickname, avatarFileId: userProfiles.avatarFileId, bio: userProfiles.bio, publicUserNo: userProfiles.publicUserNo, showPublicProfile: privacySettings.showPublicProfile, showOnlineStatus: privacySettings.showOnlineStatus, lastActiveAt: users.lastActiveAt, createdAt: cursorTimestamp(users.createdAt) })
       .from(users).innerJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt))).leftJoin(privacySettings, eq(privacySettings.userId, users.id)).where(eq(users.id, userId)).limit(1);
     if (!row || row.status !== "NORMAL" || row.showPublicProfile === false) throw new AppError({ code: "PUBLIC_PROFILE_NOT_FOUND", message: "用户公开主页不存在", statusCode: 404 });
     const [[following], [reviewSummary], publicReviews] = await Promise.all([
       this.database.db.select({ count: sql<number>`count(*)::integer` }).from(favorites).where(and(eq(favorites.userId, userId), eq(favorites.targetType, "SELLER"))),
       this.database.db.select({ count: sql<number>`count(*)::integer` }).from(reviews).where(and(eq(reviews.buyerId, userId), eq(reviews.status, "PUBLIC"), eq(reviews.anonymous, false), isNull(reviews.hiddenAt))),
-      this.database.db.select({ id: reviews.id, rating: reviews.rating, content: reviews.content, sellerName: orders.sellerNameSnapshot, serviceTitle: reviews.serviceTitleSnapshot, createdAt: reviews.createdAt })
+      this.database.db.select({ id: reviews.id, rating: reviews.rating, content: reviews.content, sellerName: orders.sellerNameSnapshot, serviceTitle: reviews.serviceTitleSnapshot, createdAt: cursorTimestamp(reviews.createdAt) })
         .from(reviews).innerJoin(orders, eq(orders.id, reviews.orderId))
         .where(and(eq(reviews.buyerId, userId), eq(reviews.status, "PUBLIC"), eq(reviews.anonymous, false), isNull(reviews.hiddenAt)))
         .orderBy(desc(reviews.createdAt), desc(reviews.id)).limit(3),
@@ -316,7 +317,7 @@ export class IdentityUserService {
     userVersion: number;
   }, metadata: RequestMetadata) {
     await this.database.db.transaction(async (transaction) => {
-      const [user] = await transaction.select().from(users).where(eq(users.id, userId)).limit(1).for("update");
+      const [user] = await transaction.select(cursorColumns(users)).from(users).where(eq(users.id, userId)).limit(1).for("update");
       if (!user) throw new AppError({ code: errorCodes.USER_NOT_FOUND, message: "用户不存在", statusCode: 404 });
       const [profile] = await transaction.select().from(userProfiles).where(eq(userProfiles.userId, userId)).limit(1).for("update");
       if ((profile?.version ?? 0) !== input.version || user.version !== input.userVersion) throw versionConflict();
@@ -416,12 +417,11 @@ export class IdentityUserService {
 
   async currentPolicies(scene?: PolicyAcceptanceScene) {
     if (scene) return (await this.latestPoliciesForScene(this.database.db, scene)).map(policyView);
-    const now = new Date();
     const rows = await this.database.db.select({
       id: policyVersions.id, policyType: policyVersions.policyType, title: policyVersions.title,
       content: policyVersions.content, versionNo: policyVersions.versionNo, publishedAt: policyVersions.publishedAt,
       effectiveAt: policyVersions.effectiveAt, requiresReacceptance: policyVersions.requiresReacceptance,
-    }).from(policyVersions).where(and(eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, now), inArray(policyVersions.policyType, policyTypes)))
+    }).from(policyVersions).where(and(eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, sql`statement_timestamp()`), inArray(policyVersions.policyType, policyTypes)))
       .orderBy(policyVersions.policyType, desc(policyVersions.versionNo));
     const latest = new Map<string, typeof rows[number]>();
     for (const row of rows) if (!latest.has(row.policyType)) latest.set(row.policyType, row);
@@ -430,7 +430,7 @@ export class IdentityUserService {
 
   async getPublishedPolicy(policyVersionId: string) {
     const [row] = await this.database.db.select({ id: policyVersions.id, policyType: policyVersions.policyType, title: policyVersions.title, content: policyVersions.content, versionNo: policyVersions.versionNo, publishedAt: policyVersions.publishedAt, effectiveAt: policyVersions.effectiveAt, requiresReacceptance: policyVersions.requiresReacceptance })
-      .from(policyVersions).where(and(eq(policyVersions.id, policyVersionId), eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, new Date()))).limit(1);
+      .from(policyVersions).where(and(eq(policyVersions.id, policyVersionId), eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, sql`statement_timestamp()`))).limit(1);
     if (!row) throw new AppError({ code: errorCodes.POLICY_NOT_FOUND, message: "协议版本不存在或未发布", statusCode: 404 });
     return policyView(row);
   }
@@ -511,7 +511,7 @@ export class IdentityUserService {
       id: policyVersions.id, policyType: policyVersions.policyType, title: policyVersions.title,
       content: policyVersions.content, versionNo: policyVersions.versionNo, publishedAt: policyVersions.publishedAt,
       effectiveAt: policyVersions.effectiveAt, requiresReacceptance: policyVersions.requiresReacceptance,
-    }).from(policyVersions).where(and(eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, new Date()), inArray(policyVersions.policyType, types)))
+    }).from(policyVersions).where(and(eq(policyVersions.status, "PUBLISHED"), lte(policyVersions.effectiveAt, sql`statement_timestamp()`), inArray(policyVersions.policyType, types)))
       .orderBy(policyVersions.policyType, desc(policyVersions.versionNo));
     const latest = new Map<string, typeof rows[number]>();
     for (const row of rows) if (!latest.has(row.policyType)) latest.set(row.policyType, row);
@@ -547,7 +547,7 @@ export class IdentityUserService {
       }).returning({
         id: identityVerifications.id, status: identityVerifications.status, legalNameMask: identityVerifications.legalNameMask,
         documentMask: identityVerifications.documentMask, rejectionCode: identityVerifications.rejectionCode,
-        rejectionReason: identityVerifications.rejectionReason, submittedAt: identityVerifications.submittedAt,
+        rejectionReason: identityVerifications.rejectionReason, submittedAt: cursorTimestamp(identityVerifications.submittedAt),
         verifiedAt: identityVerifications.verifiedAt, version: identityVerifications.version,
       });
       await this.outbox.enqueue(transaction, {
@@ -559,11 +559,32 @@ export class IdentityUserService {
     return this.identityView(created);
   }
 
+  async requireVerifiedAdult(executor: Database | DatabaseTransaction, userId: string): Promise<void> {
+    const [identity] = await executor.select().from(identityVerifications).innerJoin(users, eq(users.id, identityVerifications.userId)).where(and(
+      eq(identityVerifications.userId, userId), eq(identityVerifications.status, "VERIFIED"), eq(users.status, "NORMAL"),
+      or(isNull(identityVerifications.expiresAt), gt(identityVerifications.expiresAt, new Date())),
+    )).orderBy(desc(identityVerifications.verifiedAt)).limit(1).for("share");
+    if (!identity) throw new AppError({ code: "ORDER_IDENTITY_REQUIRED", message: "交易前需完成有效的人工实名认证", statusCode: 403 });
+    // No document plaintext, date of birth or cryptographic error escapes this gate.
+    let adult = false;
+    try {
+      const document = this.protector.decrypt("identity-document", identity.identity_verifications.documentCiphertext);
+      if (/^\d{17}[\dX]$/u.test(document)) {
+        const y = Number(document.slice(6,10)), m = Number(document.slice(10,12)), d = Number(document.slice(12,14));
+        const birth = new Date(Date.UTC(y,m-1,d));
+        const now = new Date(Date.now() + 8 * 3600000); // Mainland business calendar, not the host's timezone.
+        const age = now.getUTCFullYear()-y-((now.getUTCMonth()+1<m || (now.getUTCMonth()+1===m && now.getUTCDate()<d)) ? 1 : 0);
+        adult = birth.getUTCFullYear()===y && birth.getUTCMonth()===m-1 && birth.getUTCDate()===d && age>=18 && age<=120;
+      }
+    } catch { adult = false; }
+    if (!adult) throw new AppError({ code: "ORDER_ADULT_VERIFICATION_REQUIRED", message: "需具备可核验的成年实名信息后才能交易", statusCode: 403 });
+  }
+
   async getIdentity(userId: string) {
     const [identity] = await this.database.db.select({
       id: identityVerifications.id, status: identityVerifications.status, legalNameMask: identityVerifications.legalNameMask,
       documentMask: identityVerifications.documentMask, rejectionCode: identityVerifications.rejectionCode,
-      rejectionReason: identityVerifications.rejectionReason, submittedAt: identityVerifications.submittedAt,
+      rejectionReason: identityVerifications.rejectionReason, submittedAt: cursorTimestamp(identityVerifications.submittedAt),
       verifiedAt: identityVerifications.verifiedAt, version: identityVerifications.version,
     }).from(identityVerifications).where(eq(identityVerifications.userId, userId)).orderBy(desc(identityVerifications.submittedAt)).limit(1);
     return identity ? this.identityView(identity) : null;
@@ -575,14 +596,14 @@ export class IdentityUserService {
     const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "分页游标与实名认证筛选条件不匹配", statusCode: 400 });
     const ascending = input.sort === "created_asc";
-    const cursorDate = cursor ? new Date(cursor.sort_value) : undefined;
+    const cursorDate = cursor ? cursorTimeValue(cursor.sort_value) : undefined;
     const keyword = input.keyword ? `%${input.keyword}%` : undefined;
     const rows = await this.database.db.select({
       id: identityVerifications.id, userId: identityVerifications.userId, status: identityVerifications.status,
       provider: identityVerifications.provider, providerReference: identityVerifications.providerReference,
       legalNameMask: identityVerifications.legalNameMask, documentMask: identityVerifications.documentMask,
       rejectionCode: identityVerifications.rejectionCode, rejectionReason: identityVerifications.rejectionReason,
-      submittedAt: identityVerifications.submittedAt, verifiedAt: identityVerifications.verifiedAt, expiresAt: identityVerifications.expiresAt, version: identityVerifications.version,
+      submittedAt: cursorTimestamp(identityVerifications.submittedAt), verifiedAt: identityVerifications.verifiedAt, expiresAt: identityVerifications.expiresAt, version: identityVerifications.version,
       nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask,
     }).from(identityVerifications)
       .innerJoin(users, eq(users.id, identityVerifications.userId))
@@ -611,7 +632,7 @@ export class IdentityUserService {
       provider: identityVerifications.provider, providerReference: identityVerifications.providerReference,
       legalNameMask: identityVerifications.legalNameMask, documentMask: identityVerifications.documentMask,
       rejectionCode: identityVerifications.rejectionCode, rejectionReason: identityVerifications.rejectionReason,
-      submittedAt: identityVerifications.submittedAt, verifiedAt: identityVerifications.verifiedAt, expiresAt: identityVerifications.expiresAt, version: identityVerifications.version,
+      submittedAt: cursorTimestamp(identityVerifications.submittedAt), verifiedAt: identityVerifications.verifiedAt, expiresAt: identityVerifications.expiresAt, version: identityVerifications.version,
       nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask,
     }).from(identityVerifications)
       .innerJoin(users, eq(users.id, identityVerifications.userId))
@@ -649,7 +670,7 @@ export class IdentityUserService {
         id: identityVerifications.id, userId: identityVerifications.userId, status: identityVerifications.status,
         legalNameMask: identityVerifications.legalNameMask, documentMask: identityVerifications.documentMask,
         rejectionCode: identityVerifications.rejectionCode, rejectionReason: identityVerifications.rejectionReason,
-        submittedAt: identityVerifications.submittedAt, verifiedAt: identityVerifications.verifiedAt, version: identityVerifications.version,
+        submittedAt: cursorTimestamp(identityVerifications.submittedAt), verifiedAt: identityVerifications.verifiedAt, version: identityVerifications.version,
       });
       if (!rows[0]) throw versionConflict();
       await transaction.insert(adminOperationLogs).values({

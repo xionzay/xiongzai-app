@@ -4,6 +4,8 @@ import { createDatabaseClient } from "../../packages/database/dist/index.js";
 import { JsonLogger } from "../../packages/observability/dist/index.js";
 import pg from "../../packages/database/node_modules/pg/lib/index.js";
 import { createApiApp, hashAdminPassword, loadApiConfig, MinioStorageProvider, SensitiveDataProtector } from "../../apps/api/dist/index.js";
+import { issueAccessToken } from "../../packages/auth/dist/index.js";
+import { localMinioCorsClient, prepareLocalTestCors } from "./helpers/local-minio-cors.mjs";
 
 const requiredLocalEnvironment = [
   "TEST_DATABASE_URL", "FILE_STORAGE_ENDPOINT", "FILE_STORAGE_REGION", "FILE_STORAGE_ACCESS_KEY_ID",
@@ -13,19 +15,22 @@ const requiredLocalEnvironment = [
 export default async function globalSetup() {
   const missing = requiredLocalEnvironment.filter((key) => !process.env[key]);
   if (missing.length) throw new Error(`Admin browser E2E requires local test settings: ${missing.join(", ")}`);
+  for (const key of ["TEST_DATABASE_URL", "FILE_STORAGE_ENDPOINT"]) { const host = new URL(process.env[key]).hostname.replace(/^\[|\]$/gu, ""); if (!/^(localhost|127(?:\.\d{1,3}){3}|::1)$/u.test(host)) throw new Error(`Local browser E2E invalid key: ${key}`); }
 
   const schemaName = `xiongzai_admin_browser_${randomUUID().replaceAll("-", "")}`;
   const migrationClient = new pg.Client({ connectionString: process.env.TEST_DATABASE_URL, application_name: "xiongzai-admin-browser-setup" });
   await migrationClient.connect();
-  await migrationClient.query(`CREATE SCHEMA "${schemaName}"`);
-  await migrationClient.query(`SET search_path TO "${schemaName}", public`);
-  for (const name of ["0000_initial_schema.sql", "0001_core_invariants.sql", "0002_admin_stage2_permissions.sql", "0003_admin_query_performance.sql", "0004_payment_channels_voice_constraints.sql", "0005_policy_acceptance_context.sql", "0006_policy_version_bindings.sql", "0007_user_lifecycle_requests.sql", "0008_user_lifecycle_invariants.sql", "0009_clear_rhodey.sql"]) await runMigration(migrationClient, schemaName, name);
 
   let app;
   let database;
   let storage;
+  let restoreCors;
   const setupObjects = [];
   try {
+    await migrationClient.query(`CREATE SCHEMA "${schemaName}"`);
+    await migrationClient.query(`SET search_path TO "${schemaName}", public`);
+    const journal = JSON.parse(await readFile(new URL("../../packages/database/migrations/meta/_journal.json", import.meta.url), "utf8"));
+    for (const entry of journal.entries) await runMigration(migrationClient, schemaName, `${entry.tag}.sql`);
     database = createDatabaseClient({ connectionString: process.env.TEST_DATABASE_URL, application_name: "xiongzai-admin-browser-api", options: `-c search_path=${schemaName},public`, max: 8 });
     const runtimeSecret = () => randomBytes(32).toString("base64url");
     const config = loadApiConfig({
@@ -58,17 +63,29 @@ export default async function globalSetup() {
       accessKeyId: config.fileStorageAccessKeyId,
       secretAccessKey: config.fileStorageSecretAccessKey,
     });
+    restoreCors = await prepareLocalTestCors(localMinioCorsClient(storage, config.fileQuarantineBucket), process.env.ADMIN_E2E_FRONTEND_ORIGIN);
 
     const fixtures = await seedFixtures(migrationClient, config, storage, setupObjects);
-    app = await createApiApp({ config, databaseClient: database, objectStorageProvider: storage, smsProvider: { sendCode: async () => undefined }, logger: new JsonLogger("admin-browser-e2e", () => undefined) });
+    if (process.env.STAGE_TWO_E2E === "1") Object.assign(fixtures.browserEnvironment, await seedCommerceActors(migrationClient, config));
+    const trackedStorage = new Proxy(storage, { get(target, key) { const method = target[key]; if (typeof method !== "function") return method; return (...args) => { if (key === "createUploadRequest") setupObjects.push({ bucket: args[0].bucket, objectKey: args[0].objectKey }); if (key === "copyObject") setupObjects.push({ ...args[0].destination }); return method.apply(target, args); }; } });
+    app = await createApiApp({ config, databaseClient: database, objectStorageProvider: trackedStorage, smsProvider: { sendCode: async () => undefined }, logger: new JsonLogger("admin-browser-e2e", () => undefined) });
     await app.listen({ host: "127.0.0.1", port: 0 });
     const address = app.getHttpServer().address();
     if (!address || typeof address === "string") throw new Error("Admin browser E2E could not determine the local API port");
     fixtures.browserEnvironment.E2E_API_PORT = String(address.port);
+    // Per-run synthetic key, only inherited by the Node test process for signed Mock callbacks.
+    // Never persisted, logged, or passed to a browser page.
+    if (process.env.STAGE_TWO_E2E === "1") fixtures.browserEnvironment.E2E_PAYMENT_WEBHOOK_SECRET = config.paymentWebhookSecret;
+
+    if (process.env.STAGE_TWO_E2E !== "1") {
+      // Explicit isolated database fixture, not a human/UI purchase. Case transitions below use real authenticated APIs.
+      fixtures.browserEnvironment.E2E_ADMIN_CASE_ID = await prepareAdminCase(migrationClient, app, config, fixtures.browserEnvironment.E2E_ORDER_ID);
+    }
 
     for (const [key, value] of Object.entries(fixtures.browserEnvironment)) process.env[key] = value;
 
     return async () => {
+      try {
       const location = await migrationClient.query("SELECT bucket, object_key FROM files WHERE id=$1", [fixtures.fileId]).catch(() => ({ rows: [] }));
       await app.close();
       const exactObjects = [...setupObjects, ...location.rows.map((row) => ({ bucket: row.bucket, objectKey: row.object_key })), fixtures.originalObject];
@@ -76,7 +93,11 @@ export default async function globalSetup() {
       await migrationClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
       const remaining = await migrationClient.query("SELECT count(*)::int AS count FROM pg_namespace WHERE nspname=$1", [schemaName]);
       if (remaining.rows[0]?.count !== 0) throw new Error("Admin browser E2E temporary schema cleanup verification failed");
+      console.log("[local browser cleanup] temporary schemas: 0; tracked MinIO objects: 0");
       await migrationClient.end();
+      } finally {
+        if (restoreCors) { await restoreCors(); console.log("[local browser cleanup] original MinIO CORS restored and verified"); }
+      }
     };
   } catch (error) {
     await app?.close().catch(() => undefined);
@@ -84,14 +105,73 @@ export default async function globalSetup() {
     for (const object of setupObjects) await storage?.deleteObject(object).catch(() => undefined);
     await migrationClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`).catch(() => undefined);
     await migrationClient.end().catch(() => undefined);
+    if (restoreCors) await restoreCors();
     throw error;
   }
+}
+
+async function seedCommerceActors(client, config) {
+  const protector = new SensitiveDataProtector(config.piiEncryptionKey, config.piiHmacKey, config.authHmacKey);
+  const result = {};
+  for (const role of ["BUYER", "SELLER", "LEGACY_BUYER", "LEGACY_SELLER"]) {
+    const id = randomUUID(), session = randomUUID();
+    await client.query("INSERT INTO users(id,phone_ciphertext,phone_hash,phone_mask,profile_initialized) VALUES($1,'synthetic',$2,'138****0000',true)", [id, createHash("sha256").update(id).digest("hex")]);
+    await client.query("INSERT INTO user_profiles(user_id,nickname,public_user_no) VALUES($1,$2,$3)", [id, role === "BUYER" ? "三端联调买家" : "三端联调卖家", id.replaceAll("-","")]);
+    await client.query("INSERT INTO auth_sessions(id,user_id,refresh_token_hash,device_id,device_type,ip,user_agent,expires_at) VALUES($1,$2,$3,$4,'WEB','127.0.0.1','local-stage-two',now()+interval '1 hour')", [session, id, createHash("sha256").update(session).digest("hex"), session]);
+    const document = "000000199001010000";
+    await client.query("INSERT INTO identity_verifications(id,user_id,provider,provider_reference,legal_name_ciphertext,legal_name_hash,legal_name_mask,document_ciphertext,document_hash,document_mask,status,verified_at) VALUES($1,$2,'MANUAL_REVIEW',$3,$4,$5,'测*',$6,$7,'********0000','VERIFIED',now())", [randomUUID(), id, randomUUID(), protector.encrypt("legal-name","合成测试"), protector.piiHash("legal-name","合成测试"), protector.encrypt("identity-document", document), protector.piiHash("identity-document",document)]);
+    result["E2E_STAGE_"+role+"_ID"] = id;
+    result["E2E_STAGE_"+role+"_ACCESS"] = issueAccessToken({sub:id,principal_type:"user",token_use:"access",session_id:session},{secret:config.userTokenSecret,issuer:config.tokenIssuer,audience:config.userTokenAudience,expiresInSeconds:3600});
+  }
+  const seller = randomUUID();
+  await client.query("INSERT INTO seller_profiles(id,user_id,status,seller_nickname,introduction,accepting_orders,approved_at) VALUES($1,$2,'APPROVED','三端联调测试店铺','只用于隔离本地测试，非真实业务',true,now())", [seller, result.E2E_STAGE_SELLER_ID]);
+  result.E2E_STAGE_SELLER_PROFILE_ID = seller;
+  const legacyOrder = randomUUID(), legacySeller = randomUUID();
+  await client.query("INSERT INTO seller_profiles(id,user_id,status,seller_nickname,introduction,accepting_orders,approved_at) VALUES($1,$2,'APPROVED','隔离旧预约店铺','只用于存量兼容测试',true,now())", [legacySeller,result.E2E_STAGE_LEGACY_SELLER_ID]);
+  await client.query("INSERT INTO user_policy_acceptances(user_id,policy_version_id,acceptance_scene,confirmation_method,ip,user_agent) SELECT $1,transaction_policy_version_id,'ORDER_PAYMENT','ONLINE_CONFIRM','127.0.0.1','isolated-legacy-fixture' FROM orders WHERE order_no='BROWSER-ORDER-001'",[result.E2E_STAGE_LEGACY_BUYER_ID]);
+  // Isolated read-only compatibility fixture: V3.1 alone must not select fulfillment flow.
+  await client.query(`INSERT INTO orders SELECT (jsonb_populate_record(NULL::orders,to_jsonb(source) || jsonb_build_object(
+    'id',$1::text,'order_no','STAGE-TWO-LEGACY','buyer_id',$2::text,'seller_user_id',$3::text,'seller_id',$4::text,
+    'product_title_snapshot','隔离旧预约订单','rule_version','V3.1','fulfillment_seconds_snapshot',NULL,
+    'status','PENDING_ACCEPT','completed_at',NULL,'service_starts_at','2026-10-11T08:00:00Z','service_ends_at','2026-10-11T09:00:00Z',
+    'paid_at',now(),'expires_at',now()+interval '1 day','created_at',now(),'updated_at',now()
+  ))).* FROM orders source WHERE source.order_no='BROWSER-ORDER-001'`, [legacyOrder,result.E2E_STAGE_LEGACY_BUYER_ID,result.E2E_STAGE_LEGACY_SELLER_ID,legacySeller]);
+  result.E2E_STAGE_LEGACY_ORDER_ID = legacyOrder;
+  for (const [key,value] of [["order.payment_timeout_seconds",900],["order.accept_timeout_seconds",900],["order.auto_confirm_seconds",259200],["finance.settlement_delay_seconds",0]]) await client.query("INSERT INTO platform_configs(id,config_key,value_json,version_no,status,effective_at,created_by_admin_id) VALUES($1,$2,$3,1,'ACTIVE',now(),(SELECT id FROM admin_accounts LIMIT 1)) ON CONFLICT DO NOTHING", [randomUUID(), key, {value}]);
+  return result;
+}
+
+async function prepareAdminCase(client, app, config, sourceOrderId) {
+  const orderId = randomUUID(), paymentId = randomUUID();
+  const inserted = await client.query(`INSERT INTO orders SELECT (jsonb_populate_record(NULL::orders,to_jsonb(source) || jsonb_build_object(
+    'id',$1::text,'order_no',$2::text,'rule_version','V3.1','fulfillment_seconds_snapshot',86400,'game_snapshot','PEACE_ELITE',
+    'status','IN_SERVICE','after_sale_status','NONE','completed_at',NULL,'refunded_at',NULL,
+    'refunded_amount_cent',0,'service_starts_at',NULL,'service_ends_at',NULL,'version',0,
+    'fulfillment_due_at',now()+interval '1 day','paid_at',now(),'created_at',now(),'updated_at',now()
+  ))).* FROM orders source WHERE source.id=$3 RETURNING buyer_id,seller_user_id,paid_amount_cent`, [orderId, `LC-${randomUUID()}`, sourceOrderId]);
+  const order = inserted.rows[0]; if (!order) throw new Error("Isolated case source fixture is missing");
+  await client.query("INSERT INTO payments(id,order_id,payment_no,channel,idempotency_key,amount_cent,status,paid_at) VALUES($1,$2,$3,'WECHAT_APP',$4,$5,'PAID',now())", [paymentId, orderId, `LP-${randomUUID()}`, randomUUID(), order.paid_amount_cent]);
+  const sessionId = randomUUID();
+  await client.query("INSERT INTO auth_sessions(id,user_id,refresh_token_hash,device_id,device_type,ip,user_agent,expires_at) VALUES($1,$2,$3,$4,'WEB','127.0.0.1','isolated-admin-case-fixture',now()+interval '1 hour')", [sessionId, order.buyer_id, createHash("sha256").update(sessionId).digest("hex"), sessionId]);
+  const access = issueAccessToken({ sub: order.buyer_id, principal_type: "user", token_use: "access", session_id: sessionId }, { secret: config.userTokenSecret, issuer: config.tokenIssuer, audience: config.userTokenAudience, expiresInSeconds: 3600 });
+  const create = await app.inject({ method: "POST", url: "/api/v1/after-sale/cases", headers: { authorization: `Bearer ${access}`, "idempotency-key": randomUUID() }, payload: { order_id: orderId, amount_cent: "5000", reason_code: "LOCAL_TEST", reason_text: "隔离浏览器案件，仅用于平台材料与裁决回归" } });
+  if (create.statusCode !== 201) throw new Error(`Isolated case creation failed (${create.statusCode}, ${create.json().code})`);
+  const created = create.json();
+  const escalate = await app.inject({ method: "POST", url: `/api/v1/after-sale/cases/${created.id}/actions`, headers: { authorization: `Bearer ${access}`, "idempotency-key": randomUUID() }, payload: { action: "ESCALATE", version: created.version, reason: "隔离浏览器请求平台核验" } });
+  if (escalate.statusCode !== 201) throw new Error(`Isolated case escalation failed (${escalate.statusCode}, ${escalate.json().code})`);
+  return created.id;
 }
 
 async function seedFixtures(client, config, storage, setupObjects) {
   const totpSecret = base32(randomBytes(20));
   const protector = new SensitiveDataProtector(config.piiEncryptionKey, config.piiHmacKey, config.authHmacKey);
   const adminVariants = {
+    communityRead: { username: `browser-community-${randomUUID().slice(0,8)}`, password: randomPassword(), displayName: "浏览器反馈公告只读员", permissions: ["feedback.read", "announcement.read"] },
+    orderAudit: { username: `browser-order-${randomUUID().slice(0,8)}`, password: randomPassword(), displayName:"浏览器订单审计员", permissions:["order.read","complaint.read"] },
+    governanceOnly: { username: `browser-governance-${randomUUID().slice(0,8)}`, password:randomPassword(), displayName:"浏览器治理审计员", permissions:["complaint.read","user.status.manage"] },
+    financeRead: { username: `browser-finance-read-${randomUUID().slice(0, 8)}`, password: randomPassword(), displayName: "浏览器财务只读员（本地隔离测试超长管理员名称显示边界验收）", permissions: ["dashboard.read", "finance.read"] },
+    financeExport: { username: `browser-finance-export-${randomUUID().slice(0, 8)}`, password: randomPassword(), displayName: "浏览器导出审计员", permissions: ["dashboard.read", "finance.export"] },
+    rbacTarget: { username: `browser-rbac-target-${randomUUID().slice(0, 8)}`, password: randomPassword(), displayName: "浏览器角色测试管理员", permissions: ["dashboard.read"] },
     full: { username: `browser-full-${randomUUID().slice(0, 8)}`, password: randomPassword(), displayName: "浏览器全权管理员", permissions: fullPermissions },
     viewer: { username: `browser-view-${randomUUID().slice(0, 8)}`, password: randomPassword(), displayName: "浏览器总览观察员", permissions: ["dashboard.read"] },
     userRead: { username: `browser-user-${randomUUID().slice(0, 8)}`, password: randomPassword(), displayName: "浏览器用户审计员", permissions: ["dashboard.read", "user.read"] },
@@ -112,6 +192,9 @@ async function seedFixtures(client, config, storage, setupObjects) {
     }
   }
 
+  // Keep existing fixture roles on their original first page while exercising
+  // identical microsecond timestamps across multiple pages of extra roles.
+  for (let index = 0; index < 105; index++) await client.query("INSERT INTO roles(id,role_key,name,created_at) VALUES($1,$2,$3,'2020-01-01T00:00:00.000123Z')", [randomUUID(), `browser_paged_role_${index}`, `分页运营角色${index}`]);
   const userIds = [];
   for (let index = 1; index <= 27; index += 1) {
     const id = randomUUID();
@@ -202,6 +285,7 @@ async function seedFixtures(client, config, storage, setupObjects) {
   await client.query("INSERT INTO conversations(id,conversation_no,conversation_type,last_message_preview,last_message_at,created_at,updated_at) VALUES($1,'BROWSER-SUPPORT-CONV-001','SUPPORT','用户请求人工客服','2026-08-14T03:00:00Z','2026-08-14T03:00:00Z','2026-08-14T03:00:00Z')", [supportConversationId]);
   await client.query("INSERT INTO conversation_members(conversation_id,user_id,role) VALUES($1,$2,'USER')", [supportConversationId, userIds[5]]);
   await client.query("INSERT INTO messages(id,conversation_id,client_message_id,sequence_no,sender_user_id,sender_role,message_type,content,send_status,moderation_status,created_at) VALUES($1,$2,'browser-support-message-001',1,$3,'USER','TEXT','用户请求人工客服','SENT','APPROVED','2026-08-14T03:00:00Z')", [randomUUID(), supportConversationId, userIds[5]]);
+  await client.query("INSERT INTO messages(id,conversation_id,client_message_id,sequence_no,sender_user_id,sender_role,message_type,content,send_status,moderation_status,created_at) SELECT gen_random_uuid(),$1,'browser-history-'||n,n,$2,'USER','TEXT','本地历史客服消息 '||n,'SENT','APPROVED','2026-08-14T03:00:00Z'::timestamptz+n*interval '1 second' FROM generate_series(2,123) n",[supportConversationId,userIds[5]]);
   await client.query("INSERT INTO support_cases(id,case_no,requester_id,conversation_id,topic,priority,status,queue_key,source_page,created_at,updated_at) VALUES($1,'BROWSER-SUPPORT-001',$2,$3,'浏览器真实客服闭环','HIGH','WAITING','general','/orders','2026-08-14T03:00:00Z','2026-08-14T03:00:00Z')", [supportCaseId, userIds[5], supportConversationId]);
 
   const payoutAccountId = randomUUID();
@@ -237,13 +321,30 @@ async function seedFixtures(client, config, storage, setupObjects) {
   await client.query("INSERT INTO files(id,bucket,object_key,file_type,mime_type,size_bytes,width,height,sha256,upload_status,moderation_status,visibility,created_at,updated_at) VALUES($1,$2,$3,'PRODUCT_IMAGE','image/png',$4,1,1,$5,'VERIFIED','PENDING','PRIVATE','2026-08-16T00:00:00Z','2026-08-16T00:00:00Z')", [fileId, originalObject.bucket, originalObject.objectKey, png.byteLength, sha256]);
   await client.query("INSERT INTO product_images(id,product_id,file_id,sort_order,is_cover) VALUES($1,$2,$3,0,true)", [randomUUID(), productId, fileId]);
   await client.query("UPDATE products SET cover_file_id=$1 WHERE id=$2", [fileId, productId]);
+  // Separate synthetic private review image, never a real user's upload.
+  const reviewFileId = randomUUID();
+  const reviewObject = { bucket: config.fileQuarantineBucket, objectKey: `pending/browser-e2e/${reviewFileId}.png` };
+  setupObjects.push(reviewObject);
+  await storage.copyObject({ source: originalObject, destination: reviewObject });
+  await client.query("INSERT INTO files(id,owner_user_id,bucket,object_key,file_type,mime_type,size_bytes,width,height,sha256,upload_status,moderation_status,visibility) VALUES($1,$2,$3,$4,'REVIEW_IMAGE','image/png',$5,1,1,$6,'VERIFIED','PENDING','PRIVATE')", [reviewFileId, userIds[0], reviewObject.bucket, reviewObject.objectKey, png.byteLength, sha256]);
+  // Independent read-only new-product fixture; never convert the legacy approval fixture.
+  await client.query("INSERT INTO products(id,seller_id,title,description,status,game,fulfillment_seconds,pricing_mode,min_price_cent) VALUES($1,$2,'本地契约商品','隔离中文与筛选验收，未提交审核','DRAFT','VALORANT',90061,'SINGLE',19995)",[randomUUID(),sellerId]);
 
+  const communitySession = randomUUID();
+  await client.query("INSERT INTO auth_sessions(id,user_id,refresh_token_hash,device_id,device_type,ip,user_agent,expires_at) VALUES($1,$2,$3,$4,'WEB','127.0.0.1','isolated-community-browser',now()+interval '1 hour')", [communitySession,userIds[0],createHash("sha256").update(communitySession).digest("hex"),communitySession]);
   return {
     fileId,
     originalObject,
     browserEnvironment: {
+      E2E_COMMUNITYREAD_USERNAME: adminVariants.communityRead.username,
+      E2E_COMMUNITYREAD_PASSWORD: adminVariants.communityRead.password,
+      E2E_COMMUNITY_USER_ACCESS: issueAccessToken({sub:userIds[0],principal_type:"user",token_use:"access",session_id:communitySession},{secret:config.userTokenSecret,issuer:config.tokenIssuer,audience:config.userTokenAudience,expiresInSeconds:3600}),
       E2E_TOTP_SECRET: totpSecret,
       E2E_FULL_USERNAME: adminVariants.full.username,
+      E2E_ORDERAUDIT_USERNAME: adminVariants.orderAudit.username,
+      E2E_ORDERAUDIT_PASSWORD: adminVariants.orderAudit.password,
+      E2E_GOVERNANCEONLY_USERNAME: adminVariants.governanceOnly.username,
+      E2E_GOVERNANCEONLY_PASSWORD: adminVariants.governanceOnly.password,
       E2E_FULL_PASSWORD: adminVariants.full.password,
       E2E_VIEWER_USERNAME: adminVariants.viewer.username,
       E2E_VIEWER_PASSWORD: adminVariants.viewer.password,
@@ -255,6 +356,11 @@ async function seedFixtures(client, config, storage, setupObjects) {
       E2E_WITHDRAWAL_INITIAL_PASSWORD: adminVariants.withdrawalInitial.password,
       E2E_WITHDRAWAL_FINAL_USERNAME: adminVariants.withdrawalFinal.username,
       E2E_WITHDRAWAL_FINAL_PASSWORD: adminVariants.withdrawalFinal.password,
+      E2E_FINANCEREAD_USERNAME: adminVariants.financeRead.username,
+      E2E_FINANCEREAD_PASSWORD: adminVariants.financeRead.password,
+      E2E_FINANCEEXPORT_USERNAME: adminVariants.financeExport.username,
+      E2E_FINANCEEXPORT_PASSWORD: adminVariants.financeExport.password,
+      E2E_RBAC_TARGET_ID: adminVariants.rbacTarget.id,
       E2E_TARGET_USER_ID: userIds.at(-1),
       E2E_ACCOUNT_CANCELLATION_ID: accountCancellationId,
       E2E_ACCOUNT_CANCELLATION_USER_ID: userIds[6],
@@ -264,6 +370,7 @@ async function seedFixtures(client, config, storage, setupObjects) {
       E2E_POLICY_DRAFT_ID: draftPrivacyPolicyId,
       E2E_POLICY_TRANSACTION_ID: transactionPolicyId,
       E2E_FILE_ID: fileId,
+      E2E_REVIEW_FILE_ID: reviewFileId,
       E2E_SELLER_ID: sellerId,
       E2E_REJECTED_SELLER_ID: rejectedSellerId,
       E2E_SELLER_APPLICATION_ID: sellerApplicationId,
@@ -286,6 +393,7 @@ async function seedFixtures(client, config, storage, setupObjects) {
 }
 
 const fullPermissions = [
+  "feedback.read", "feedback.manage", "feedback.reply", "announcement.read", "announcement.manage", "announcement.publish",
   "dashboard.read", "system_health.read", "admin.read", "admin.manage", "role.read", "role.manage", "user.read", "user.status.manage",
   "identity.read", "identity.review", "seller_application.read", "seller_application.review", "seller.read", "seller.status.manage", "product.read", "product.review", "order.read", "payment.read",
   "refund.read", "refund.manage", "complaint.read", "complaint.manage", "support.read", "support.manage", "support.reply", "conversation.evidence.read",

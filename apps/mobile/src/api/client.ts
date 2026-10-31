@@ -29,6 +29,12 @@ export class ApiClient {
     this.#onAuthFailure = handler;
   }
 
+  /** Public review proxy only; never attaches Bearer credentials or an object-store grant. */
+  reviewContentUrl(path: string): string {
+    if (!/^\/api\/v1\/files\/review-images\/[0-9a-f-]{36}\/[0-9a-f-]{36}\/content$/iu.test(path)) throw new Error('Invalid review content path');
+    return `${this.baseUrl.replace(/\/api\/v1\/?$/u, '')}${path}`;
+  }
+
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     const authenticated = options.authenticated ?? true;
     const retryAfterRefresh = options.retryAfterRefresh ?? true;

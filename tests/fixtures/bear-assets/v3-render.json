@@ -1,0 +1,106 @@
+{
+  "states": [
+    {
+      "id": "01-loading",
+      "durationSeconds": 3,
+      "loop": true,
+      "parameters": {
+        "ringFloatPixelsAt480": 4.8,
+        "ringPulsePercent": 7.5,
+        "rotationPeriodSeconds": 3,
+        "vsV2BreathGain": 1.85
+      }
+    },
+    {
+      "id": "02-error",
+      "durationSeconds": 2.5,
+      "loop": true,
+      "parameters": {
+        "iconRestLowerPixelsAt480": 9.12,
+        "iconRisePixelsAt480": 22.8,
+        "iconTiltCoefficientDegrees": 7.16197243913529,
+        "vsV2HeadAndHandGain": 1.85
+      }
+    },
+    {
+      "id": "03-success",
+      "durationSeconds": 2.5,
+      "loop": true,
+      "parameters": {
+        "checkHandRiseCoefficientPixelsAt480": 14.592,
+        "starRisePixelsAt480": 7.296,
+        "starTiltDegrees": 13.178029288008934,
+        "vsV2WaveGain": 1.85
+      }
+    },
+    {
+      "id": "04-empty",
+      "durationSeconds": 3,
+      "loop": true,
+      "parameters": {
+        "boxLiftPixelsAt480": 3.42,
+        "handsFollowBox": true,
+        "vsV2HeadGain": 1.85
+      }
+    },
+    {
+      "id": "05-offline",
+      "durationSeconds": 2.5,
+      "loop": true,
+      "parameters": {
+        "iconRisePixelsAt480": 8.7552,
+        "iconTiltCoefficientDegrees": 6.187944187412891,
+        "phoneProtected": true,
+        "vsV2HeadAndHandGain": 1.85
+      }
+    },
+    {
+      "id": "06-waiting",
+      "durationSeconds": 4,
+      "loop": true,
+      "parameters": {
+        "hourglassFlip": false,
+        "hourglassSwayPeakDegrees": 5.2,
+        "vsV2BreathGain": 1.85
+      }
+    },
+    {
+      "id": "07-welcome",
+      "durationSeconds": 3,
+      "loop": true,
+      "parameters": {
+        "vsV2HeadGain": 1.85,
+        "waveAngleCoefficientDegrees": 17.188733853924695
+      }
+    },
+    {
+      "id": "08-encourage",
+      "durationSeconds": 2.5,
+      "loop": true,
+      "parameters": {
+        "fistRisePeakPixelsAt480": 16.19712,
+        "vsV2FistAndHeadGain": 1.85
+      }
+    },
+    {
+      "id": "09-neutral",
+      "durationSeconds": 2.5,
+      "loop": true,
+      "parameters": {
+        "nodPeakPixelsAt480": 8.0028,
+        "vsV2NodGain": 1.5
+      }
+    },
+    {
+      "id": "10-confirm-calm",
+      "durationSeconds": 2.5,
+      "loop": true,
+      "parameters": {
+        "badgeFinalScale": 1,
+        "badgeInitialScale": 0.58,
+        "badgeRisePixelsAt480": 11.52,
+        "vsV2NodGain": 1.5
+      }
+    }
+  ]
+}

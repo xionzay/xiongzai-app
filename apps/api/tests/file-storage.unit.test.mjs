@@ -1,7 +1,31 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import test from "node:test";
 import { AliyunOssStorageProvider, detectMime, InMemoryPreviewConcurrencyLimiter, inspectMedia, MinioStorageProvider, retryDelayMs } from "../dist/index.js";
+
+test("SigV4 byte-sorts mixed-case subresource query keys independently of locale", () => {
+  const secret = randomBytes(32).toString("hex");
+  const provider = new MinioStorageProvider({ endpoint: "http://127.0.0.1:9000", region: "us-east-1", accessKeyId: randomBytes(16).toString("hex"), secretAccessKey: secret, now: () => new Date("2026-10-10T12:00:00Z") });
+  const url = new URL(provider.presign("GET", { bucket: "unit-cors-bucket", objectKey: "" }, 60, {}, { cors: "" }));
+  const encode = value => encodeURIComponent(value).replace(/[!'()*]/gu, char => `%${char.charCodeAt(0).toString(16).toUpperCase()}`);
+  const query = [...url.searchParams].filter(([name]) => name !== "X-Amz-Signature").map(([name, value]) => `${encode(name)}=${encode(value)}`).sort().join("&");
+  const canonical = ["GET", url.pathname, query, `host:${url.host}\n`, "host", "UNSIGNED-PAYLOAD"].join("\n");
+  const scope = "20261010/us-east-1/s3/aws4_request";
+  const toSign = ["AWS4-HMAC-SHA256", "20261010T120000Z", scope, createHash("sha256").update(canonical).digest("hex")].join("\n");
+  const hmac = (key, value) => createHmac("sha256", key).update(value).digest();
+  const key = hmac(hmac(hmac(hmac(`AWS4${secret}`, "20261010"), "us-east-1"), "s3"), "aws4_request");
+  const expected = hmac(key, toSign), actual = Buffer.from(url.searchParams.get("X-Amz-Signature"), "hex");
+  assert.ok(timingSafeEqual(actual, expected), "mixed-case SigV4 signature must use encoded byte order");
+});
+
+test("client endpoint is signed before issuing grants, while server HEAD continues to use loopback", async () => {
+  const provider = new MinioStorageProvider({ endpoint: "http://127.0.0.1:9000", clientEndpoint: "http://192.168.1.2:9002", region: "us-east-1", accessKeyId: "synthetic-access", secretAccessKey: "synthetic-secret", now: () => new Date("2026-10-11T12:00:00Z") });
+  const location = { bucket: "synthetic-private", objectKey: "synthetic" };
+  const grant = await provider.createDownloadUrl({ ...location, expiresInSeconds: 60 });
+  assert.equal(new URL(grant.url).host, "192.168.1.2:9002");
+  assert.equal(new URL(grant.url).searchParams.get("response-cache-control"), "no-store, private");
+  assert.equal(new URL(provider.presign("HEAD", location, 60)).host, "127.0.0.1:9000");
+});
 
 test("file inspector detects image signatures and reads dimensions", () => {
   const png = new Uint8Array(24);
@@ -31,6 +55,13 @@ test("file inspector calculates MP3 and ADTS AAC duration and only accepts audio
   const extendedMdatM4a = concat(ftyp, extendedBox("mdat"), m4a.subarray(ftyp.byteLength));
   assert.deepEqual(inspectMedia(extendedMdatM4a, "audio/mp4"), { detectedMimeType: "audio/mp4", durationMs: 10_000 });
   assert.equal(detectMime(mp4("vide", 48_000, 480_000)), "application/octet-stream");
+});
+
+test("fulfillment video requires an MP4 video track and media payload, not an audio-only rename", () => {
+  const video = concat(mp4("vide", 48_000, 480_000), box("mdat", Uint8Array.from([1,2,3,4])));
+  assert.deepEqual(inspectMedia(video, "video/mp4"), {detectedMimeType:"video/mp4",durationMs:10000});
+  assert.throws(()=>inspectMedia(mp4("soun",48000,480000),"video/mp4"),error=>error.code==="FILE_MIME_MISMATCH");
+  assert.throws(()=>inspectMedia(mp4("vide",48000,480000),"video/mp4"),error=>error.code==="FILE_MIME_MISMATCH");
 });
 
 test("MinIO provider creates path-style constrained SigV4 URLs", async () => {

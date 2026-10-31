@@ -18,6 +18,7 @@ export function inspectMedia(bytes: Uint8Array, declaredMimeType: string): Inspe
   if (detectedMimeType === "audio/mpeg") return { detectedMimeType, durationMs: mp3Duration(bytes) };
   if (detectedMimeType === "audio/aac") return { detectedMimeType, durationMs: aacDuration(bytes) };
   if (detectedMimeType === "audio/mp4") return { detectedMimeType, durationMs: mp4Duration(bytes) };
+  if (detectedMimeType === "video/mp4") return { detectedMimeType, durationMs: mp4Duration(bytes, "vide") };
   if (detectedMimeType === "application/json") {
     try { JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)); }
     catch { throw invalid("FILE_CONTENT_INVALID", "上传内容不是有效的 UTF-8 JSON"); }
@@ -30,6 +31,7 @@ export function detectMime(bytes: Uint8Array): string {
   if (matches(bytes, [0xff, 0xd8, 0xff])) return "image/jpeg";
   if (ascii(bytes, 0, 4) === "RIFF" && ascii(bytes, 8, 4) === "WEBP") return "image/webp";
   if (matches(bytes, [0x25, 0x50, 0x44, 0x46, 0x2d])) return "application/pdf";
+  if (ascii(bytes, 4, 4) === "ftyp" && findAudioMediaHeader(bytes, "vide") && findBox(bytes,0,bytes.byteLength,"mdat")) return "video/mp4";
   if (ascii(bytes, 4, 4) === "ftyp" && findAudioMediaHeader(bytes)) return "audio/mp4";
   if (ascii(bytes, 0, 3) === "ID3" || isMp3Header(bytes, 0)) return "audio/mpeg";
   if (isAdtsHeader(bytes, 0)) return "audio/aac";
@@ -121,8 +123,8 @@ function aacDuration(bytes: Uint8Array): number {
   return Math.round(durationSeconds * 1_000);
 }
 
-function mp4Duration(bytes: Uint8Array): number {
-  const header = findAudioMediaHeader(bytes);
+function mp4Duration(bytes: Uint8Array, kind = "soun"): number {
+  const header = findAudioMediaHeader(bytes, kind);
   const mediaHeader = header && findBox(bytes, header.mediaStart, header.mediaEnd, "mdhd");
   if (mediaHeader) {
     const version = bytes[mediaHeader.contentStart];
@@ -141,14 +143,14 @@ function mp4Duration(bytes: Uint8Array): number {
 }
 
 interface Mp4Box { contentStart: number; end: number }
-function findAudioMediaHeader(bytes: Uint8Array): { mediaStart: number; mediaEnd: number } | undefined {
+function findAudioMediaHeader(bytes: Uint8Array, kind = "soun"): { mediaStart: number; mediaEnd: number } | undefined {
   const movie = findBox(bytes, 0, bytes.byteLength, "moov");
   if (!movie) return undefined;
   for (const track of boxes(bytes, movie.contentStart, movie.end, "trak")) {
     const media = findBox(bytes, track.contentStart, track.end, "mdia");
     if (!media) continue;
     const handler = findBox(bytes, media.contentStart, media.end, "hdlr");
-    if (handler && handler.contentStart + 12 <= handler.end && ascii(bytes, handler.contentStart + 8, 4) === "soun") {
+    if (handler && handler.contentStart + 12 <= handler.end && ascii(bytes, handler.contentStart + 8, 4) === kind) {
       return { mediaStart: media.contentStart, mediaEnd: media.end };
     }
   }

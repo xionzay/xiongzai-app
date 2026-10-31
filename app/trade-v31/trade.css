@@ -30,7 +30,7 @@
 .v31-order-card footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
 .v31-card-note { font-size: 12px; margin: 10px 0 0; color: var(--trade-secondary); }
 .v31-screen .v31-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
-.v31-screen .v31-actions button, .v31-order-card footer button, .v31-content > button, .v31-empty button { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--trade-surface); color: var(--brand-strong); padding: 10px 14px; font-size: 13px; font-weight: 600; }
+.v31-screen .v31-actions button, .v31-screen .v31-panel > button, .v31-order-card footer button, .v31-content > button, .v31-empty button { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--trade-surface); color: var(--brand-strong); padding: 10px 14px; font-size: 13px; font-weight: 600; }
 .v31-screen .v31-actions button { flex: 1 1 auto; }
 .v31-screen .v31-primary { background: var(--brand) !important; color: #fff !important; border-color: var(--brand) !important; }
 .v31-content > .v31-primary { width: 100%; }

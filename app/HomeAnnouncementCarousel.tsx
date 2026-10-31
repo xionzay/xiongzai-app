@@ -3,10 +3,10 @@ import { CartoonIcon } from "./ui/CartoonIcon";
 
 import { useEffect, useRef, useState } from "react";
 
-type Announcement = { id: "reportTrade" | "antiFraud"; src: string; alt: string };
+type Announcement = { id: string; src: string; alt: string };
 type Drag = { id: number; x: number; y: number; start: number; time: number; moved: boolean };
 
-export function HomeAnnouncementCarousel({ items, active, onOpen }: { items: readonly Announcement[]; active: boolean; onOpen?: (id: Announcement["id"]) => void }) {
+export function HomeAnnouncementCarousel({ items, active, onOpen, onImageError }: { items: readonly Announcement[]; active: boolean; onOpen?: (id: Announcement["id"]) => void; onImageError?: () => void }) {
   const viewport = useRef<HTMLDivElement>(null);
   const drag = useRef<Drag | null>(null);
   const blockedUntil = useRef(0);
@@ -79,7 +79,7 @@ export function HomeAnnouncementCarousel({ items, active, onOpen }: { items: rea
         {items.map((item, position) => <button type="button" className="home-announcement-slide" style={{ flexBasis: `${100 / items.length}%` }} tabIndex={position === index ? 0 : -1} aria-hidden={position !== index} aria-label={`打开公告详情：${item.alt}`} key={item.id}
       onKeyDown={(event) => { if (event.key === "ArrowRight" || event.key === "ArrowLeft") { event.preventDefault(); show(index + (event.key === "ArrowRight" ? 1 : -1)); } }}
           onClick={(event) => { if (event.detail > 0 && Date.now() < blockedUntil.current) { event.preventDefault(); return; } onOpen?.(item.id); }}>
-          <img src={item.src} alt="" width={1126} height={250} draggable={false} />
+          <img src={item.src} alt="" width={1126} height={250} draggable={false} referrerPolicy="no-referrer" onError={onImageError} />
         </button>)}
       </div>
     </div>

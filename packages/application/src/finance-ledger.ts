@@ -67,7 +67,7 @@ export class FinanceLedgerEngine {
       if (!order || order.afterSaleStatus === "IN_PROGRESS" || order.paymentStatus === "REFUNDING") return false;
       const [income] = await tx.select().from(sellerIncomes).where(eq(sellerIncomes.id, incomeId)).limit(1).for("update");
       if (!income || income.status !== "PENDING_SETTLEMENT" || income.settlementAvailableAt > new Date()) return false;
-      const remaining = income.sellerAmountCent - income.reversedAmountCent - income.availableAmountCent - income.lockedAmountCent - income.withdrawnAmountCent;
+      const remaining = income.sellerAmountCent - income.reversedAmountCent - income.availableAmountCent - income.lockedAmountCent - income.afterSaleHeldCent - income.withdrawnAmountCent;
       if (remaining <= 0n) return false;
       const pending = await ensureSellerAccount(tx, income.sellerId, "SELLER_PENDING");
       const available = await ensureSellerAccount(tx, income.sellerId, "SELLER_AVAILABLE");
@@ -115,7 +115,7 @@ export class FinanceLedgerEngine {
     if (platformRefund > 0n) { const commission = await ensureSystemAccount(executor,"platform-commission","PLATFORM_COMMISSION","PLATFORM"); debitEntries.push({accountId:commission.id,side:"DEBIT",amountCent:platformRefund,memo:"退回平台佣金"}); }
     const availableTaken = min(sellerRefund, income.availableAmountCent); sellerRefund -= availableTaken;
     if (availableTaken > 0n) { const account=await ensureSellerAccount(executor,income.sellerId,"SELLER_AVAILABLE"); debitEntries.push({accountId:account.id,side:"DEBIT",amountCent:availableTaken,memo:"扣减可提现收益"}); }
-    const implicitPending = income.sellerAmountCent - income.availableAmountCent - income.lockedAmountCent - income.withdrawnAmountCent - income.reversedAmountCent;
+    const implicitPending = income.sellerAmountCent - income.availableAmountCent - income.lockedAmountCent - income.afterSaleHeldCent - income.withdrawnAmountCent - income.reversedAmountCent;
     const pendingTaken = min(sellerRefund, implicitPending); sellerRefund -= pendingTaken;
     if (pendingTaken > 0n) { const account=await ensureSellerAccount(executor,income.sellerId,"SELLER_PENDING"); debitEntries.push({accountId:account.id,side:"DEBIT",amountCent:pendingTaken,memo:"扣减待结算收益"}); }
     const liabilityCent = sellerRefund;

@@ -5,8 +5,8 @@ import { compareMigrationStatus, inspectMigrationArtifacts, validateReadonlyMigr
 
 test("migration artifacts are complete, ordered and represented by the journal", async () => {
   const migrations = await inspectMigrationArtifacts();
-  assert.equal(migrations.length, 10);
-  assert.deepEqual(migrations.map((migration) => migration.tag), ["0000_initial_schema", "0001_core_invariants", "0002_admin_stage2_permissions", "0003_admin_query_performance", "0004_payment_channels_voice_constraints", "0005_policy_acceptance_context", "0006_policy_version_bindings", "0007_user_lifecycle_requests", "0008_user_lifecycle_invariants", "0009_clear_rhodey"]);
+  assert.equal(migrations.length, 21);
+  assert.deepEqual(migrations.map((migration) => migration.tag), ["0000_initial_schema", "0001_core_invariants", "0002_admin_stage2_permissions", "0003_admin_query_performance", "0004_payment_channels_voice_constraints", "0005_policy_acceptance_context", "0006_policy_version_bindings", "0007_user_lifecycle_requests", "0008_user_lifecycle_invariants", "0009_clear_rhodey", "0010_order_rule_version", "0011_bear_sticker_messages", "0012_tan_dark_beast", "0013_dapper_ultimatum", "0014_brave_fixer", "0015_community_feedback_announcements", "0016_chat_private_media", "0017_supreme_blindfold", "0018_rainy_solo", "0019_bright_orphan", "0020_orange_smasher"]);
 });
 
 test("read-only migration comparison detects exact, pending and divergent targets", async () => {

@@ -9,9 +9,10 @@ import type { RequestMetadata } from "./identity-user.service.js";
 import { OrderPaymentService } from "./order-payment.service.js";
 
 const uuid = z.uuid();
-const orderDraftSchema = z.object({ product_id: uuid, sku_id: uuid, slot_id: uuid, quantity: z.number().int().min(1).max(20), service_starts_at: z.coerce.date(), buyer_note: z.string().trim().max(500).nullable().optional(), expected_payable_amount_cent: z.string().regex(/^\d+$/u).optional() });
+const orderDraftSchema = z.object({ product_id: uuid, sku_id: uuid.optional(), slot_id: uuid.optional(), quantity: z.number().int().min(1).max(20), service_starts_at: z.coerce.date().optional(), buyer_note: z.string().trim().max(500).nullable().optional(), expected_payable_amount_cent: z.string().regex(/^\d+$/u).optional() });
 const versionSchema = z.object({ version: z.number().int().nonnegative() });
 const reasonSchema = versionSchema.extend({ reason: z.string().trim().min(2).max(1000) });
+const completeSchema = versionSchema.extend({ evidence_file_ids: z.array(uuid).min(5).max(30).optional() });
 const listSchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), status: z.enum(orderStatuses).optional(), after_sale_status: z.enum(afterSaleStatuses).optional() });
 const paymentCreateSchema = z.object({ order_id: uuid, payment_channel: z.enum(paymentChannels) });
 const callbackChannelSchema = z.enum([...paymentChannels, "mock"]);
@@ -26,6 +27,8 @@ export class BuyerOrderController {
   @Get(":orderId") detail(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string) { return this.service.getOrder(principal(request), orderId); }
   @Post(":orderId/cancel") cancel(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>) { return this.service.cancelOrder(principal(request), orderId, body.version, body.reason, metadata(request)); }
   @Post(":orderId/confirm") confirm(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(versionSchema)) body: z.infer<typeof versionSchema>) { return this.service.buyerConfirm(principal(request), orderId, body.version, metadata(request)); }
+  @Post(":orderId/extend-receipt") extend(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(versionSchema)) body: z.infer<typeof versionSchema>) { return this.service.extendReceipt(principal(request), orderId, body.version, metadata(request)); }
+  @Post(":orderId/remind") remind(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(versionSchema)) body: z.infer<typeof versionSchema>) { return this.service.remindSeller(principal(request), orderId, body.version, metadata(request)); }
 }
 
 @Controller("api/v1/seller/orders")
@@ -36,7 +39,7 @@ export class SellerOrderController {
   @Post(":orderId/accept") accept(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(versionSchema)) body: z.infer<typeof versionSchema>) { return this.service.sellerAccept(principal(request), orderId, body.version, metadata(request)); }
   @Post(":orderId/reject") reject(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(reasonSchema)) body: z.infer<typeof reasonSchema>) { return this.service.sellerReject(principal(request), orderId, body.version, body.reason, metadata(request)); }
   @Post(":orderId/start") start(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(versionSchema)) body: z.infer<typeof versionSchema>) { return this.service.startService(principal(request), orderId, body.version, metadata(request)); }
-  @Post(":orderId/complete") complete(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(versionSchema)) body: z.infer<typeof versionSchema>) { return this.service.completeService(principal(request), orderId, body.version, metadata(request)); }
+  @Post(":orderId/complete") complete(@Req() request: UserRequest, @Param("orderId", new ZodValidationPipe(uuid)) orderId: string, @Body(new ZodValidationPipe(completeSchema)) body: z.infer<typeof completeSchema>) { return this.service.completeService(principal(request), orderId, body.version, metadata(request), body.evidence_file_ids); }
 }
 
 @Controller("api/v1/payments")

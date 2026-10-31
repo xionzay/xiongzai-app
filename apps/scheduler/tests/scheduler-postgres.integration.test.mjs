@@ -50,10 +50,28 @@ test("two workers claim a due job exactly once and stale locks recover without s
   assert.equal(recovered.length, 1);
   assert.equal(recovered[0].id, dueId);
   assert.equal(recovered[0].attempts, 2);
-  await repositoryB.complete(dueId);
+  const stale = [...claimedA, ...claimedB][0];
+  await repositoryA.fail(stale.id, stale.attempts, stale.maxAttempts, new Error("late failure"));
+  const owned = await database.pool.query("SELECT status, attempts FROM scheduled_jobs WHERE id=$1", [dueId]);
+  assert.deepEqual(owned.rows, [{ status: "RUNNING", attempts: 2 }]);
+  await repositoryA.complete(stale.id, stale.attempts);
+  assert.equal((await database.pool.query("SELECT status FROM scheduled_jobs WHERE id=$1", [dueId])).rows[0].status, "RUNNING");
+  await repositoryB.complete(dueId, recovered[0].attempts);
+  await repositoryA.fail(stale.id, stale.attempts, stale.maxAttempts, new Error("late failure after completion"));
   assert.equal((await repositoryA.claim(1, "stage6-worker-d")).length, 0);
   const state = await database.pool.query("SELECT status, attempts, locked_at, locked_by FROM scheduled_jobs WHERE id = $1", [dueId]);
   assert.deepEqual(state.rows, [{ status: "COMPLETED", attempts: 2, locked_at: null, locked_by: null }]);
+});
+
+test("cancelled scheduled work cannot be completed or rescheduled by its former owner", { skip: !enabled }, async () => {
+  const repository = new DrizzleScheduledJobRepository(database.db);
+  const id = randomUUID();
+  await insertJob({ id, key: `stage6:cancel:${id}` });
+  const [claimed] = await repository.claim(1, "cancel-worker");
+  await database.pool.query("UPDATE scheduled_jobs SET status='CANCELLED' WHERE id=$1", [id]);
+  await repository.complete(id, claimed.attempts);
+  await repository.fail(id, claimed.attempts, claimed.maxAttempts, new Error("cancelled"));
+  assert.equal((await database.pool.query("SELECT status FROM scheduled_jobs WHERE id=$1", [id])).rows[0].status, "CANCELLED");
 });
 
 test("retry scheduling is finite and permanent failures are not reclaimed", { skip: !enabled }, async () => {
@@ -72,6 +90,21 @@ test("retry scheduling is finite and permanent failures are not reclaimed", { sk
   const failed = await database.pool.query("SELECT status, attempts, last_error FROM scheduled_jobs WHERE id = $1", [retryId]);
   assert.deepEqual(failed.rows, [{ status: "FAILED", attempts: 2, last_error: "configuration_error" }]);
   assert.equal((await repository.claim(1, "stage6-retry-worker")).length, 0);
+});
+
+test("a crash on the final attempt becomes auditable failure without another execution", { skip: !enabled }, async () => {
+  const repository = new DrizzleScheduledJobRepository(database.db, { lockTimeoutMs: 1_000 });
+  const id = randomUUID();
+  await insertJob({ id, key: `stage6:last-attempt:${id}`, maxAttempts: 1 });
+  const [claimed] = await repository.claim(1, "last-attempt-worker");
+  assert.equal(claimed.attempts, 1);
+  assert.equal((await repository.claim(1, "other-worker")).length, 0);
+  await database.pool.query("UPDATE scheduled_jobs SET locked_at=now()-interval '2 seconds' WHERE id=$1", [id]);
+  assert.equal((await repository.claim(1, "recovery-worker")).length, 0);
+  assert.equal(await repository.complete(id, claimed.attempts), false);
+  assert.equal(await repository.fail(id, claimed.attempts, claimed.maxAttempts, new Error("late")), false);
+  const state = await database.pool.query("SELECT status,attempts,locked_by,last_error FROM scheduled_jobs WHERE id=$1", [id]);
+  assert.deepEqual(state.rows, [{ status: "FAILED", attempts: 1, locked_by: null, last_error: "lease_expired_attempts_exhausted" }]);
 });
 
 test("a transaction rollback cannot leave a partial scheduled job", { skip: !enabled }, async () => {

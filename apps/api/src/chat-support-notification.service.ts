@@ -1,10 +1,11 @@
+import { cursorColumns, cursorTimeValue } from "./cursor-time.js";
 import { randomBytes } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
-import { OutboxService } from "@xiongzai/application";
+import { IdempotencyService, OutboxService } from "@xiongzai/application";
 import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize, getBearSticker, encodeBearSticker, decodeBearSticker, bearStickerSummary } from "@xiongzai/contracts";
 import {
   adminAccounts, adminOperationLogs, complaints, conversationMembers, conversations, deliveryLogs, messages, notifications, orders, payments,
-  products, refunds, sellerProfiles, supportCaseLogs, supportCases, userProfiles, users, uuidv7, withdrawals,
+  products, refunds, sellerProfiles, supportCaseLogs, supportCases, userProfiles, users, uuidv7, withdrawals, files, fileUsages,
   type DatabaseClient, type DatabaseTransaction,
 } from "@xiongzai/database";
 import { and, asc, desc, eq, gt, ilike, isNull, lt, ne, or, sql } from "drizzle-orm";
@@ -14,10 +15,12 @@ import { API_CONFIG, DATABASE_CLIENT } from "./tokens.js";
 
 type RelatedType = "ORDER" | "PAYMENT" | "REFUND" | "COMPLAINT" | "WITHDRAWAL";
 type SupportPriority = typeof supportCases.$inferInsert.priority;
+type SupportCreation = { topic: string; priority: SupportPriority; queueKey: string; relatedType?: RelatedType; relatedId?: string; sourcePage?: string; initialMessage?: string; initialStickerId?: string; initialClientMessageId?: string };
 
 @Injectable()
 export class ChatSupportNotificationService {
   private readonly outbox = new OutboxService();
+  private readonly idempotency = new IdempotencyService();
 
   constructor(
     @Inject(DATABASE_CLIENT) private readonly database: DatabaseClient,
@@ -26,12 +29,12 @@ export class ChatSupportNotificationService {
 
   async createSellerConsultation(userId: string, sellerId: string, metadata: RequestMetadata) {
     return this.database.db.transaction(async tx => {
-      const [seller] = await tx.select().from(sellerProfiles).where(and(eq(sellerProfiles.id, sellerId), eq(sellerProfiles.status, "APPROVED"))).limit(1);
+      const [seller] = await tx.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(and(eq(sellerProfiles.id, sellerId), eq(sellerProfiles.status, "APPROVED"))).limit(1);
       if (!seller) throw notFound("SELLER_NOT_FOUND", "卖家主页不可用");
       if (seller.userId === userId) throw conflict("CONVERSATION_PARTIES_SAME", "不能联系自己");
       // Serialize this buyer/seller pair, including requests from other browser tabs.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`storefront:${userId}:${seller.userId}`}, 0))`);
-      const [existing] = await tx.select({ conversation: conversations, member: conversationMembers }).from(conversations)
+      const [existing] = await tx.select({ conversation: cursorColumns(conversations), member: conversationMembers }).from(conversations)
         .innerJoin(conversationMembers, eq(conversationMembers.conversationId, conversations.id))
         .where(and(eq(conversations.conversationType, "CONSULTATION"), eq(conversationMembers.userId, userId), isNull(conversationMembers.leftAt),
           sql`exists (select 1 from conversation_members other where other.conversation_id = ${conversations.id} and other.user_id = ${seller.userId} and other.role = 'SELLER' and other.left_at is null)`))
@@ -47,10 +50,21 @@ export class ChatSupportNotificationService {
 
   async createConsultation(userId: string, productId: string, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
-      const [target] = await tx.select({ product: products, seller: sellerProfiles }).from(products).innerJoin(sellerProfiles, eq(products.sellerId, sellerProfiles.id))
-        .where(and(eq(products.id, productId), eq(products.status, "ON_SALE"), isNull(products.deletedAt), eq(sellerProfiles.status, "APPROVED"))).limit(1);
+      const [target] = await tx.select({ product: cursorColumns(products), seller: cursorColumns(sellerProfiles) }).from(products).innerJoin(sellerProfiles, eq(products.sellerId, sellerProfiles.id))
+        .innerJoin(users, eq(users.id, sellerProfiles.userId))
+        .where(and(eq(products.id, productId), eq(products.status, "ON_SALE"), isNull(products.deletedAt), eq(sellerProfiles.status, "APPROVED"), eq(users.status, "NORMAL"))).limit(1);
       if (!target) throw notFound("PRODUCT_NOT_FOUND", "咨询的服务不存在或已下架");
       if (target.seller.userId === userId) throw conflict("CONVERSATION_PARTIES_SAME", "不能咨询自己发布的服务");
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`product-consultation:${userId}:${productId}`}, 0))`);
+      const [existing] = await tx.select({ conversation: cursorColumns(conversations), member: conversationMembers }).from(conversations)
+        .innerJoin(conversationMembers, eq(conversationMembers.conversationId, conversations.id))
+        .where(and(eq(conversations.conversationType, "CONSULTATION"), eq(conversations.productId, productId),
+          eq(conversationMembers.userId, userId), eq(conversationMembers.role, "USER"), isNull(conversationMembers.leftAt),
+          sql`exists (select 1 from conversation_members other where other.conversation_id = ${conversations.id} and other.user_id = ${target.seller.userId} and other.role = 'SELLER' and other.left_at is null)`))
+        // Preserve every legacy duplicate. Prefer an existing human history,
+        // then deterministic recency, instead of opening another empty room.
+        .orderBy(desc(sql`exists (select 1 from messages history where history.conversation_id = ${conversations.id} and history.sender_user_id is not null)`), desc(conversations.lastMessageAt), asc(conversations.createdAt), asc(conversations.id)).limit(1);
+      if (existing) return conversationView(existing.conversation, existing.member.unreadCount, existing.member.role);
       const conversation = await this.createConversation(tx, "CONSULTATION", { productId });
       await tx.insert(conversationMembers).values([
         { conversationId: conversation.id, userId, role: "USER" },
@@ -64,11 +78,11 @@ export class ChatSupportNotificationService {
 
   async createOrderConversation(userId: string, orderId: string, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
-      const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
+      const [order] = await tx.select(cursorColumns(orders)).from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
       if (!order || ![order.buyerId, order.sellerUserId].includes(userId)) throw notFound("ORDER_NOT_FOUND", "订单不存在");
       const inserted = await tx.insert(conversations).values({ id: uuidv7(), conversationNo: externalNo("CV"), conversationType: "ORDER", orderId }).onConflictDoNothing().returning();
       if (!inserted[0]) {
-        const [existing] = await tx.select().from(conversations).where(and(eq(conversations.orderId, orderId), eq(conversations.conversationType, "ORDER"))).limit(1);
+        const [existing] = await tx.select(cursorColumns(conversations)).from(conversations).where(and(eq(conversations.orderId, orderId), eq(conversations.conversationType, "ORDER"))).limit(1);
         if (!existing) throw new Error("Order conversation conflict could not be resolved.");
         const [member] = await tx.select().from(conversationMembers).where(and(eq(conversationMembers.conversationId, existing.id), eq(conversationMembers.userId, userId), isNull(conversationMembers.leftAt))).limit(1);
         if (!member) throw forbidden("CONVERSATION_ACCESS_DENIED", "你不是该会话成员");
@@ -88,7 +102,7 @@ export class ChatSupportNotificationService {
   async listUserConversations(userId: string, input: { cursor?: string; limit?: unknown }) {
     const limit = normalizePageSize(input.limit, 20); const scope = `user-conversations:${userId}`; const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw validation("cursor", "分页游标与当前会话列表不匹配");
-    const rows = await this.database.db.select({ conversation: conversations, member: conversationMembers }).from(conversationMembers).innerJoin(conversations, eq(conversations.id, conversationMembers.conversationId)).where(and(
+    const rows = await this.database.db.select({ conversation: cursorColumns(conversations), member: conversationMembers }).from(conversationMembers).innerJoin(conversations, eq(conversations.id, conversationMembers.conversationId)).where(and(
       eq(conversationMembers.userId, userId), isNull(conversationMembers.leftAt),
       cursor ? or(lt(sql`coalesce(${conversations.lastMessageAt}, ${conversations.createdAt})`, new Date(cursor.sort_value)), and(eq(sql`coalesce(${conversations.lastMessageAt}, ${conversations.createdAt})`, new Date(cursor.sort_value)), lt(conversations.id, cursor.id))) : undefined,
     )).orderBy(desc(sql`coalesce(${conversations.lastMessageAt}, ${conversations.createdAt})`), desc(conversations.id)).limit(limit + 1);
@@ -98,7 +112,7 @@ export class ChatSupportNotificationService {
 
   async getUserConversation(userId: string, conversationId: string) {
     const member = await this.requireUserMember(this.database.db, userId, conversationId);
-    const [conversation] = await this.database.db.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+    const [conversation] = await this.database.db.select(cursorColumns(conversations)).from(conversations).where(eq(conversations.id, conversationId)).limit(1);
     if (!conversation) throw notFound("CONVERSATION_NOT_FOUND", "会话不存在");
     return this.userConversationView(userId, conversation, member);
   }
@@ -115,13 +129,13 @@ export class ChatSupportNotificationService {
     return { ...page, items: page.items.map((message) => ({ ...message, read_by_recipient: message.sender_user_id === userId && recipients.length > 0 && recipients.every((recipient) => recipient.lastReadSequenceNo >= BigInt(message.sequence_no)) })) };
   }
 
-  async sendUserMessage(userId: string, conversationId: string, input: { clientMessageId: string; content: string } | { clientMessageId: string; messageType: "STICKER"; stickerId: string }, metadata: RequestMetadata) {
+  async sendUserMessage(userId: string, conversationId: string, input: { clientMessageId: string; content: string } | { clientMessageId: string; messageType: "STICKER"; stickerId: string } | { clientMessageId: string; messageType: "IMAGE" | "VOICE"; fileId: string }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
       const member = await this.requireUserMember(tx, userId, conversationId);
       if (member.role === "ADMIN" || member.role === "SYSTEM") throw forbidden("CONVERSATION_ACCESS_DENIED", "当前成员角色不能发送用户消息");
       const [support] = await tx.select({ status: supportCases.status }).from(supportCases).where(eq(supportCases.conversationId, conversationId)).limit(1);
       if (support?.status === "CLOSED") throw conflict("SUPPORT_CASE_CLOSED", "客服工单已结束，请先重新打开");
-      const [conversation] = await tx.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1);
+      const [conversation] = await tx.select(cursorColumns(conversations)).from(conversations).where(eq(conversations.id, conversationId)).limit(1);
       if (conversation?.orderId) { const [order] = await tx.select({ status: orders.status }).from(orders).where(eq(orders.id, conversation.orderId)).limit(1); if (!order || inStatus(order.status, ["CANCELLED", "CLOSED", "SELLER_REJECTED"])) throw conflict("CONVERSATION_ORDER_CLOSED", "订单已关闭，当前会话只能查看历史消息"); }
       const [disabledCounterpart] = await tx.select({ id: users.id }).from(conversationMembers).innerJoin(users, eq(users.id, conversationMembers.userId)).where(and(eq(conversationMembers.conversationId, conversationId), ne(users.id, userId), ne(users.status, "NORMAL"), isNull(conversationMembers.leftAt))).limit(1);
       if (disabledCounterpart) throw conflict("CONVERSATION_COUNTERPART_UNAVAILABLE", "对方账号当前不可用，暂时无法发送消息");
@@ -134,6 +148,7 @@ export class ChatSupportNotificationService {
         if (conversation?.conversationType !== "SUPPORT" && sticker.side !== expectedSide) throw forbidden("STICKER_SIDE_NOT_ALLOWED", "当前会话身份不能发送另一端表情");
         return this.appendMessage(tx, conversationId, { senderUserId: userId, senderRole: member.role, clientMessageId: input.clientMessageId, messageType: "STICKER", content: encodeBearSticker(sticker.id) }, metadata);
       }
+      if ("fileId" in input) return this.appendMessage(tx, conversationId, { senderUserId: userId, senderRole: member.role, clientMessageId: input.clientMessageId, messageType: input.messageType, mediaFileId: input.fileId, content: input.messageType === "IMAGE" ? "[图片]" : "[语音]" }, metadata);
       return this.appendMessage(tx, conversationId, { senderUserId: userId, senderRole: member.role, clientMessageId: input.clientMessageId, content: input.content }, metadata);
     });
   }
@@ -141,7 +156,7 @@ export class ChatSupportNotificationService {
   async markUserRead(userId: string, conversationId: string, lastReadSequenceNo: bigint) {
     return this.database.db.transaction(async (tx) => {
       const member = await this.requireUserMember(tx, userId, conversationId, true);
-      const [conversation] = await tx.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1).for("update");
+      const [conversation] = await tx.select(cursorColumns(conversations)).from(conversations).where(eq(conversations.id, conversationId)).limit(1).for("update");
       if (!conversation) throw notFound("CONVERSATION_NOT_FOUND", "会话不存在");
       const [last] = await tx.select({ sequenceNo: messages.sequenceNo }).from(messages).where(eq(messages.conversationId, conversationId)).orderBy(desc(messages.sequenceNo)).limit(1);
       const upper = last?.sequenceNo ?? BigInt(0); if (lastReadSequenceNo > upper) throw validation("last_read_sequence_no", "已读序号不能超过会话最后消息");
@@ -152,28 +167,56 @@ export class ChatSupportNotificationService {
     });
   }
 
-  async createSupportCase(userId: string, input: { topic: string; priority: SupportPriority; queueKey: string; relatedType?: RelatedType; relatedId?: string; sourcePage?: string; initialMessage?: string; initialStickerId?: string; initialClientMessageId?: string }, metadata: RequestMetadata) {
+  async createSupportCase(userId: string, input: SupportCreation, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
       const sticker = input.initialStickerId ? getBearSticker(input.initialStickerId) : undefined;
       if (input.initialStickerId && (!sticker || !input.initialClientMessageId)) throw validation("initial_sticker_id", "请提供有效的 V3 表情与消息编号");
       if (!sticker && !input.initialMessage) throw validation("initial_message", "请填写首条消息");
-      if (sticker && input.initialClientMessageId) {
-        await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`support-sticker:${userId}:${input.initialClientMessageId}`}, 0))`);
-        const [existing] = await tx.select({ message: messages, support: supportCases }).from(messages).innerJoin(supportCases, eq(supportCases.conversationId, messages.conversationId)).where(and(eq(messages.senderUserId, userId), eq(messages.clientMessageId, input.initialClientMessageId))).limit(1);
-        if (existing) {
-          if (existing.message.messageType !== "STICKER" || existing.message.content !== encodeBearSticker(sticker.id) || existing.support.relatedId !== (input.relatedId ?? null)) throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "消息编号已用于其他客服请求");
-          return supportCaseView(existing.support);
-        }
-      }
       if ((input.relatedType === undefined) !== (input.relatedId === undefined)) throw validation("related_id", "关联业务类型和编号必须同时填写");
       if (input.relatedType && input.relatedId) await this.assertRelatedResource(tx, userId, input.relatedType, input.relatedId);
+      const messageType = sticker ? "STICKER" : "TEXT";
+      const content = sticker ? encodeBearSticker(sticker.id) : input.initialMessage!;
+      if (input.initialClientMessageId) await this.lockUserMessage(tx, userId, input.initialClientMessageId);
+      const reservation = input.initialClientMessageId ? await this.idempotency.reserve(tx, {
+        scope: `user:${userId}:support:create`, key: input.initialClientMessageId,
+        request: { topic: input.topic, priority: input.priority, queue_key: input.queueKey, related_type: input.relatedType ?? null, related_id: input.relatedId ?? null, source_page: input.sourcePage ?? null, message_type: messageType, content },
+        expiresAt: new Date(Date.now() + 86_400_000),
+      }) : undefined;
+      if (reservation?.replay) {
+        const body = reservation.replay.body;
+        const id = body && typeof body === "object" && !Array.isArray(body) ? body.id : undefined;
+        if (typeof id !== "string") throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "无法恢复原客服请求，请查询工单列表");
+        const [original] = await tx.select().from(supportCases).where(and(eq(supportCases.id, id), eq(supportCases.requesterId, userId))).limit(1);
+        if (!original) throw notFound("SUPPORT_CASE_NOT_FOUND", "原客服工单不存在");
+        return supportCaseView(original);
+      }
+      if (input.initialClientMessageId) {
+        const [existing] = await tx.select({ message: messages, support: supportCases }).from(messages)
+          .leftJoin(supportCases, eq(supportCases.conversationId, messages.conversationId))
+          .where(and(eq(messages.senderUserId, userId), eq(messages.clientMessageId, input.initialClientMessageId))).limit(1);
+        if (existing) {
+          const original = existing.support;
+          const [createdLog] = original ? await tx.select({ queueKey: supportCaseLogs.newQueueKey }).from(supportCaseLogs)
+            .where(and(eq(supportCaseLogs.supportCaseId, original.id), eq(supportCaseLogs.action, "CREATED"))).limit(1) : [];
+          if (!original || original.requesterId !== userId || existing.message.messageType !== messageType || existing.message.content !== content
+            || original.topic !== input.topic || original.priority !== input.priority || createdLog?.queueKey !== input.queueKey
+            || original.relatedType !== (input.relatedType ?? null) || original.relatedId !== (input.relatedId ?? null) || original.sourcePage !== (input.sourcePage ?? null)) {
+            throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "消息编号已用于其他客服请求");
+          }
+          // Reconcile legacy sticker/text messages, or an expired idempotency
+          // cache, without duplicating the persisted case or its events.
+          await this.idempotency.complete(tx, reservation!.id, { statusCode: 201, body: { id: original.id }, resourceType: "SUPPORT_CASE", resourceId: original.id });
+          return supportCaseView(original);
+        }
+      }
       const conversation = await this.createConversation(tx, "SUPPORT", {});
       await tx.insert(conversationMembers).values({ conversationId: conversation.id, userId, role: "USER" });
       const [supportCase] = await tx.insert(supportCases).values({ id: uuidv7(), caseNo: externalNo("SC"), requesterId: userId, conversationId: conversation.id, topic: input.topic, priority: input.priority, queueKey: input.queueKey, relatedType: input.relatedType, relatedId: input.relatedId, sourcePage: input.sourcePage }).returning();
       await tx.insert(supportCaseLogs).values({ id: uuidv7(), supportCaseId: supportCase!.id, action: "CREATED", oldStatus: null, newStatus: "WAITING", newQueueKey: input.queueKey, operatorUserId: userId, reason: input.topic, requestId: metadata.requestId });
       await this.appendSystemMessage(tx, conversation.id, `客服工单 ${supportCase!.caseNo} 已创建，正在排队等待接入`);
-      await this.appendMessage(tx, conversation.id, { senderUserId: userId, senderRole: "USER", clientMessageId: sticker ? input.initialClientMessageId! : `support-initial-${supportCase!.id}`, messageType: sticker ? "STICKER" : "TEXT", content: sticker ? encodeBearSticker(sticker.id) : input.initialMessage! }, metadata);
+      await this.appendMessage(tx, conversation.id, { senderUserId: userId, senderRole: "USER", clientMessageId: input.initialClientMessageId ?? `support-initial-${supportCase!.id}`, messageType, content }, metadata);
       await this.outbox.enqueue(tx, { aggregateType: "SUPPORT_CASE", aggregateId: supportCase!.id, eventType: "SupportCaseCreated", payload: { support_case_id: supportCase!.id, case_no: supportCase!.caseNo, queue_key: input.queueKey, priority: input.priority }, traceId: metadata.traceId });
+      if (reservation) await this.idempotency.complete(tx, reservation.id, { statusCode: 201, body: { id: supportCase!.id }, resourceType: "SUPPORT_CASE", resourceId: supportCase!.id });
       return supportCaseView(supportCase!);
     });
   }
@@ -181,20 +224,20 @@ export class ChatSupportNotificationService {
   async listUserSupportCases(userId: string, input: { cursor?: string; limit?: unknown }) {
     const limit = normalizePageSize(input.limit, 20); const scope = `user-support-cases:${userId}`; const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw validation("cursor", "分页游标与当前客服工单列表不匹配");
-    const rows = await this.database.db.select().from(supportCases).where(and(eq(supportCases.requesterId, userId), cursor ? or(lt(supportCases.createdAt, new Date(cursor.sort_value)), and(eq(supportCases.createdAt, new Date(cursor.sort_value)), lt(supportCases.id, cursor.id))) : undefined)).orderBy(desc(supportCases.createdAt), desc(supportCases.id)).limit(limit + 1);
+    const rows = await this.database.db.select(cursorColumns(supportCases)).from(supportCases).where(and(eq(supportCases.requesterId, userId), cursor ? or(lt(supportCases.createdAt, cursorTimeValue(cursor.sort_value)), and(eq(supportCases.createdAt, cursorTimeValue(cursor.sort_value)), lt(supportCases.id, cursor.id))) : undefined)).orderBy(desc(supportCases.createdAt), desc(supportCases.id)).limit(limit + 1);
     const page = rows.slice(0, limit); const last = page.at(-1);
     return { items: page.map(supportCaseView), next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.createdAt.toISOString(), id: last.id, scope }, this.config.cursorSigningSecret) : null };
   }
 
   async getUserSupportCase(userId: string, caseId: string) {
-    const [row] = await this.database.db.select().from(supportCases).where(and(eq(supportCases.id, caseId), eq(supportCases.requesterId, userId))).limit(1);
+    const [row] = await this.database.db.select(cursorColumns(supportCases)).from(supportCases).where(and(eq(supportCases.id, caseId), eq(supportCases.requesterId, userId))).limit(1);
     if (!row) throw notFound("SUPPORT_CASE_NOT_FOUND", "客服工单不存在");
     return this.supportCaseDetail(row);
   }
 
   async reopenUserSupportCase(userId: string, caseId: string, version: number, reason: string, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
-      const [row] = await tx.select().from(supportCases).where(and(eq(supportCases.id, caseId), eq(supportCases.requesterId, userId))).limit(1).for("update");
+      const [row] = await tx.select(cursorColumns(supportCases)).from(supportCases).where(and(eq(supportCases.id, caseId), eq(supportCases.requesterId, userId))).limit(1).for("update");
       if (!row) throw notFound("SUPPORT_CASE_NOT_FOUND", "客服工单不存在");
       if (row.status !== "CLOSED") throw conflict("SUPPORT_STATE_INVALID", "只有已结束的客服工单可以重新打开");
       if (row.version !== version) throw versionConflict();
@@ -208,8 +251,8 @@ export class ChatSupportNotificationService {
   }
 
   async listAdminSupportCases(input: { status?: typeof supportCases.$inferSelect.status; queueKey?: string;keyword?:string;cursor?:string;limit?: unknown;sort:"created_desc"|"created_asc" }) {
-    const limit=normalizePageSize(input.limit,20);const scope=`admin-support:${input.status??""}:${input.queueKey??""}:${input.keyword??""}:${input.sort}`;const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;if(cursor&&cursor.scope!==scope)throw validation("cursor","分页游标与当前客服筛选条件不匹配");const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(supportCases.createdAt,new Date(cursor.sort_value)),and(eq(supportCases.createdAt,new Date(cursor.sort_value)),gt(supportCases.id,cursor.id))):or(lt(supportCases.createdAt,new Date(cursor.sort_value)),and(eq(supportCases.createdAt,new Date(cursor.sort_value)),lt(supportCases.id,cursor.id)))):undefined;
-    const rows = await this.database.db.select({ supportCase: supportCases, requester: users, profile: userProfiles, conversation: conversations })
+    const limit=normalizePageSize(input.limit,20);const scope=`admin-support:${input.status??""}:${input.queueKey??""}:${input.keyword??""}:${input.sort}`;const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;if(cursor&&cursor.scope!==scope)throw validation("cursor","分页游标与当前客服筛选条件不匹配");const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(supportCases.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(supportCases.createdAt,cursorTimeValue(cursor.sort_value)),gt(supportCases.id,cursor.id))):or(lt(supportCases.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(supportCases.createdAt,cursorTimeValue(cursor.sort_value)),lt(supportCases.id,cursor.id)))):undefined;
+    const rows = await this.database.db.select({ supportCase: cursorColumns(supportCases), requester: users, profile: userProfiles, conversation: cursorColumns(conversations) })
       .from(supportCases)
       .innerJoin(users, eq(users.id, supportCases.requesterId))
       .leftJoin(userProfiles, eq(userProfiles.userId, supportCases.requesterId))
@@ -223,7 +266,7 @@ export class ChatSupportNotificationService {
   }
 
   async getAdminSupportCase(caseId: string) {
-    const [row] = await this.database.db.select().from(supportCases).where(eq(supportCases.id, caseId)).limit(1);
+    const [row] = await this.database.db.select(cursorColumns(supportCases)).from(supportCases).where(eq(supportCases.id, caseId)).limit(1);
     if (!row) throw notFound("SUPPORT_CASE_NOT_FOUND", "客服工单不存在");
     return this.supportCaseDetail(row);
   }
@@ -292,45 +335,49 @@ export class ChatSupportNotificationService {
   }
 
   async listAdminSupportMessages(adminId: string, caseId: string, input: { cursor?: string; limit?: unknown }) {
-    const [row] = await this.database.db.select().from(supportCases).where(eq(supportCases.id, caseId)).limit(1);
+    const [row] = await this.database.db.select(cursorColumns(supportCases)).from(supportCases).where(eq(supportCases.id, caseId)).limit(1);
     if (!row) throw notFound("SUPPORT_CASE_NOT_FOUND", "客服工单不存在");
     if (row.assignedAdminId !== adminId) throw forbidden("SUPPORT_ACCESS_DENIED", "只有当前客服可以查看工单消息");
     return this.listMessages(row.conversationId, input);
   }
 
-  async auditOrderConversationView(adminId: string, conversationId: string, reason: string, metadata: RequestMetadata) {
+  async auditOrderConversationView(adminId: string, conversationId: string, reason: string, metadata: RequestMetadata, input: { cursor?: string; limit?: number } = {}) {
+    const limit = normalizePageSize(input.limit, 100), scope = `admin-evidence:${conversationId}`;
+    const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
+    if (cursor && (cursor.scope !== scope || !/^\d+$/u.test(cursor.sort_value))) throw validation("cursor", "取证游标无效或不属于当前会话");
     return this.database.db.transaction(async (tx) => {
-      const [conversation] = await tx.select().from(conversations).where(and(eq(conversations.id, conversationId), eq(conversations.conversationType, "ORDER"))).limit(1);
+      const [conversation] = await tx.select(cursorColumns(conversations)).from(conversations).where(and(eq(conversations.id, conversationId), eq(conversations.conversationType, "ORDER"))).limit(1);
       if (!conversation) throw notFound("ORDER_CONVERSATION_NOT_FOUND", "订单会话不存在");
       await this.audit(tx, adminId, "ORDER_CHAT_EVIDENCE_VIEW", "CONVERSATION", conversationId, reason, null, { order_id: conversation.orderId }, metadata);
-      const rows = await tx.select().from(messages).where(eq(messages.conversationId, conversationId)).orderBy(messages.sequenceNo).limit(500);
-      return { conversation: conversationView(conversation, 0, "ADMIN"), messages: rows.map(messageView), evidence_reason: reason };
+      const rows = await tx.select().from(messages).where(and(eq(messages.conversationId, conversationId), cursor ? lt(messages.sequenceNo, BigInt(cursor.sort_value)) : undefined)).orderBy(desc(messages.sequenceNo)).limit(limit + 1);
+      const page = rows.slice(0, limit), last = page.at(-1);
+      return { conversation: conversationView(conversation, 0, "ADMIN"), messages: page.reverse().map(messageView), evidence_reason: reason, next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.sequenceNo.toString(), id: last.id, scope }, this.config.cursorSigningSecret) : null };
     });
   }
 
   async listOrderConversations(input:{keyword?:string;cursor?:string;limit?:unknown;sort:"created_desc"|"created_asc"}) {
-    const limit=normalizePageSize(input.limit,20);const scope=`admin-order-conversations:${input.keyword??""}:${input.sort}`;const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;if(cursor&&cursor.scope!==scope)throw validation("cursor","分页游标与当前聊天取证筛选条件不匹配");const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(conversations.createdAt,new Date(cursor.sort_value)),and(eq(conversations.createdAt,new Date(cursor.sort_value)),gt(conversations.id,cursor.id))):or(lt(conversations.createdAt,new Date(cursor.sort_value)),and(eq(conversations.createdAt,new Date(cursor.sort_value)),lt(conversations.id,cursor.id)))):undefined;
-    const rows = await this.database.db.select({ conversation: conversations, orderNo: orders.orderNo, buyerId: orders.buyerId, sellerName: orders.sellerNameSnapshot })
+    const limit=normalizePageSize(input.limit,20);const scope=`admin-order-conversations:${input.keyword??""}:${input.sort}`;const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;if(cursor&&cursor.scope!==scope)throw validation("cursor","分页游标与当前聊天取证筛选条件不匹配");const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(conversations.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(conversations.createdAt,cursorTimeValue(cursor.sort_value)),gt(conversations.id,cursor.id))):or(lt(conversations.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(conversations.createdAt,cursorTimeValue(cursor.sort_value)),lt(conversations.id,cursor.id)))):undefined;
+    const rows = await this.database.db.select({ conversation: cursorColumns(conversations), orderNo: orders.orderNo, buyerId: orders.buyerId, sellerName: orders.sellerNameSnapshot })
       .from(conversations).innerJoin(orders, eq(orders.id, conversations.orderId))
       .where(and(eq(conversations.conversationType, "ORDER"),input.keyword?or(ilike(orders.orderNo,`%${input.keyword}%`),ilike(orders.sellerNameSnapshot,`%${input.keyword}%`),ilike(conversations.conversationNo,`%${input.keyword}%`)):undefined,cursorCondition)).orderBy(ascending?asc(conversations.createdAt):desc(conversations.createdAt),ascending?asc(conversations.id):desc(conversations.id)).limit(limit+1);
     const page=rows.slice(0,limit);const last=page.at(-1);return {items:page.map((row) => ({ ...conversationView(row.conversation, 0, "ADMIN"), order_no: row.orderNo, buyer_id: row.buyerId, seller_name: row.sellerName })),next_cursor:rows.length>limit&&last?encodeCursor({sort_value:last.conversation.createdAt.toISOString(),id:last.conversation.id,scope},this.config.cursorSigningSecret):null};
   }
 
-  async listNotifications(userId: string, input: { category?: typeof notifications.$inferSelect.category; cursor?: string; limit?: unknown }) {
-    const limit = normalizePageSize(input.limit, 20); const scope = `user-notifications:${userId}:${input.category ?? "all"}`; const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
+  async listNotifications(userId: string, input: { category?: typeof notifications.$inferSelect.category; include_feedback?: boolean; cursor?: string; limit?: unknown }) {
+    const limit = normalizePageSize(input.limit, 20); const scope = `user-notifications:${userId}:${input.category ?? "all"}${input.include_feedback ? ":feedback" : ""}`; const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw validation("cursor", "分页游标与当前通知列表不匹配");
-    const rows = await this.database.db.select().from(notifications).where(and(eq(notifications.userId, userId), input.category ? eq(notifications.category, input.category) : undefined, cursor ? or(lt(notifications.createdAt, new Date(cursor.sort_value)), and(eq(notifications.createdAt, new Date(cursor.sort_value)), lt(notifications.id, cursor.id))) : undefined)).orderBy(desc(notifications.createdAt), desc(notifications.id)).limit(limit + 1);
+    const rows = await this.database.db.select(cursorColumns(notifications)).from(notifications).where(and(eq(notifications.userId, userId), input.category ? eq(notifications.category, input.category) : input.include_feedback ? undefined : sql`${notifications.category}::text <> 'FEEDBACK'`, cursor ? or(lt(notifications.createdAt, cursorTimeValue(cursor.sort_value)), and(eq(notifications.createdAt, cursorTimeValue(cursor.sort_value)), lt(notifications.id, cursor.id))) : undefined)).orderBy(desc(notifications.createdAt), desc(notifications.id)).limit(limit + 1);
     const page = rows.slice(0, limit); const last = page.at(-1);
     return { items: page.map(notificationView), next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.createdAt.toISOString(), id: last.id, scope }, this.config.cursorSigningSecret) : null };
   }
 
-  async getNotificationUnreadCount(userId: string) {
-    const [row] = await this.database.db.select({ count: sql<number>`count(*)::integer` }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.readStatus, "UNREAD")));
+  async getNotificationUnreadCount(userId: string, includeFeedback = false) {
+    const [row] = await this.database.db.select({ count: sql<number>`count(*)::integer` }).from(notifications).where(and(eq(notifications.userId, userId), eq(notifications.readStatus, "UNREAD"), includeFeedback ? undefined : sql`${notifications.category}::text <> 'FEEDBACK'`));
     return { unread_count: row?.count ?? 0 };
   }
 
   async getNotification(userId: string, notificationId: string) {
-    const [row] = await this.database.db.select().from(notifications).where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId))).limit(1);
+    const [row] = await this.database.db.select(cursorColumns(notifications)).from(notifications).where(and(eq(notifications.id, notificationId), eq(notifications.userId, userId))).limit(1);
     if (!row) throw notFound("NOTIFICATION_NOT_FOUND", "通知不存在"); return notificationView(row);
   }
 
@@ -339,8 +386,8 @@ export class ChatSupportNotificationService {
     if (!row) throw notFound("NOTIFICATION_NOT_FOUND", "通知不存在"); return notificationView(row);
   }
 
-  async markAllNotificationsRead(userId: string) {
-    const rows = await this.database.db.update(notifications).set({ readStatus: "READ", readAt: new Date() }).where(and(eq(notifications.userId, userId), eq(notifications.readStatus, "UNREAD"))).returning({ id: notifications.id });
+  async markAllNotificationsRead(userId: string, includeFeedback = false) {
+    const rows = await this.database.db.update(notifications).set({ readStatus: "READ", readAt: new Date() }).where(and(eq(notifications.userId, userId), eq(notifications.readStatus, "UNREAD"), includeFeedback ? undefined : sql`${notifications.category}::text <> 'FEEDBACK'`)).returning({ id: notifications.id });
     return { updated_count: rows.length };
   }
 
@@ -348,9 +395,9 @@ export class ChatSupportNotificationService {
     const limit = normalizePageSize(input.limit, 20); const scope = `admin-notifications:${input.category ?? ""}:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort}`;
     const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw validation("cursor", "分页游标与通知筛选条件不匹配");
-    const ascending = input.sort === "created_asc"; const cursorDate = cursor ? new Date(cursor.sort_value) : undefined;
+    const ascending = input.sort === "created_asc"; const cursorDate = cursor ? cursorTimeValue(cursor.sort_value) : undefined;
     const keyword = input.keyword ? `%${input.keyword.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%` : undefined;
-    const rows = await this.database.db.select({ notification: notifications, delivery: deliveryLogs, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask })
+    const rows = await this.database.db.select({ notification: cursorColumns(notifications), delivery: deliveryLogs, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask })
       .from(notifications).innerJoin(users, eq(users.id, notifications.userId)).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt))).leftJoin(deliveryLogs, eq(deliveryLogs.notificationId, notifications.id))
       .where(and(
         input.category ? eq(notifications.category, input.category) : undefined,
@@ -363,7 +410,7 @@ export class ChatSupportNotificationService {
   }
 
   async getAdminNotificationDelivery(notificationId: string) {
-    const rows = await this.database.db.select({ notification: notifications, delivery: deliveryLogs, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask })
+    const rows = await this.database.db.select({ notification: cursorColumns(notifications), delivery: deliveryLogs, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask })
       .from(notifications).innerJoin(users, eq(users.id, notifications.userId)).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt))).leftJoin(deliveryLogs, eq(deliveryLogs.notificationId, notifications.id))
       .where(eq(notifications.id, notificationId));
     if (!rows[0]) throw notFound("NOTIFICATION_NOT_FOUND", "站内通知不存在");
@@ -373,23 +420,34 @@ export class ChatSupportNotificationService {
   private async listMessages(conversationId: string, input: { cursor?: string; limit?: unknown }) {
     const limit = normalizePageSize(input.limit, 50); const scope = `conversation-messages:${conversationId}`; const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw validation("cursor", "分页游标与当前会话不匹配");
+    if (cursor && !/^\d+$/u.test(cursor.sort_value)) throw validation("cursor", "消息分页游标无效");
     const rows = await this.database.db.select().from(messages).where(and(eq(messages.conversationId, conversationId), cursor ? lt(messages.sequenceNo, BigInt(cursor.sort_value)) : undefined)).orderBy(desc(messages.sequenceNo)).limit(limit + 1);
     const page = rows.slice(0, limit); const last = page.at(-1);
     return { items: page.map(messageView), next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.sequenceNo.toString(), id: last.id, scope }, this.config.cursorSigningSecret) : null };
   }
 
-  private async appendMessage(tx: DatabaseTransaction, conversationId: string, input: { senderUserId?: string; senderAdminId?: string; senderRole: typeof messages.$inferInsert.senderRole; clientMessageId: string; content: string; messageType?: "TEXT" | "STICKER" }, metadata: RequestMetadata) {
-    const [conversation] = await tx.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1).for("update");
+  private async appendMessage(tx: DatabaseTransaction, conversationId: string, input: { senderUserId?: string; senderAdminId?: string; senderRole: typeof messages.$inferInsert.senderRole; clientMessageId: string; content: string; messageType?: "TEXT" | "STICKER" | "IMAGE" | "VOICE"; mediaFileId?: string }, metadata: RequestMetadata) {
+    if (input.senderUserId) await this.lockUserMessage(tx, input.senderUserId, input.clientMessageId);
+    const [conversation] = await tx.select(cursorColumns(conversations)).from(conversations).where(eq(conversations.id, conversationId)).limit(1).for("update");
     if (!conversation) throw notFound("CONVERSATION_NOT_FOUND", "会话不存在");
     const existingCondition = input.senderUserId ? and(eq(messages.senderUserId, input.senderUserId), eq(messages.clientMessageId, input.clientMessageId)) : and(eq(messages.senderAdminId, input.senderAdminId!), eq(messages.clientMessageId, input.clientMessageId));
     const [existing] = await tx.select().from(messages).where(existingCondition).limit(1);
     if (existing) {
-      if (existing.conversationId !== conversationId || existing.content !== input.content || existing.messageType !== (input.messageType ?? "TEXT")) throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "client_message_id 已用于其他消息");
+      if (existing.conversationId !== conversationId || existing.content !== input.content || existing.messageType !== (input.messageType ?? "TEXT") || existing.mediaFileId !== (input.mediaFileId ?? null)) throw conflict("MESSAGE_IDEMPOTENCY_CONFLICT", "client_message_id 已用于其他消息");
       return messageView(existing);
+    }
+    if (input.mediaFileId) {
+      // Lock against deletion, moderation and simultaneous binding in another conversation.
+      const [file] = await tx.select().from(files).where(eq(files.id, input.mediaFileId)).limit(1).for("update");
+      if (!file || file.deletedAt || file.ownerUserId !== input.senderUserId || file.fileType !== (input.messageType === "IMAGE" ? "CHAT_IMAGE" : "CHAT_VOICE") || file.visibility !== "PRIVATE") throw forbidden("CHAT_MEDIA_NOT_ALLOWED", "只能发送自己上传的聊天专用文件");
+      if (file.uploadStatus !== "VERIFIED" || file.moderationStatus !== "APPROVED") throw conflict("CHAT_MEDIA_NOT_READY", "文件尚未通过校验或审核，请查看上传状态");
+      const [bound] = await tx.select({ id: messages.id }).from(messages).where(eq(messages.mediaFileId, file.id)).limit(1);
+      if (bound) throw conflict("CHAT_MEDIA_ALREADY_BOUND", "文件已用于另一条消息，请勿重复发送");
+      await tx.insert(fileUsages).values({ id: uuidv7(), fileId: file.id, usageType: "EVIDENCE", targetType: "CONVERSATION", targetId: conversationId });
     }
     const [last] = await tx.select({ sequenceNo: messages.sequenceNo }).from(messages).where(eq(messages.conversationId, conversationId)).orderBy(desc(messages.sequenceNo)).limit(1);
     const sequenceNo = (last?.sequenceNo ?? BigInt(0)) + BigInt(1); const now = new Date();
-    const [message] = await tx.insert(messages).values({ id: uuidv7(), conversationId, clientMessageId: input.clientMessageId, sequenceNo, senderUserId: input.senderUserId, senderAdminId: input.senderAdminId, senderRole: input.senderRole, messageType: input.messageType ?? "TEXT", content: input.content, moderationStatus: input.messageType === "STICKER" ? "APPROVED" : "PENDING" }).returning();
+    const [message] = await tx.insert(messages).values({ id: uuidv7(), conversationId, clientMessageId: input.clientMessageId, sequenceNo, senderUserId: input.senderUserId, senderAdminId: input.senderAdminId, senderRole: input.senderRole, messageType: input.messageType ?? "TEXT", mediaFileId: input.mediaFileId, content: input.content, moderationStatus: input.messageType === "STICKER" || input.mediaFileId ? "APPROVED" : "PENDING" }).returning();
     const preview = input.messageType === "STICKER" ? bearStickerSummary(decodeBearSticker(input.content)) : input.content.slice(0, 200);
     await tx.update(conversations).set({ lastMessageId: message!.id, lastMessagePreview: preview, lastMessageAt: now, version: sql`${conversations.version} + 1`, updatedAt: now }).where(and(eq(conversations.id, conversationId), eq(conversations.version, conversation.version)));
     await tx.update(conversationMembers).set({ unreadCount: sql`${conversationMembers.unreadCount} + 1` }).where(and(eq(conversationMembers.conversationId, conversationId), isNull(conversationMembers.leftAt), input.senderUserId ? or(isNull(conversationMembers.userId), ne(conversationMembers.userId, input.senderUserId)) : or(isNull(conversationMembers.adminId), ne(conversationMembers.adminId, input.senderAdminId!))));
@@ -401,8 +459,12 @@ export class ChatSupportNotificationService {
     return messageView(message!);
   }
 
+  private async lockUserMessage(tx: DatabaseTransaction, userId: string, clientMessageId: string) {
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`user-message:${userId}:${clientMessageId}`}, 0))`);
+  }
+
   private async appendSystemMessage(tx: DatabaseTransaction, conversationId: string, content: string) {
-    const [conversation] = await tx.select().from(conversations).where(eq(conversations.id, conversationId)).limit(1).for("update");
+    const [conversation] = await tx.select(cursorColumns(conversations)).from(conversations).where(eq(conversations.id, conversationId)).limit(1).for("update");
     if (!conversation) throw notFound("CONVERSATION_NOT_FOUND", "会话不存在");
     const [last] = await tx.select({ sequenceNo: messages.sequenceNo }).from(messages).where(eq(messages.conversationId, conversationId)).orderBy(desc(messages.sequenceNo)).limit(1);
     const sequenceNo = (last?.sequenceNo ?? BigInt(0)) + BigInt(1); const now = new Date();
@@ -416,7 +478,7 @@ export class ChatSupportNotificationService {
     const [counterpart] = await this.database.db.select({ userId: users.id, status: users.status, role: conversationMembers.role, nickname: userProfiles.nickname, avatarFileId: userProfiles.avatarFileId, sellerId: sellerProfiles.id })
       .from(conversationMembers).innerJoin(users, eq(users.id, conversationMembers.userId)).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt))).leftJoin(sellerProfiles, eq(sellerProfiles.userId, users.id))
       .where(and(eq(conversationMembers.conversationId, conversation.id), ne(users.id, userId), isNull(conversationMembers.leftAt))).limit(1);
-    const [support] = conversation.conversationType === "SUPPORT" ? await this.database.db.select().from(supportCases).where(eq(supportCases.conversationId, conversation.id)).limit(1) : [];
+    const [support] = conversation.conversationType === "SUPPORT" ? await this.database.db.select(cursorColumns(supportCases)).from(supportCases).where(eq(supportCases.conversationId, conversation.id)).limit(1) : [];
     const [order] = conversation.orderId ? await this.database.db.select({ status: orders.status }).from(orders).where(eq(orders.id, conversation.orderId)).limit(1) : [];
     let canSend = true; let sendBlockReason: string | null = null;
     if (support?.status === "CLOSED") { canSend = false; sendBlockReason = "客服工单已结束，请先重新打开"; }
@@ -449,7 +511,7 @@ export class ChatSupportNotificationService {
   }
 
   private async lockSupportCase(tx: DatabaseTransaction, caseId: string) {
-    const [row] = await tx.select().from(supportCases).where(eq(supportCases.id, caseId)).limit(1).for("update"); if (!row) throw notFound("SUPPORT_CASE_NOT_FOUND", "客服工单不存在"); return row;
+    const [row] = await tx.select(cursorColumns(supportCases)).from(supportCases).where(eq(supportCases.id, caseId)).limit(1).for("update"); if (!row) throw notFound("SUPPORT_CASE_NOT_FOUND", "客服工单不存在"); return row;
   }
 
   private async activateAdminMember(tx: DatabaseTransaction, conversationId: string, adminId: string) {
@@ -480,7 +542,7 @@ export class ChatSupportNotificationService {
 function conversationView(row: typeof conversations.$inferSelect, unreadCount: number, memberRole: string) { return { id: row.id, conversation_no: row.conversationNo, conversation_type: row.conversationType, product_id: row.productId, order_id: row.orderId, last_message_preview: row.lastMessagePreview, last_message_at: row.lastMessageAt, unread_count: unreadCount, member_role: memberRole, version: row.version, created_at: row.createdAt }; }
 function messageView(row: typeof messages.$inferSelect) {
   const sticker = row.messageType === "STICKER" ? decodeBearSticker(row.content) : undefined;
-  return { id: row.id, conversation_id: row.conversationId, client_message_id: row.clientMessageId, sequence_no: row.sequenceNo, sender_user_id: row.senderUserId, sender_admin_id: row.senderAdminId, sender_role: row.senderRole, message_type: row.messageType, content: row.messageType === "STICKER" ? bearStickerSummary(sticker) : row.content, ...(sticker ? { sticker } : {}), send_status: row.sendStatus, moderation_status: row.moderationStatus, created_at: row.createdAt };
+  return { id: row.id, conversation_id: row.conversationId, client_message_id: row.clientMessageId, sequence_no: row.sequenceNo, sender_user_id: row.senderUserId, sender_admin_id: row.senderAdminId, sender_role: row.senderRole, message_type: row.messageType, content: row.messageType === "STICKER" ? bearStickerSummary(sticker) : row.content, ...(sticker ? { sticker } : {}), ...(row.mediaFileId ? { media_file_id: row.mediaFileId } : {}), send_status: row.sendStatus, moderation_status: row.moderationStatus, created_at: row.createdAt };
 }
 function supportCaseView(row: typeof supportCases.$inferSelect) { return { id: row.id, case_no: row.caseNo, requester_id: row.requesterId, conversation_id: row.conversationId, topic: row.topic, priority: row.priority, status: row.status, queue_key: row.queueKey, assigned_admin_id: row.assignedAdminId, related_type: row.relatedType, related_id: row.relatedId, source_page: row.sourcePage, first_response_at: row.firstResponseAt, closed_at: row.closedAt, close_reason: row.closeReason, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
 function supportCaseAdminView(row: typeof supportCases.$inferSelect, requester?: typeof users.$inferSelect, profile?: typeof userProfiles.$inferSelect | null, conversation?: typeof conversations.$inferSelect) {

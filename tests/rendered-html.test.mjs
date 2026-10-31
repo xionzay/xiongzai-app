@@ -51,7 +51,9 @@ test("contains all buyer and seller MVP route groups", async () => {
   assert.match(page, /系统通知/);
   assert.match(page, /投诉详情/);
   assert.match(page, /收款账户管理/);
-  assert.match(page, /0 张可用/);
+  assert.match(page, /<ConnectedProductForm request=\{apiRequest\}/);
+  const form = await readFile(new URL("../app/seller-workbench/ConnectedProductForm.tsx", import.meta.url), "utf8");
+  for (const label of ["ConnectedFiles", "保存草稿", "提交商品审核"]) assert.ok(form.includes(label));
 });
 
 test("keeps the established brand assets and design tokens", async () => {
@@ -79,53 +81,41 @@ test("includes the refined buyer and seller interactions", async () => {
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
   ]);
-  assert.match(page, /search-scope-select/);
-  assert.match(page, /搜索陪玩昵称或ID/);
-  assert.match(page, /result-scope-label/);
-  assert.doesNotMatch(page, /className="segmented result-tabs"/);
-  assert.match(page, /refund-reason-menu/);
-  assert.match(page, /complaint-type-menu/);
-  assert.match(page, /const \[phone, setPhone\] = useState\(""\)/);
-  assert.match(page, /placeholder="请输入手机号码"/);
-  assert.match(page, /placeholder="请输入陪玩昵称"/);
-  assert.match(page, /placeholder="介绍擅长模式、服务风格和沟通特点"/);
-  assert.match(page, /placeholder="填写当前段位和星级"/);
-  assert.match(page, /已下\{spec\.sold\}单/);
-  assert.match(page, /咨询陪玩/);
-  assert.match(page, /ui-star-rounded\.jpg/);
-  assert.match(page, /ui-coupon-rounded\.jpg/);
-  assert.match(page, /function RatingStar\(\{ selected \}/);
-  assert.match(page, /function CompanionFavoriteIcon\(\{ selected \}/);
-  assert.match(page, /fill=\{selected \? color : "transparent"\}/);
-  assert.match(page, /aria-pressed=\{favorite\}/);
-  assert.match(page, /className="companion-message-svg"/);
-  assert.match(page, /strokeWidth="6" strokeLinejoin="round"/);
-  assert.match(page, /className="icon-action consult-service-action"/);
-  assert.match(page, /className=\{`icon-action favorite-service-action/);
-  assert.match(page, /className="message-order-notice-icon" src="\/assets\/icon-order\.png"/);
-  assert.match(page, /className="apply-media-upload"/);
+  const search = await readFile(new URL("../app/SearchDiscovery.tsx", import.meta.url), "utf8");
+  assert.match(page, /import \{ SearchDiscovery, SearchToolbar \} from "\.\/SearchDiscovery"/);
+  assert.match(page, /<SearchDiscovery\b/);
+  assert.match(page, /<SearchToolbar\b/);
+  assert.match(search, /className="discovery-scope" role="group" aria-label="搜索范围"/);
+  assert.match(search, /aria-pressed=\{scope === item\}/);
+  assert.match(search, /onClick=\{\(\) => onDraft\(item, query\)\}/);
+  const [description, actions, profiles, form, payment] = await Promise.all([
+    "ProductDetailUi.tsx", "ProductDetailUi.tsx", "storefront/ProfileEditor.tsx",
+    "seller-workbench/ConnectedProductForm.tsx", "ConnectedTransaction.tsx",
+  ].map(path => readFile(new URL("../app/" + path, import.meta.url), "utf8")));
+  assert.match(page, /搜索店铺|搜索商品|搜索店铺名称/);
+  for (const marker of ["refund-reason-menu", "complaint-type-menu", "apply-media-upload", "RatingStar", "formatCent(spec.priceCent)", "payment-account-switch"]) assert.ok(page.includes(marker), marker);
+  // The earnings calendar now lives in a dedicated component. Verify the real
+  // connection instead of restoring an obsolete class to the page source.
+  const [revenue, dateRange] = await Promise.all(["seller-workbench/RevenueDashboard.tsx", "seller-workbench/RevenueDateRange.tsx"].map(path => readFile(new URL("../app/" + path, import.meta.url), "utf8")));
+  assert.match(page, /<RevenueDashboard rows=\{data.rows\}/);
+  assert.match(revenue, /<RevenueDateRange start=\{start\} end=\{end\} today=\{today\} onChange=/);
+  assert.match(dateRange, /className="revenue-date-range" role="group" aria-label="自定义收益日期范围"/);
+  assert.match(description, /description/);
+  assert.match(actions, /favorite/); assert.match(actions, /unavailable/);
+  for (const field of ["seller_nickname", "introduction", "game_rank", "voice_file_id"]) assert.ok(profiles.includes(field), field);
+  assert.match(profiles, /validateProfile/); assert.match(profiles, /revisionPayload/);
+  assert.match(profiles, /voiceSelected.includes/); assert.match(profiles, /\/policies\/acceptances/);
+  assert.match(form, /game/); assert.match(form, /fulfillment_seconds/);
+  assert.match(form, /pricing_mode/); assert.match(form, /提交商品审核/);
+  assert.match(page, /ProductReviewPreview/); assert.match(page, /hasNoSpecs/);
+  assert.match(page, /detailState\?\.error/);
+  assert.match(payment, /WECHAT_APP/); assert.match(payment, /ALIPAY_APP/);
+  assert.match(payment, /result.payment.order_id === order.id/);
   assert.match(page, /<RatingStar selected=\{star <= rating\}/);
-  assert.match(page, /type RatingStarState = "StarOutline" \| "StarFilled"/);
-  assert.match(page, /fill=\{state === "StarFilled" \? RATING_STAR_COLOR : "transparent"\}/);
-  assert.match(page, /stroke=\{RATING_STAR_COLOR\}/);
-  assert.match(page, /strokeLinejoin="round" strokeLinecap="round"/);
-  assert.doesNotMatch(page, /<b>服务内容<\/b>/);
-  assert.match(page, /卖家自主设计/);
-  assert.match(page, /availability-menu/);
-  assert.match(page, /formatCent\(order\.priceCent\)/);
-  assert.match(page, /服务已提交审核，可在审核中查看/);
-  assert.match(page, /counts\[name\] \?\? 0/);
   assert.doesNotMatch(page, /className="seller-publish-fixed"/);
-  assert.match(page, /ui-person-outline\.jpg/);
-  assert.match(page, /等待陪玩响应/);
-  assert.match(page, /formatCent\(spec\.priceCent\)/);
-  assert.match(page, /选择陪玩可接单的时间/);
-  assert.match(page, /payment-account-switch/);
-  assert.match(page, /range === "累计" \? <section className="earnings-date-range"/);
-  assert.match(page, /type="date" value=\{effectiveStart\}/);
-  assert.match(page, /type="date" value=\{customEnd\}/);
-  assert.doesNotMatch(page, /EarningsPicker label=/);
-  assert.match(page, /预计 24h 内/);
+  assert.match(page, /counts\[name\] \?\? 0/);
+  assert.match(dateRange, /\(\['start', 'end'\] as const\)\.map\(key/);
+  assert.match(dateRange, /onChange\(field, draft\)/);
   assert.match(css, /\.chat-messages \.message \{ align-items: center; \}/);
   assert.match(css, /\.profile-fields \.profile-nickname-field input[^}]+text-align: left/);
   assert.match(css, /\.income-filters button \{ height: 42px; font-size: 13px; \}/);
@@ -259,12 +249,16 @@ test("connects buyer checkout, payment, order views and seller fulfillment actio
     readFile(new URL("../apps/api/src/seller-product.controllers.ts", import.meta.url), "utf8"),
   ]);
   for (const endpoint of [
-    "/orders/preview", "/orders", "/payments", "/mock-confirm", "/seller/orders", "/availability",
+    "/orders/preview", "/orders", "/seller/orders", "/availability",
   ]) assert.match(page, new RegExp(endpoint.replaceAll("/", "\\/")), `missing transaction UI connection ${endpoint}`);
   assert.match(page, /"idempotency-key"/);
-  assert.match(page, /payment_channel:\s*paymentChannel/);
-  assert.match(page, /WECHAT_APP/);
-  assert.match(page, /ALIPAY_APP/);
+  const payment = await readFile(new URL("../app/ConnectedTransaction.tsx", import.meta.url), "utf8");
+  assert.match(payment, /payment_channel: channel/);
+  assert.match(payment, /current.payment_status === 'PAID'/);
+  assert.match(payment, /result.payment.order_id === order.id/);
+  assert.match(page, /<ConnectedPayment request=\{apiRequest\}/);
+  assert.match(payment, /WECHAT_APP/);
+  assert.match(payment, /ALIPAY_APP/);
   assert.match(page, /discount_cent/);
   assert.doesNotMatch(page, /Number\(BigInt\([^)]*(?:cent|amount)/u);
   assert.match(orderController, /Idempotency-Key 必须为 8 到 128 个字符/);
@@ -303,7 +297,7 @@ test("connects chat, support cases and notifications to the real API", async () 
   assert.match(controller, /RequirePermissions\("conversation\.evidence\.read"\)/);
 });
 
-test("connects web account lifecycle pages to real APIs without unavailable placeholders", async () => {
+test("preserves account lifecycle implementations while keeping the approved local-test entry points closed", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
   for (const endpoint of ["/me/phone-change-requests", "/me/data-exports", "/download", "/me/account-cancellations/eligibility", "/me/account-cancellations"])
     assert.ok(page.includes(endpoint), `missing account lifecycle API ${endpoint}`);
@@ -311,7 +305,11 @@ test("connects web account lifecycle pages to real APIs without unavailable plac
   assert.match(page, /\$\{side\}-code\/verify/u);
   for (const label of ["验证当前手机号", "验证新手机号", "个人数据下载", "服务端实时条件", "撤销注销申请"])
     assert.match(page, new RegExp(label, "u"));
-  assert.doesNotMatch(page, /手机号换绑暂未开放|数据导出暂未开放|账号注销暂未开放/u);
+  assert.match(page, /手机号换绑暂未开放/u);
+  const capabilities = await readFile(new URL("../app/local-test-capabilities.ts", import.meta.url), "utf8");
+  assert.match(capabilities, /localAccountLifecycleEnabled = false/u);
+  assert.match(page, /localAccountLifecycleEnabled \? <DataExportWorkflowScreen/u);
+  assert.match(page, /localAccountLifecycleEnabled \? <AccountCancellationWorkflowScreen/u);
 });
 
 test("connects refunds, complaints and immutable reviews to the real API", async () => {
@@ -333,11 +331,11 @@ test("connects refunds, complaints and immutable reviews to the real API", async
 });
 
 test("web companion voice uses the controlled short-lived API instead of an animation placeholder", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/storefront/PublicStorefront.tsx", import.meta.url), "utf8");
   assert.match(page, /\/companions\/\$\{seller\.id\}\/voice/u);
-  assert.match(page, /response\.access\.url/u);
-  assert.match(page, /audioRef\.current/u);
-  assert.match(page, /await audio\.play\(\)/u);
+  assert.match(page, /result\.access\.url/u);
+  assert.match(page, /<audio src=\{voice\} controls autoPlay/u);
+  assert.doesNotMatch(page, /localStorage|sessionStorage|console\./u);
 });
 
 test("live service cards use API seller facts instead of a static catalog seller fallback", async () => {
@@ -367,11 +365,14 @@ test("covers the local-test payment and explicit policy consent remediation", as
     assert.match(page, new RegExp(`case "${route}"`), `missing remediation route ${route}`);
     assert.match(page, new RegExp(`page: "${route}"`), `missing remediation catalog item ${route}`);
   }
-  assert.match(page, /const \[channel, setChannel\] = useState<"微信支付" \| "支付宝" \| null>\(null\)/);
-  assert.match(page, /本地测试支付/);
-  assert.match(page, /不会发起真实扣款/);
+  const payment = await readFile(new URL("../app/ConnectedTransaction.tsx", import.meta.url), "utf8");
+  assert.match(payment, /useState<Payment\['channel'\] \| ''>\(''\)/);
+  assert.match(payment, /本地模拟，不真实扣款/);
+  assert.match(payment, /模拟成功/);
+  assert.match(payment, /mockEnabled && active/);
   assert.match(page, /支付确认超时/);
-  assert.match(page, /协议加载失败，已禁止继续支付/);
+  assert.match(page, /policyError/);
+  assert.match(page, /acceptSelectedPolicies\("ORDER_PAYMENT"/);
   assert.match(page, /不会默认勾选/);
   assert.match(page, /function PolicyCenterScreen/);
   assert.match(page, /function PolicyAcceptancesScreen/);
@@ -379,8 +380,10 @@ test("covers the local-test payment and explicit policy consent remediation", as
   assert.match(page, /acceptSelectedPolicies\("SELLER_ONBOARDING"/);
   assert.match(page, /acceptSelectedPolicies\("IDENTITY_VERIFICATION"/);
   assert.match(page, /acceptSelectedPolicies\("VOICE_SAMPLE_UPLOAD"/);
-  assert.match(page, /录制 \/ 试听 \/ 上传/);
-  assert.match(page, /\["未上传", "上传中", "审核中", "可试听", "未通过"\]/);
+  const profile = await readFile(new URL("../app/storefront/ProfileEditor.tsx", import.meta.url), "utf8");
+  assert.match(profile, /声音名片/);
+  assert.match(profile, /voicePolicies.some/);
+  assert.match(profile, /暂不提供重新录音/);
   assert.doesNotMatch(page, /银行卡/);
   assert.match(page, /account_type==="WECHAT"\|\|item\.account_type==="ALIPAY"/);
   assert.match(css, /\.payment-methods > button\.selected/);

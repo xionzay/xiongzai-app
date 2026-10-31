@@ -1,3 +1,4 @@
+import { JellySymbol } from "../../components/jelly-icon";
 import { StyleSheet, Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
 import { BrandHeader } from "@/components/brand-header";
@@ -8,7 +9,7 @@ export function EmptyBusinessTab({ title, message, mark }: { title: string; mess
     <AppScreen scroll={false} contentContainerStyle={styles.content}>
       <BrandHeader subtitle={title} />
       <View style={styles.empty} accessibilityRole="summary">
-        <Text style={styles.mark}>{mark}</Text>
+        <Text style={styles.mark}><JellySymbol symbol={mark} size={48} /></Text>
         <Text style={styles.title}>{title}为空</Text>
         <Text style={styles.message}>{message}</Text>
       </View>

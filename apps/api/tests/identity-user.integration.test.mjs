@@ -6,7 +6,7 @@ import { issueAccessToken } from "@xiongzai/auth";
 import { createDatabaseClient } from "@xiongzai/database";
 import { JsonLogger } from "@xiongzai/observability";
 import pg from "pg";
-import { createApiApp, loadApiConfig, SensitiveDataProtector } from "../dist/index.js";
+import { createApiApp, IdentityUserService, loadApiConfig, SensitiveDataProtector } from "../dist/index.js";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
 const enabled = Boolean(databaseUrl);
@@ -55,7 +55,7 @@ before(async () => {
   loginPolicyIds = await seedPolicies();
   identityPolicyId = await seedPolicy("IDENTITY_INFORMATION_SEPARATE_CONSENT", "实名信息单独同意");
 
-  database = createDatabaseClient({
+  await applyStageOneMigrations(migrationClient, schemaName); database = createDatabaseClient({
     connectionString: databaseUrl,
     application_name: "xiongzai-identity-api-test",
     options: `-c search_path=${schemaName},public`,
@@ -416,3 +416,24 @@ async function runMigration(fileName) {
   source = source.replaceAll('"public".', `"${schemaName}".`);
   for (const statement of splitMigration(source)) await migrationClient.query(statement);
 }
+test("policy eligibility uses database time for immediate publication, not a lagging JS millisecond clock", {skip: !enabled}, async t => {
+  const session = await createSession("13400000009");
+  const id = randomUUID(), futureId = randomUUID();
+  const appClock = Date.now() - 5_000;
+  await migrationClient.query("INSERT INTO policy_versions(id,policy_type,title,content,version_no,status,published_at,effective_at,requires_reacceptance) VALUES($1,'IDENTITY_INFORMATION_SEPARATE_CONSENT','本地时钟回归','本地草案',100,'PUBLISHED',now(),now(),true),($2,'IDENTITY_INFORMATION_SEPARATE_CONSENT','未来版本','本地草案',101,'PUBLISHED',now(),now()+interval '1 hour',true)", [id, futureId]);
+  const identity = app.get(IdentityUserService);
+  t.mock.timers.enable({ apis: ["Date"], now: appClock });
+  try {
+    const scene = await identity.currentPolicies("IDENTITY_VERIFICATION");
+    assert.deepEqual(scene.map(p => p.id), [id]);
+    const all = await identity.currentPolicies();
+    assert.equal(all.find(p => p.policy_type === "IDENTITY_INFORMATION_SEPARATE_CONSENT").id, id);
+    assert.equal((await identity.getPublishedPolicy(id)).id, id);
+    await assert.rejects(identity.getPublishedPolicy(futureId), e => e.code === "POLICY_NOT_FOUND");
+    await assert.rejects(identity.requirePolicyAcceptances(database.db, session.user.id, "IDENTITY_VERIFICATION"), e => e.code === "POLICY_ACCEPTANCE_REQUIRED" && e.details.missing_policy_version_ids[0] === id);
+  } finally {
+    t.mock.timers.reset();
+  }
+});
+
+import { applyStageOneMigrations } from "./stage-one-migrations.mjs";

@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { ReviewImages } from "../after-sale/review-images";
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ApiClientError } from "@/api/api-error";
+import { ApiClientError, userFacingError } from "@/api/api-error";
 import { useAuth } from "@/auth/auth-provider";
 import { AppScreen } from "@/components/app-screen";
 import { FileImage } from "@/components/file-image";
@@ -18,16 +21,10 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { colors } from "@/theme/tokens";
 import type { ReviewApiView } from "@/types/api";
 import { formatCent } from "@/utils/money";
-import { MessageActionIcon } from "@/components/tab-icons";
+import { productGameLabels } from "@xiongzai/contracts/commerce";
+import { ApprovedIllustration } from '@/components/approved-illustration';
+import { PurchaseSpecSheet } from './purchase-spec-sheet';
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const from = ratio <= 0.56 ? [255, 250, 240] : [255, 253, 247];
-  const to = ratio <= 0.56 ? [255, 253, 247] : [248, 241, 231];
-  const progress = ratio <= 0.56 ? ratio / 0.56 : (ratio - 0.56) / 0.44;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
 
 export function ServiceDetailScreen() {
   const { id = "" } = useLocalSearchParams<{ id: string }>();
@@ -36,8 +33,16 @@ export function ServiceDetailScreen() {
   const [selectedSku, setSelectedSku] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [consulting, setConsulting] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const consultation = useRef(false);
+  const navigating = useRef(false);
+  useFocusEffect(useCallback(() => { navigating.current = false; }, []));
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const detail = useServiceDetail(id, status !== "booting");
-  const availability = useAvailability(detail.data?.seller_id, Boolean(detail.data));
+  const newProduct = detail.data?.fulfillment_seconds != null;
+  const availability = useAvailability(detail.data?.seller_id, Boolean(detail.data) && !newProduct);
   const reviews = useProductReviews(id, status !== "booting");
   const reviewItems = useMemo(() => reviews.data?.pages.flatMap((page) => page.items) ?? [], [reviews.data]);
 
@@ -57,136 +62,132 @@ export function ServiceDetailScreen() {
   const sellerTags = [service.seller.preferred_mode, service.seller.play_style].filter((value): value is string => Boolean(value));
 
   const consult = async () => {
+    if (consultation.current) return;
     if (status !== "authenticated") {
       router.push({ pathname: "/(auth)/required", params: { action: "咨询陪玩", returnTo: `/services/${service.id}` } });
       return;
     }
+    consultation.current = true;
     setConsulting(true);
     setNotice(null);
     try {
       const conversation = await createConsultation(service.id);
-      router.push({ pathname: "/conversations/[id]", params: { id: conversation.id } });
+      if (mounted.current) router.push({ pathname: "/conversations/[id]", params: { id: conversation.id } });
     } catch (error) {
-      setNotice(error instanceof ApiClientError ? error.message : "暂时无法创建咨询会话");
+      if (mounted.current) setNotice(userFacingError(error));
     } finally {
-      setConsulting(false);
+      consultation.current = false;
+      if (mounted.current) setConsulting(false);
     }
   };
 
   const purchase = () => {
-    if (!selected || block || availability.isPending || availability.isError) return;
-    const returnTo = `/checkout/schedule?productId=${encodeURIComponent(service.id)}&skuId=${encodeURIComponent(selected.id)}`;
-    if (status !== "authenticated") router.push({ pathname: "/(auth)/required", params: { action: "预约服务", returnTo } });
-    else router.push({ pathname: "/checkout/schedule", params: { productId: service.id, skuId: selected.id } });
+    if (navigating.current || !selected || block || (!newProduct && (availability.isPending || availability.isError))) return;
+    navigating.current = true;
+    const target = newProduct ? "/checkout/confirm" : "/checkout/schedule";
+    const returnTo = `${target}?productId=${encodeURIComponent(service.id)}&skuId=${encodeURIComponent(selected.id)}${newProduct ? `&flow=fulfillment&quantity=${quantity}` : ""}`;
+    setSheetOpen(false);
+    if (status !== "authenticated") router.push({ pathname: "/(auth)/required", params: { action: newProduct ? "购买商品" : "预约服务", returnTo } });
+    else router.push({ pathname: target, params: { productId: service.id, skuId: selected.id, ...(newProduct ? { flow: "fulfillment", quantity: String(quantity) } : {}) } });
   };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "left", "right"]}>
       <ServiceBackdrop />
       <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={detail.isRefetching || availability.isRefetching || reviews.isRefetching} onRefresh={() => { void detail.refetch(); void availability.refetch(); void reviews.refetch(); }} tintColor={colors.accent} />}>
-        <View style={styles.header}>
-          <Pressable accessibilityRole="button" accessibilityLabel="返回" onPress={() => router.back()} style={[styles.headerButton, styles.backButton]}><ChevronLeftIcon size={28} /></Pressable>
-          <Text style={styles.headerTitle}>服务详情</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="分享服务" onPress={() => void Share.share({ message: `熊崽电竞服务：${service.title}` })} style={styles.headerButton}><Text style={styles.share}>↗</Text></Pressable>
-        </View>
         {notice ? <NoticeBanner tone="danger" message={notice} /> : null}
+        <View style={detailStyles.heroWrap}>
+          <FileImage fileId={coverFileId} style={detailStyles.hero} resizeMode="contain" label={`${service.title}封面`} />
+          <Pressable accessibilityRole="button" accessibilityLabel="返回上一页" onPress={() => router.back()} style={detailStyles.back}><ChevronLeftIcon size={24} /></Pressable>
+        </View>
 
-        <FileImage fileId={coverFileId} style={styles.hero} label={`${service.title}封面`} />
-
-        <View style={styles.titleCard}>
-          <View style={styles.titleRow}>
-            <View style={styles.titleCopy}>
+        <View style={detailStyles.section}>
+          <Text style={detailStyles.price} accessibilityLabel={`价格${formatCent(service.min_price_cent)}起`}>{formatCent(service.min_price_cent)}<Text style={styles.priceSuffix}> 起</Text></Text>
               <View style={styles.badges}><Text style={styles.badge}>平台保障</Text>{service.seller.accepting_orders ? <Text style={styles.badgeBlue}>在线接单</Text> : null}</View>
               <Text style={styles.title}>{service.title}</Text>
               <Text style={styles.subtitle} numberOfLines={2}>{service.service_time_description ?? service.description}</Text>
-            </View>
-            <Text style={styles.price} accessibilityLabel={`价格${formatCent(service.min_price_cent)}起`}>{formatCent(service.min_price_cent)}<Text style={styles.priceSuffix}> 起</Text></Text>
-          </View>
-          <Text style={styles.metrics}>已售 {service.sold_count} · ★ {service.rating_avg} · {service.review_count} 条评价</Text>
+          <Text style={detailStyles.metrics}>已售 {service.sold_count} · {service.review_count ? `${service.rating_avg} 分 · ${service.review_count} 条评价` : '暂无评价'}</Text>
         </View>
 
-        <View style={styles.panel}>
-          <SectionTitle title="选择服务规格" note="价格由陪玩自主设置" />
-          {activeSkus.length ? <View style={styles.skuGrid}>{activeSkus.map((sku) => {
-            const active = selected?.id === sku.id;
-            return <Pressable key={sku.id} accessibilityRole="radio" accessibilityState={{ checked: active }} onPress={() => setSelectedSku(sku.id)} style={[styles.skuCard, active && styles.skuActive]}><FileImage fileId={coverFileId} style={styles.skuImage} label={`${sku.sku_name}规格图片`} />{active ? <Text style={styles.skuCheck}>✓</Text> : null}<Text style={styles.skuName} numberOfLines={1}>{sku.sku_name}</Text><View style={styles.skuMeta}><Text style={styles.skuPrice}>{formatCent(sku.price_cent)}</Text><Text style={styles.skuDuration}>约 {sku.duration_minutes} 分钟</Text></View></Pressable>;
-          })}</View> : <Text style={styles.empty}>暂无可选规格</Text>}
-        </View>
-
-        <Pressable accessibilityRole="button" accessibilityLabel={`进入${service.seller.seller_nickname}的陪玩主页`} onPress={() => router.push(`/companions/${service.seller.id}`)} style={styles.sellerCard}>
-          <FileImage fileId={service.seller.seller_avatar_file_id} style={styles.avatar} label={`${service.seller.seller_nickname}头像`} />
-          <View style={styles.sellerCopy}><Text style={styles.sellerTitle}>{service.seller.seller_nickname} 的陪玩主页</Text><Text style={styles.sellerMeta}>{service.seller.game_rank ?? "和平精英陪玩"} · ★ {service.seller.rating_avg} · {service.seller.completed_order_count} 单</Text>{sellerTags.length ? <Text style={styles.sellerTags} numberOfLines={1}>{sellerTags.join(" · ")}</Text> : null}</View>
-          <Text style={styles.sellerArrow}>进主页 ›</Text>
+        <Pressable accessibilityRole="button" accessibilityLabel={`进入${service.seller.seller_nickname}的陪玩主页`} onPress={() => router.push(`/companions/${service.seller.id}`)} style={detailStyles.seller}>
+          <FileImage fileId={service.seller.seller_avatar_file_id} style={detailStyles.avatar} label={`${service.seller.seller_nickname}头像`} />
+          <View style={styles.sellerCopy}><Text style={styles.sellerTitle}>{service.seller.seller_nickname} 的店铺主页</Text><Text style={styles.sellerMeta}>{service.seller.game_rank ?? '游戏资料未填写'} · {service.seller.review_count ? `${service.seller.rating_avg} 分` : '暂无评价'} · {service.seller.accepting_orders ? '接待中' : '暂停接待'}</Text>{sellerTags.length ? <Text style={styles.sellerTags} numberOfLines={1}>{sellerTags.join(" · ")}</Text> : null}</View>
+          <Text style={styles.sellerArrow}>进主页 <JellyIcon kind="back" right /></Text>
         </Pressable>
 
-        <View style={styles.panel}>
+        <View style={detailStyles.section}>
           <SectionTitle title="服务说明" />
-          <View style={styles.facts}><Fact label="沟通方式" value="平台文字聊天" /><Fact label="平台保障" value="退款与平台介入" /></View>
-          <Text style={styles.description}>{service.description}</Text>
+          <Fact label="简介" value={service.description} /><Fact label="游戏类目" value={service.game ? productGameLabels[service.game] : '游戏资料未填写'} />
         </View>
+        {service.images.filter(image => image.image_kind === 'DETAIL').map(image => <FileImage key={image.id} fileId={image.file_id} style={detailStyles.hero} resizeMode="contain" label="商品详情图" />)}
+        <Text style={detailStyles.fulfillment}>{newProduct ? `付款后 ${service.fulfillment_seconds! / 3600} 小时内完成` : '旧预约服务'}</Text>
 
         {block ? <NoticeBanner tone="danger" message={purchaseBlockCopy[block]} /> : null}
 
-        <View style={styles.panel}>
-          <SectionTitle title="服务评价" note={`${service.review_count} 条`} action={reviews.hasNextPage ? "加载更多 ›" : undefined} onAction={reviews.hasNextPage ? () => void reviews.fetchNextPage() : undefined} />
+        <View style={detailStyles.section}>
+          <SectionTitle title="商品评价" action="查看全部 ›" onAction={() => router.push({ pathname: '/services/[id]/reviews', params: { id: service.id } })} />
           <ReviewContent items={reviewItems} pending={reviews.isPending} error={reviews.isError} onRetry={() => void reviews.refetch()} />
+          {reviews.hasNextPage ? <Pressable accessibilityRole="button" disabled={reviews.isFetchingNextPage} onPress={() => void reviews.fetchNextPage()} style={styles.reviewRetry}><Text style={styles.reviewRetryText}>{reviews.isFetchingNextPage ? '加载中…' : '加载更多商品评价'}</Text></Pressable> : null}
         </View>
       </ScrollView>
 
       <SafeAreaView edges={["bottom"]} style={styles.bottomSafe}>
-        <View style={styles.actions}>
-          <Pressable accessibilityRole="button" disabled={consulting} onPress={() => void consult()} style={styles.iconAction}><MessageActionIcon size={32} /><Text style={styles.consultLabel}>{consulting ? "连接中" : "咨询"}</Text></Pressable>
+        <BrandBackdrop dock />
+        <View style={detailStyles.actions}>
+          <Pressable accessibilityRole="button" accessibilityLabel="店铺" onPress={() => router.push(`/companions/${service.seller.id}`)} style={detailStyles.iconAction}><ApprovedIllustration kind="home" size={25} /><Text style={detailStyles.actionLabel}>店铺</Text></Pressable>
           <FavoriteButton type="PRODUCT" id={service.id} returnTo={`/services/${service.id}`} onError={setNotice} appearance="service-action" />
-          <Pressable accessibilityRole="button" accessibilityLabel={block ? "当前不可购买" : selected ? `选择规格，${formatCent(selected.price_cent)}起` : "请选择规格"} disabled={Boolean(block) || !selected || availability.isPending || availability.isError} onPress={purchase} style={[styles.buy, (block || !selected || availability.isPending || availability.isError) && styles.buyDisabled]}><Text style={styles.buyTitle}>{block ? "当前不可购买" : "选择规格"}</Text><Text style={styles.buyPrice}>{selected ? `${formatCent(selected.price_cent)}起` : "暂不可买"}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="咨询店铺客服" accessibilityState={{ busy: consulting, disabled: consulting }} disabled={consulting} onPress={() => void consult()} style={detailStyles.iconAction}><ApprovedIllustration kind="message" size={25} /><Text style={detailStyles.actionLabel}>{consulting ? "连接中" : "客服"}</Text></Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={block ? "暂不可购买" : '立即购买'} disabled={Boolean(block) || !selected || (!newProduct && (availability.isPending || availability.isError))} onPress={() => setSheetOpen(true)} style={[detailStyles.buy, (block || !selected || (!newProduct && (availability.isPending || availability.isError))) && styles.buyDisabled]}><Text style={detailStyles.buyLabel}>{block ? "暂不可购买" : "立即购买"}</Text></Pressable>
         </View>
       </SafeAreaView>
+      {sheetOpen ? <PurchaseSpecSheet title={service.title} seller={service.seller.seller_nickname} coverFileId={coverFileId} skus={activeSkus} selectedId={selected?.id} quantity={newProduct ? quantity : 1} onQuantity={newProduct ? setQuantity : undefined} onSelect={setSelectedSku} onClose={() => setSheetOpen(false)} onConfirm={purchase} blocked={block ? purchaseBlockCopy[block] : (!newProduct && (availability.isPending || availability.isError)) ? '请重新读取可约时段后再继续' : undefined} /> : null}
     </SafeAreaView>
   );
 }
 
-function ServiceBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ServiceBackdrop() { return <BrandBackdrop />; }
 
 function SectionTitle({ title, note, action, onAction }: { title: string; note?: string; action?: string; onAction?: () => void }) { return <View style={styles.sectionHead}><View style={styles.sectionCopy}><Text style={styles.sectionTitle}>{title}</Text>{note ? <Text style={styles.sectionNote}>{note}</Text> : null}</View>{action && onAction ? <Pressable accessibilityRole="button" onPress={onAction} style={styles.sectionAction}><Text style={styles.sectionActionText}>{action}</Text></Pressable> : null}</View>; }
 
-function Fact({ label, value }: { label: string; value: string }) { return <View style={styles.fact}><Text style={styles.factLabel}>{label}</Text><Text style={styles.factValue} numberOfLines={2}>{value}</Text></View>; }
+function Fact({ label, value }: { label: string; value: string }) { return <View style={detailStyles.fact}><Text style={detailStyles.factLabel}>{label}</Text><Text style={detailStyles.factValue}>{value}</Text></View>; }
 
 function ReviewContent({ items, pending, error, onRetry }: { items: ReviewApiView[]; pending: boolean; error: boolean; onRetry: () => void }) {
   if (pending) return <Text style={styles.reviewState}>正在加载真实订单评价…</Text>;
   if (error) return <Pressable accessibilityRole="button" onPress={onRetry} style={styles.reviewRetry}><Text style={styles.reviewRetryText}>评价加载失败，点击重试</Text></Pressable>;
   if (!items.length) return <Text style={styles.reviewState}>暂无评价，完成订单后可以评价服务。</Text>;
-  return <View>{items.map((review) => <View key={review.id} style={styles.review}><View style={styles.reviewHead}><Text style={styles.reviewer}>{review.display_nickname}</Text><Text style={styles.stars}>{"★".repeat(review.rating)}</Text></View><Text style={styles.reviewBody}>{review.content ?? "用户未填写文字评价"}</Text><Text style={styles.reviewMeta}>{review.sku_name} · {new Date(review.created_at).toLocaleDateString("zh-CN")}</Text></View>)}</View>;
+  return <View>{items.map((review) => <View key={review.id} style={styles.review}><View style={styles.reviewHead}><Text style={styles.reviewer}>{review.display_nickname}</Text><Text style={styles.stars}>{Array.from({ length: review.rating }, (_, index) => <JellyIcon key={index} kind="star" />)}</Text></View><Text style={styles.reviewBody}>{review.content ?? "用户未填写文字评价"}</Text><ReviewImages review={review} /><Text style={styles.reviewMeta}>{review.sku_name} · {new Date(review.created_at).toLocaleDateString("zh-CN")}</Text></View>)}</View>;
 }
 
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFAF0" },
-  bottomSafe: { backgroundColor: "#FFFCF5" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  bottomSafe: { backgroundColor: colors.dock, shadowOpacity: 0, elevation: 0, borderTopColor: colors.divider },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 20 },
-  header: { height: 67, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9, paddingBottom: 10 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  backButton: { width: 48, height: 48, borderWidth: 1, borderColor: "rgba(102,92,76,0.1)", borderRadius: 16, backgroundColor: "rgba(255,255,255,0.8)", shadowColor: "#4C3D28", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 10, elevation: 2 },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
+  backButton: { shadowColor: "#4C3D28", shadowOffset: { width: 0, height: 4 }, shadowRadius: 10, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
   share: { color: colors.text, fontSize: 25, lineHeight: 30, fontWeight: "700" },
-  headerTitle: { flex: 1, color: colors.text, fontSize: 25, lineHeight: 31, fontWeight: "800", textAlign: "center" },
+  headerTitle: { flex: 1, color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
   hero: { width: "auto", aspectRatio: 1, marginHorizontal: 12, marginBottom: 9, borderRadius: 20, backgroundColor: "#C9E2F6", ...softShadow },
-  titleCard: { marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "#FFFDF8", ...softShadow },
+  titleCard: { marginHorizontal: 12, marginBottom: 10, padding: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   titleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   titleCopy: { flex: 1 },
   badges: { flexDirection: "row", gap: 5 },
-  badge: { overflow: "hidden", paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, backgroundColor: "#EEE9FF", color: "#6648BD", fontSize: 12, fontWeight: "800" },
-  badgeBlue: { overflow: "hidden", paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, backgroundColor: "#E5F1FF", color: "#3475C4", fontSize: 12, fontWeight: "800" },
-  title: { marginTop: 8, color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "900" },
-  subtitle: { marginTop: 4, color: "#74767B", fontSize: 13, lineHeight: 19 },
+  badge: { overflow: "hidden", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, backgroundColor: "#E6F3FF", color: "#23639D", fontSize: 10, lineHeight: 14 },
+  badgeBlue: { overflow: "hidden", paddingHorizontal: 6, paddingVertical: 3, borderRadius: 6, backgroundColor: "#E6F3FF", color: "#23639D", fontSize: 10, lineHeight: 14 },
+  title: { marginTop: 6, marginBottom: 6, color: '#20242A', fontSize: 19, lineHeight: 28, fontWeight: "600" },
+  subtitle: { marginBottom: 10, color: "#6B7078", fontSize: 13, lineHeight: 20 },
   price: { flexShrink: 0, color: colors.accent, fontSize: 23, fontWeight: "900" },
   priceSuffix: { fontSize: 12, fontWeight: "700" },
   metrics: { marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(62,57,47,0.11)", color: "#777A80", fontSize: 12 },
-  panel: { marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  panel: { marginHorizontal: 12, marginBottom: 10, padding: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   sectionHead: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   sectionCopy: { flex: 1, flexDirection: "row", alignItems: "baseline", gap: 8 },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
+  sectionTitle: { color: '#20242A', fontSize: 16, fontWeight: "600" },
   sectionNote: { flexShrink: 1, color: "#7B7D83", fontSize: 12 },
   sectionAction: { minHeight: 44, justifyContent: "center", paddingHorizontal: 6 },
   sectionActionText: { color: "#767A82", fontSize: 12, fontWeight: "800" },
@@ -200,10 +201,10 @@ const styles = StyleSheet.create({
   skuPrice: { color: colors.accent, fontSize: 18, fontWeight: "900" },
   skuDuration: { flexShrink: 1, color: "#6D6D6D", fontSize: 12, textAlign: "right" },
   empty: { paddingVertical: 24, color: "#7B7D83", fontSize: 12, textAlign: "center" },
-  sellerCard: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 9, marginHorizontal: 12, marginBottom: 10, padding: 11, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "#FFFDF8", ...softShadow },
+  sellerCard: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: 9, marginHorizontal: 12, marginBottom: 10, padding: 11, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   avatar: { width: 58, height: 58, borderWidth: 3, borderColor: colors.white, borderRadius: 29, backgroundColor: "#CBE4FA" },
   sellerCopy: { flex: 1 },
-  sellerTitle: { color: colors.text, fontSize: 14, fontWeight: "800" },
+  sellerTitle: { color: '#20242A', fontSize: 14, fontWeight: "700" },
   sellerMeta: { marginTop: 5, color: "#74767B", fontSize: 12, lineHeight: 16 },
   sellerTags: { marginTop: 5, color: "#604CB5", fontSize: 12 },
   sellerArrow: { color: colors.text, fontSize: 12, fontWeight: "800" },
@@ -228,4 +229,21 @@ const styles = StyleSheet.create({
   buyDisabled: { backgroundColor: "#C8C3BB", shadowOpacity: 0 },
   buyTitle: { color: colors.white, fontSize: 13, fontWeight: "900" },
   buyPrice: { marginTop: 2, color: colors.white, fontSize: 12, fontWeight: "800" }
+});
+
+// Values transcribed from commerce-layout.css product-page, not the old card-grid layout.
+const detailStyles = StyleSheet.create({
+  heroWrap: { position: 'relative' }, hero: { width: '100%', aspectRatio: 1 },
+  back: { position: 'absolute', top: 14, left: 12, width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#FFFFFF80', borderRadius: 22, backgroundColor: '#17345188' },
+  section: { paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  price: { marginBottom: 8, color: colors.brand, fontSize: 32, lineHeight: 37, fontWeight: '700', letterSpacing: -.6 },
+  metrics: { color: colors.textSecondary, fontSize: 12, marginTop: 10, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+  seller: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 80, paddingVertical: 14, paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  avatar: { width: 44, height: 44, borderRadius: 4 },
+  fact: { flexDirection: 'row', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.divider },
+  factLabel: { width: 64, fontSize: 14, lineHeight: 23, color: colors.textSecondary }, factValue: { flex: 1, fontSize: 14, lineHeight: 23, color: colors.text },
+  fulfillment: { padding: 16, fontSize: 13, lineHeight: 22, color: colors.textSecondary },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 8, paddingBottom: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+  iconAction: { width: 44, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 4 }, actionLabel: { fontSize: 12, lineHeight: 17, color: colors.textSecondary },
+  buy: { flex: 1, minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 8, borderRadius: 10, backgroundColor: colors.brand }, buyLabel: { color: colors.white, fontSize: 17, fontWeight: '600', textAlign: 'center' }
 });

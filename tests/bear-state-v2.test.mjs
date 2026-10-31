@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import path from "node:path";
 import { createRequire } from "node:module";
 import test from "node:test";
 import vm from "node:vm";
 import ts from "typescript";
-import React from "react";
+import React from "react"; import { commerceContract } from "./helpers/commerce-contract.mjs";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const require = createRequire(import.meta.url);
@@ -18,12 +19,19 @@ function loadTs(file, globals = {}, cache = new Map()) {
   const js = ts.transpileModule(read(`app/${file}`), { compilerOptions: {
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX,
   } }).outputText;
-  vm.runInNewContext(js, { module: cjsModule, exports: cjsModule.exports, ...globals, require: (id) => id.startsWith("./")
-    ? loadTs(`${id.slice(2)}${id.includes("Image") ? ".tsx" : ".ts"}`, globals, cache) : require(id) });
+  vm.runInNewContext(js, { module: cjsModule, exports: cjsModule.exports, ...globals, require: (id) => {
+    if(id==="../packages/contracts/src/commerce") return commerceContract;
+    if(!id.startsWith(".")) return require(id);
+    const relative=path.posix.normalize(path.posix.join(path.posix.dirname(file),id));
+    const extension=[".tsx",".ts"].find(ext=>existsSync(new URL("app/"+relative+ext,root)));
+    if(!extension) throw new Error("Missing local component: "+relative);
+    return loadTs(relative+extension,globals,cache);
+  } });
   return cjsModule.exports;
 }
 const { bearClips, bearScenes, financeBearScene } = loadTs("bear-state-config.ts");
-const manifest = JSON.parse(read("design-output/bear-ui-motion-v2/asset-manifest.json"));
+const manifest = JSON.parse(read("tests/fixtures/bear-assets/v2-manifest.json"));
+const sourceHashes = JSON.parse(read("tests/fixtures/bear-assets/source-hashes.json")).v2;
 
 test("all ten V2 assets are byte-identical, with delivered timing/loops and only runtime directories", () => {
   assert.deepEqual(readdirSync(new URL("public/assets/bear-states-v2/", root)).sort(), ["assets", "end", "posters"]);
@@ -33,7 +41,7 @@ test("all ten V2 assets are byte-identical, with delivered timing/loops and only
     assert.equal(bearClips[asset.id].durationMs, asset.durationMs);
     assert.equal(asset.formats.webp.loopCount, asset.playback === "loop" ? 0 : 1);
     for (const path of [asset.webp, asset.gif, asset.poster, asset.endPoster]) {
-      assert.equal(hash(`public/assets/bear-states-v2/${path}`), hash(`design-output/bear-ui-motion-v2/${path}`), path);
+      assert.equal(hash(`public/assets/bear-states-v2/${path}`), sourceHashes[path], path);
     }
     assert.equal(hash(`public/assets/bear-states-v2/${asset.webp}`), asset.formats.webp.sha256);
   }
@@ -193,23 +201,26 @@ test("UI integration preserves raw payment association, isolated empty previews 
   const page = read("app/page.tsx");
   assert.match(page, /suppliedPayment\?\.order_id === order\?\.id/);
   assert.match(page, /key="preview-empty-orders"/); assert.match(page, /key="preview-empty-favorites"/);
-  assert.match(page, /loaded && !loadError && conversations.length === 0/);
+  assert.match(read("app/ConversationList.tsx"), /!busy && !loading && !searchError && !error && rows.length === 0/);
   assert.match(page, /loaded && !loadError && visible.length === 0/);
   assert.match(page, /loading=\{discoveryLoading\} error=\{discoveryError\}/);
   assert.match(read("app/BearStatusSupport.tsx"), /测试支付，不会真实扣款/);
   assert.match(page, /apiDetail\?\.id === serviceId && Array\.isArray\(apiDetail\?\.skus\) && apiSpecs\?\.length === 0/);
-  assert.match(page, /disabled=\{!apiSpecs\?\.length\}/);
+  assert.match(page, /unavailable=\{!apiSpecs\?\.length\|\|apiDetail\?\.status/);
   assert.doesNotMatch(read("app/BearStateImage.tsx") + read("app/bear-playback.ts"), /onComplete|onSuccess|apiRequest|fetch\(/);
 });
 
 test("rendered payment status ignores an old order's successful payment", () => {
+  const {commerceOrderLabel,paymentStatusLabel}=loadTs("commerce-model.ts");
   const source = ts.createSourceFile("page.tsx", read("app/page.tsx"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const fn = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "PaymentResultScreen");
-  const js = ts.transpileModule(fn.getText(source), { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const appointment = source.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "appointmentText");
+  assert.ok(appointment);
+  const js = ts.transpileModule(`${appointment.getText(source)}\n${fn.getText(source)}`, { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   const PaymentResultScreen = vm.runInNewContext(`${js}\nPaymentResultScreen`, {
     // This isolated render stub accepts only the scene supplied by the typed production component.
     // eslint-disable-next-line react/prop-types
-    React, StateBear: ({ scene }) => React.createElement("i", { "data-scene": scene }),
+    React, commerceOrderLabel, paymentStatusLabel, isFulfillmentOrder: commerceContract.isFulfillmentOrder, StateBear: ({ scene }) => React.createElement("i", { "data-scene": scene }),
     DemoStateNotice: () => null, AppIcon: () => null, ContextStateScreen: () => null,
     formatCent: (value) => (Number(value) / 100).toFixed(2),
   });

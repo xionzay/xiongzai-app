@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { useCallback, useMemo, useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/auth/auth-provider";
@@ -14,14 +15,7 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 import { colors } from "@/theme/tokens";
 import { ShieldIcon } from "@/components/tab-icons";
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const from = ratio <= 0.56 ? [255, 250, 240] : [255, 253, 247];
-  const to = ratio <= 0.56 ? [255, 253, 247] : [248, 241, 231];
-  const progress = ratio <= 0.56 ? ratio / 0.56 : (ratio - 0.56) / 0.44;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function ScheduleScreen() {
   const { productId = "", skuId = "" } = useLocalSearchParams<{ productId: string; skuId: string }>();
@@ -30,15 +24,15 @@ export function ScheduleScreen() {
   const detail = useServiceDetail(productId, status === "authenticated");
   const availability = useAvailability(detail.data?.seller_id, Boolean(detail.data) && status === "authenticated");
   const sku = detail.data ? selectedSku(detail.data.skus, skuId) : undefined;
-  const options = useMemo(() => sku ? buildStartOptions(availability.data ?? [], sku.duration_minutes) : [], [availability.data, sku]);
+  const options = useMemo(() => sku ? buildStartOptions(availability.data ?? [], sku.duration_minutes ?? 0) : [], [availability.data, sku]);
   const [selectedStart, setSelectedStart] = useState<string | null>(null);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (status === "anonymous") {
       const returnTo = `/checkout/schedule?productId=${encodeURIComponent(productId)}&skuId=${encodeURIComponent(skuId)}`;
       router.replace({ pathname: "/(auth)/required", params: { action: "预约服务", returnTo } });
     }
-  }, [productId, skuId, status]);
+  }, [productId, skuId, status]));
 
   const option = options.find((item) => item.startsAt === selectedStart) ?? options[0];
   if (status === "booting" || detail.isPending || availability.isPending) return <AppScreen><PageHeader title="选择预约时间" /><StateView kind="loading" title="正在核对真实可约时间" /></AppScreen>;
@@ -82,28 +76,28 @@ export function ScheduleScreen() {
   );
 }
 
-function ScheduleBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ScheduleBackdrop() { return <BrandBackdrop />; }
 
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#FFFAF0" },
-  bottomSafe: { backgroundColor: "#FFFCF5" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  bottomSafe: { backgroundColor: colors.dock, shadowOpacity: 0, elevation: 0, borderTopColor: colors.divider },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 18 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 23, lineHeight: 30, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
-  playerCard: { minHeight: 84, flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 13, marginBottom: 12, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 18, backgroundColor: "#FFFDF8", ...softShadow },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
+  playerCard: { minHeight: 84, flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 13, marginBottom: 12, padding: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   avatar: { width: 58, height: 58, borderWidth: 3, borderColor: colors.white, borderRadius: 29, backgroundColor: "#CBE4FA" },
   playerCopy: { flex: 1, gap: 5 },
   playerTitle: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: "800" },
   playerMeta: { color: "#74767B", fontSize: 12, lineHeight: 16 },
-  panel: { marginHorizontal: 13, marginBottom: 12, padding: 15, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  panel: { marginHorizontal: 13, marginBottom: 12, padding: 15, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   sectionHead: { minHeight: 36, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
   sectionTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
   sectionNote: { color: "#7B7D83", fontSize: 12 },
@@ -119,7 +113,7 @@ const styles = StyleSheet.create({
   emptyNote: { marginTop: 6, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
   retry: { minHeight: 44, justifyContent: "center", marginTop: 8, paddingHorizontal: 14 },
   retryText: { color: colors.accent, fontSize: 12, fontWeight: "900" },
-  ruleCard: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 13, marginBottom: 12, padding: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  ruleCard: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 13, marginBottom: 12, padding: 14, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   ruleCopy: { flex: 1, gap: 4 },
   ruleTitle: { color: colors.text, fontSize: 13, fontWeight: "800" },
   ruleNote: { color: "#74767B", fontSize: 12, lineHeight: 16 },

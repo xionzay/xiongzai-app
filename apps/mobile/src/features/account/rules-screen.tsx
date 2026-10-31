@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { useMemo, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui-icons";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -26,14 +28,7 @@ const policyGroups: PolicyGroup[] = [
   { key: "separate", title: "单独授权与争议规则", hint: "测试实名、声音名片公开试听及投诉处理", policyTypes: ["IDENTITY_INFORMATION_SEPARATE_CONSENT", "VOICE_SAMPLE_PUBLIC_PLAYBACK_AUTHORIZATION", "COMPLAINT_DISPUTE_RULES"] }
 ];
 
-const backgroundBands = Array.from({ length: 52 }, (_, index) => {
-  const ratio = index / 51;
-  const from = ratio < 0.18 ? [222, 240, 255] : [255, 252, 246];
-  const to = ratio < 0.18 ? [255, 252, 246] : [249, 244, 235];
-  const progress = ratio < 0.18 ? ratio / 0.18 : (ratio - 0.18) / 0.82;
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function RulesScreen() {
   const { user } = useAuth();
@@ -122,9 +117,7 @@ export function RulesScreen() {
   );
 }
 
-function RulesBackdrop() {
-  return <View pointerEvents="none" style={styles.backdrop}>{backgroundBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>;
-}
+function RulesBackdrop() { return <BrandBackdrop />; }
 
 function PolicyAccordion({ group, policies, expanded, acceptedPolicyIds, showAcceptance, onToggle }: {
   group: PolicyGroup;
@@ -141,7 +134,7 @@ function PolicyAccordion({ group, policies, expanded, acceptedPolicyIds, showAcc
           <Text style={styles.ruleTitle}>{group.title}</Text>
           <Text style={styles.ruleHint}>{group.hint}</Text>
         </View>
-        <Text style={[styles.chevron, expanded && styles.chevronExpanded]}>⌄</Text>
+        <JellyIcon kind="chevron" up={expanded} />
       </Pressable>
       {expanded ? (
         <View style={styles.ruleBody}>
@@ -166,25 +159,25 @@ function PolicyAccordion({ group, policies, expanded, acceptedPolicyIds, showAcc
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#DEF0FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
   band: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: 12, paddingBottom: 24 },
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center" },
-  back: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 14, backgroundColor: "#FFFDF8", ...softShadow },
+  header: { flexDirection: "row", alignItems: "center", minHeight: 60, paddingBottom: 4, height: undefined },
+  back: { alignItems: "center", justifyContent: "center", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   backText: { marginTop: -3, color: colors.text, fontSize: 34, lineHeight: 38, fontWeight: "500" },
-  headerCopy: { flex: 1, marginLeft: 11 },
-  pageTitle: { color: colors.text, fontSize: 24, lineHeight: 29, fontWeight: "800" },
-  pageSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  protectionCard: { minHeight: 94, flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(39,143,232,0.14)", borderRadius: 19, backgroundColor: "rgba(220,238,255,0.96)", ...softShadow },
+  headerCopy: { flex: 1, marginLeft: 0, minWidth: 0 },
+  pageTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  pageSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
+  protectionCard: { minHeight: 94, flexDirection: "row", alignItems: "center", gap: 13, paddingHorizontal: 14, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   protectionIconWrap: { width: 54, height: 54, alignItems: "center", justifyContent: "center", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.88)" },
   protectionCopy: { flex: 1 },
   protectionTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "900" },
   protectionText: { marginTop: 6, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
   draftNotice: { marginTop: 13 },
-  stateCard: { minHeight: 160, marginTop: 13, justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.95)", ...softShadow },
+  stateCard: { minHeight: 160, marginTop: 13, justifyContent: "center", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   ruleList: { gap: 9, marginTop: 13 },
-  ruleCard: { overflow: "hidden", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  ruleCard: { overflow: "hidden", ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   ruleHeader: { minHeight: 68, flexDirection: "row", alignItems: "center", paddingHorizontal: 15 },
   ruleCopy: { flex: 1 },
   ruleTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "800" },
@@ -203,7 +196,7 @@ const styles = StyleSheet.create({
   unpublished: { paddingTop: 13, color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
   recordMeta: { marginTop: 10, color: colors.textSecondary, fontSize: 12, lineHeight: 16, textAlign: "center" },
   recordError: { marginTop: 10, color: colors.danger, fontSize: 12, lineHeight: 16, textAlign: "center" },
-  recordsCard: { minHeight: 76, flexDirection: "row", alignItems: "center", marginTop: 13, paddingHorizontal: 15, borderWidth: 1, borderColor: "rgba(39,143,232,0.16)", borderRadius: 18, backgroundColor: "rgba(220,238,255,0.95)", ...softShadow },
+  recordsCard: { minHeight: 76, flexDirection: "row", alignItems: "center", marginTop: 13, paddingHorizontal: 15, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   supportCard: { minHeight: 76, flexDirection: "row", alignItems: "center", marginTop: 13, paddingHorizontal: 15, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,248,221,0.93)", ...softShadow },
   supportCopy: { flex: 1 },
   supportTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "800" },

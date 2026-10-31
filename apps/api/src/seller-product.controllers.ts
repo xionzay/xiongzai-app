@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from "@nestjs/common";
-import { AppError, errorCodes } from "@xiongzai/contracts";
+import { AppError, errorCodes, productGames, MAX_FULFILLMENT_SECONDS } from "@xiongzai/contracts";
 import { requestContext } from "@xiongzai/observability";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -14,7 +14,7 @@ import { FileStorageService } from "./file-storage.service.js";
 const uuid = z.uuid();
 const nullableUuid = z.uuid().nullable().optional();
 const optionalText = (max: number) => z.string().trim().max(max).nullable().optional();
-const cents = z.string().regex(/^\d+$/u, "金额必须是非负整数分").transform((value) => BigInt(value)).refine((value) => value > 0n, "金额必须大于 0");
+const cents = z.string().max(19).regex(/^\d+$/u, "金额必须是非负整数分").transform((value) => BigInt(value)).refine((value) => value > 0n && value <= 9223372036854775807n, "金额必须为 PostgreSQL bigint 范围内的正整数分");
 const sellerProfileSchema = z.object({
   seller_nickname: z.string().trim().min(2).max(32), seller_avatar_file_id: nullableUuid, cover_file_id: nullableUuid,
   introduction: optionalText(1000), game_rank: optionalText(64), kd: z.string().regex(/^\d{1,3}(\.\d{1,2})?$/u).nullable().optional(),
@@ -26,25 +26,26 @@ const sellerProfileRevisionSchema = sellerProfileSchema.omit({ accepting_orders:
 const versionSchema = z.object({ version: z.number().int().nonnegative() });
 const sellerReviewSchema = z.object({ action: z.enum(["START_REVIEW", "REQUEST_SUPPLEMENT", "APPROVE", "REJECT"]), version: z.number().int().nonnegative(), reason: z.string().trim().min(2).max(1000).optional(), required_fields: z.array(z.string().trim().min(1).max(64)).max(30).optional() });
 const sellerStatusSchema = z.object({ action: z.enum(["SUSPEND", "RESTORE", "BAN"]), version: z.number().int().nonnegative(), reason: z.string().trim().min(2).max(1000) });
-const productSchema = z.object({ title: z.string().trim().min(4).max(120), description: z.string().trim().min(10).max(5000), service_time_description: optionalText(200), cover_file_id: nullableUuid });
+const productSchema = z.object({ title: z.string().trim().min(4).max(120), description: z.string().trim().min(10).max(5000), service_time_description: optionalText(200), cover_file_id: nullableUuid, game: z.enum(productGames).optional(), fulfillment_seconds: z.number().int().min(1).max(MAX_FULFILLMENT_SECONDS).optional(), pricing_mode: z.enum(["SINGLE", "MULTI"]).optional(), price_cent: cents.optional() });
 const productUpdateSchema = productSchema.extend({ version: z.number().int().nonnegative() });
-const skuCreateSchema = z.object({ sku_name: z.string().trim().min(1).max(100), description: optionalText(500), price_cent: cents, duration_minutes: z.number().int().min(1).max(1440), sort_order: z.number().int().min(0).max(1000).default(0) });
+const skuCreateSchema = z.object({ sku_name: z.string().trim().min(1).max(100), description: optionalText(500), price_cent: cents, duration_minutes: z.number().int().min(1).max(1440).optional(), sort_order: z.number().int().min(0).max(1000).default(0) });
 const skuUpdateSchema = z.object({ sku_name: z.string().trim().min(1).max(100).optional(), description: optionalText(500), price_cent: cents.optional(), duration_minutes: z.number().int().min(1).max(1440).optional(), status: z.enum(["ACTIVE", "INACTIVE", "DELETED"]).optional(), sort_order: z.number().int().min(0).max(1000).optional(), version: z.number().int().nonnegative() }).refine((value) => Object.keys(value).some((key) => key !== "version"), "至少修改一个字段");
-const imagesSchema = z.object({ version: z.number().int().nonnegative(), images: z.array(z.object({ file_id: uuid, sort_order: z.number().int().min(0).max(1000), is_cover: z.boolean().default(false) })).max(9) }).superRefine((value, context) => {
+const imagesSchema = z.object({ version: z.number().int().nonnegative(), images: z.array(z.object({ file_id: uuid, sort_order: z.number().int().min(0).max(1000), is_cover: z.boolean().default(false), image_kind: z.enum(["GALLERY", "DETAIL"]).default("GALLERY") })).max(30) }).superRefine((value, context) => {
   if (new Set(value.images.map((item) => item.file_id)).size !== value.images.length) context.addIssue({ code: "custom", message: "同一文件不能重复绑定" });
   if (new Set(value.images.map((item) => item.sort_order)).size !== value.images.length) context.addIssue({ code: "custom", message: "图片排序值不能重复" });
   const covers = value.images.filter((item) => item.is_cover).length;
-  if (value.images.length > 0 && covers !== 1) context.addIssue({ code: "custom", message: "有图片时必须且只能设置一张主图" });
+  if (value.images.some(item => item.image_kind === "GALLERY") && covers !== 1) context.addIssue({ code: "custom", message: "有商品图时必须且只能设置一张主图" });
+  if (value.images.some(item => item.is_cover && item.image_kind !== "GALLERY")) context.addIssue({ code: "custom", message: "详情图不能作为封面" });
 });
 const slotCreateSchema = z.object({ starts_at: z.coerce.date(), ends_at: z.coerce.date(), status: z.enum(["OPEN", "BLOCKED", "CLOSED"]).default("OPEN") });
 const slotUpdateSchema = z.object({ starts_at: z.coerce.date().optional(), ends_at: z.coerce.date().optional(), status: z.enum(["OPEN", "BLOCKED", "CLOSED"]).optional(), version: z.number().int().nonnegative() });
 const favoriteTargetSchema = z.enum(["SELLER", "PRODUCT"]);
 const discoverySchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), accepting_orders: z.enum(["true", "false"]).transform((value) => value === "true").optional(), keyword: z.string().trim().min(1).max(60).optional(), sort: z.enum(["comprehensive", "rating", "sales"]).default("comprehensive") });
 const availabilityQuerySchema = z.object({ from: z.coerce.date().optional(), to: z.coerce.date().optional() });
-const productListSchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), seller_id: z.uuid().optional(), keyword: z.string().trim().min(1).max(60).optional(), min_price_cent: z.string().regex(/^\d+$/u).transform(BigInt).optional(), max_price_cent: z.string().regex(/^\d+$/u).transform(BigInt).optional(), sort: z.enum(["comprehensive", "sales", "price_asc", "price_desc"]).default("comprehensive") });
+const productListSchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), seller_id: z.uuid().optional(), game: z.enum(productGames).optional(), keyword: z.string().trim().min(1).max(60).optional(), min_price_cent: z.string().regex(/^\d+$/u).transform(BigInt).optional(), max_price_cent: z.string().regex(/^\d+$/u).transform(BigInt).optional(), sort: z.enum(["comprehensive", "sales", "price_asc", "price_desc"]).default("comprehensive") });
 const favoriteListSchema = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional(), target_type: favoriteTargetSchema.optional() });
-const sellerReviewListSchema = z.object({ status: z.enum(["DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEEDS_SUPPLEMENT", "APPROVED", "REJECTED"]).optional(), keyword:z.string().trim().min(1).max(100).optional(),cursor:z.string().trim().min(1).max(4096).optional(),limit: z.coerce.number().int().min(1).max(100).optional(),sort:z.enum(["created_desc","created_asc"]).default("created_desc") });
-const productReviewListSchema = z.object({ status: z.enum(["DRAFT", "PENDING_REVIEW", "ON_SALE", "REVIEW_REJECTED", "OFF_SALE", "ADMIN_OFF_SALE", "DELETED"]).optional(),keyword:z.string().trim().min(1).max(100).optional(),cursor:z.string().trim().min(1).max(4096).optional(),limit: z.coerce.number().int().min(1).max(100).optional(),sort:z.enum(["created_desc","created_asc"]).default("created_desc") });
+const sellerReviewListSchema = z.object({ status: z.enum(["PENDING", "DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEEDS_SUPPLEMENT", "APPROVED", "REJECTED"]).optional(), keyword:z.string().trim().min(1).max(100).optional(),cursor:z.string().trim().min(1).max(4096).optional(),limit: z.coerce.number().int().min(1).max(100).optional(),sort:z.enum(["created_desc","created_asc"]).default("created_desc") });
+const productReviewListSchema = z.object({ game: z.enum(productGames).optional(), status: z.enum(["DRAFT", "PENDING_REVIEW", "ON_SALE", "REVIEW_REJECTED", "OFF_SALE", "ADMIN_OFF_SALE", "DELETED"]).optional(),keyword:z.string().trim().min(1).max(100).optional(),cursor:z.string().trim().min(1).max(4096).optional(),limit: z.coerce.number().int().min(1).max(100).optional(),sort:z.enum(["created_desc","created_asc"]).default("created_desc") });
 const productReviewSchema = z.object({ action: z.enum(["APPROVE", "REJECT", "ADMIN_OFF_SALE", "ADMIN_RESTORE", "SOFT_DELETE"]), version: z.number().int().nonnegative(), reason: z.string().trim().min(2).max(1000).optional() });
 
 @Controller("api/v1/seller")
@@ -70,7 +71,7 @@ export class SellerController {
 
   @Post("services/:productId/skus") createSku(@Req() request: UserRequest, @Param("productId", new ZodValidationPipe(uuid)) productId: string, @Body(new ZodValidationPipe(skuCreateSchema)) body: z.infer<typeof skuCreateSchema>) { return this.service.addSku(principal(request), productId, { skuName: body.sku_name, description: body.description, priceCent: body.price_cent, durationMinutes: body.duration_minutes, sortOrder: body.sort_order }); }
   @Patch("services/:productId/skus/:skuId") updateSku(@Req() request: UserRequest, @Param("productId", new ZodValidationPipe(uuid)) productId: string, @Param("skuId", new ZodValidationPipe(uuid)) skuId: string, @Body(new ZodValidationPipe(skuUpdateSchema)) body: z.infer<typeof skuUpdateSchema>) { return this.service.updateSku(principal(request), productId, skuId, { skuName: body.sku_name, description: body.description, priceCent: body.price_cent, durationMinutes: body.duration_minutes, status: body.status, sortOrder: body.sort_order, version: body.version }); }
-  @Put("services/:productId/images") images(@Req() request: UserRequest, @Param("productId", new ZodValidationPipe(uuid)) productId: string, @Body(new ZodValidationPipe(imagesSchema)) body: z.infer<typeof imagesSchema>) { return this.service.replaceImages(principal(request), productId, { version: body.version, images: body.images.map((item) => ({ fileId: item.file_id, sortOrder: item.sort_order, isCover: item.is_cover })) }); }
+  @Put("services/:productId/images") images(@Req() request: UserRequest, @Param("productId", new ZodValidationPipe(uuid)) productId: string, @Body(new ZodValidationPipe(imagesSchema)) body: z.infer<typeof imagesSchema>) { return this.service.replaceImages(principal(request), productId, { version: body.version, images: body.images.map((item) => ({ fileId: item.file_id, sortOrder: item.sort_order, isCover: item.is_cover, imageKind: item.image_kind })) }); }
 
   @Get("availability") availability(@Req() request: UserRequest) { return this.service.listAvailability(principal(request)); }
   @Post("availability") createAvailability(@Req() request: UserRequest, @Body(new ZodValidationPipe(slotCreateSchema)) body: z.infer<typeof slotCreateSchema>) { return this.service.addAvailability(principal(request), { startsAt: body.starts_at, endsAt: body.ends_at, status: body.status }); }
@@ -90,7 +91,7 @@ export class CompanionDiscoveryController {
 @Controller("api/v1/services")
 export class ServiceDiscoveryController {
   constructor(private readonly service: SellerProductService) {}
-  @Get() @Public() list(@Query(new ZodValidationPipe(productListSchema)) query: z.infer<typeof productListSchema>) { return this.service.listProducts({ cursor: query.cursor, limit: query.limit, sellerId: query.seller_id, keyword: query.keyword, minPriceCent: query.min_price_cent, maxPriceCent: query.max_price_cent, sort: query.sort }); }
+  @Get() @Public() list(@Query(new ZodValidationPipe(productListSchema)) query: z.infer<typeof productListSchema>) { return this.service.listProducts({ cursor: query.cursor, limit: query.limit, sellerId: query.seller_id, game: query.game, keyword: query.keyword, minPriceCent: query.min_price_cent, maxPriceCent: query.max_price_cent, sort: query.sort }); }
   @Get(":productId") @Public() detail(@Param("productId", new ZodValidationPipe(uuid)) productId: string) { return this.service.getProduct(productId); }
 }
 
@@ -127,4 +128,4 @@ type UserRequest = FastifyRequest & AuthenticatedRequest;
 function principal(request: UserRequest) { if (!request.principal) throw new AppError({ code: errorCodes.AUTH_REQUIRED, message: "请先登录", statusCode: 401 }); return request.principal.sub; }
 function metadata(request: FastifyRequest): RequestMetadata { const context = requestContext.get(); return { ip: request.ip.slice(0, 64), userAgent: String(request.headers["user-agent"] ?? "unknown").slice(0, 2000), requestId: context?.requestId ?? "unknown", traceId: context?.traceId }; }
 function sellerInput(body: z.infer<typeof sellerProfileSchema>) { return { sellerNickname: body.seller_nickname, sellerAvatarFileId: body.seller_avatar_file_id, coverFileId: body.cover_file_id, introduction: body.introduction, gameRank: body.game_rank, kd: body.kd, preferredMode: body.preferred_mode, playStyle: body.play_style, gameExperience: body.game_experience, voiceFileId: body.voice_file_id, voiceDurationMs: body.voice_duration_ms, acceptingOrders: body.accepting_orders }; }
-function productInput(body: z.infer<typeof productSchema>) { return { title: body.title, description: body.description, serviceTimeDescription: body.service_time_description, coverFileId: body.cover_file_id }; }
+function productInput(body: z.infer<typeof productSchema>) { return { title: body.title, description: body.description, serviceTimeDescription: body.service_time_description, coverFileId: body.cover_file_id, game: body.game, fulfillmentSeconds: body.fulfillment_seconds, pricingMode: body.pricing_mode, priceCent: body.price_cent }; }

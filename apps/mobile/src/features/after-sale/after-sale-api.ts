@@ -1,11 +1,14 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/auth/runtime";
 import type { ComplaintApiView, ComplaintSummaryApiView, CursorPage, MyReviewApiView, RefundApiView, RefundSummaryApiView } from "@/types/api";
+import type { CaseDetail } from '@xiongzai/contracts/after-sale-client';
+
+export function createAfterSaleCase(body: {order_id:string;amount_cent:string;reason_code:string;reason_text:string}, key:string) { return apiClient.request<CaseDetail>('/after-sale/cases',{method:'POST',headers:{'Idempotency-Key':key},body:JSON.stringify(body)}); }
 
 export function createRefund(body: { order_id: string; amount_cent: string; reason_code: string; reason_text: string; description?: string }, idempotencyKey: string) { return apiClient.request<RefundSummaryApiView>("/refunds", { method: "POST", headers: { "idempotency-key": idempotencyKey }, body: JSON.stringify(body) }); }
 export function escalateRefund(id: string, version: number, reason: string) { return apiClient.request<RefundSummaryApiView>(`/refunds/${id}/escalate`, { method: "POST", body: JSON.stringify({ version, reason }) }); }
 export function createComplaint(body: { target_type: "USER" | "SELLER" | "PRODUCT" | "ORDER"; target_id: string; complaint_type: string; description: string; file_ids: string[] }) { return apiClient.request<ComplaintSummaryApiView>("/complaints", { method: "POST", body: JSON.stringify(body) }); }
-export function createReview(body: { order_id: string; rating: number; content?: string; anonymous: boolean }) { return apiClient.request<MyReviewApiView>("/reviews", { method: "POST", body: JSON.stringify(body) }); }
+export function createReview(body: { order_id: string; rating: number; content?: string; anonymous: boolean; image_file_ids?: string[] }) { return apiClient.request<MyReviewApiView>("/reviews", { method: "POST", body: JSON.stringify(body) }); }
 export function useRefund(id: string) { return useQuery({ queryKey: ["refund", id], enabled: Boolean(id), queryFn: ({ signal }) => apiClient.request<RefundApiView>(`/refunds/${id}`, { signal }) }); }
 export function useComplaint(id: string) { return useQuery({ queryKey: ["complaint", id], enabled: Boolean(id), queryFn: ({ signal }) => apiClient.request<ComplaintApiView>(`/complaints/${id}`, { signal }) }); }
 export function useMyReview(id: string) { return useQuery({ queryKey: ["my-review", id], enabled: Boolean(id), queryFn: ({ signal }) => apiClient.request<MyReviewApiView>(`/reviews/${id}`, { signal }) }); }

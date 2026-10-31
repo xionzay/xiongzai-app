@@ -1,0 +1,96 @@
+.revenue-dashboard { display: grid; gap: 14px; min-width: 0; color: #20334a; }
+.revenue-overview { overflow: hidden; border: 1px solid #fff; border-radius: 22px; background: rgb(255 255 255 / 68%); box-shadow: 0 3px 10px #4b87b111; }
+.revenue-identity { padding: 14px; border: 1px solid #fff; border-radius: 20px; background: rgb(255 255 255 / 62%); }
+.phone-shell .revenue-identity .sw-identity { margin: 0; padding: 0; background: transparent; border: 0; box-shadow: none; }
+.revenue-person { display: flex; align-items: center; gap: 12px; }
+.revenue-person > div:not(.revenue-person-avatar) { flex: 1; min-width: 0; }
+.revenue-person strong { display: block; font-size: 17px; overflow-wrap: anywhere; }
+.revenue-person small { display: block; font-size: 12px; margin-top: 6px; color: #526579; }
+.revenue-person > button { border: 0; background: transparent; min-height: 44px; min-width: 44px; }
+.revenue-person-avatar { width: 52px; height: 52px; border-radius: 17px; overflow: hidden; flex-shrink: 0; }
+.revenue-person-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.revenue-dashboard .revenue-hero { padding: 18px 12px 20px; text-align: center; background: transparent; color: #20334a; }
+.revenue-hero > strong { display: block; margin-bottom: 8px; font-size: clamp(30px,8vw,36px); line-height: 1.15; color: #ad554b; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; letter-spacing: -.8px; }
+.revenue-hero > span { font-size: 14px; font-weight: 650; }
+.revenue-hero small { font-size: 12px; font-weight: 400; }
+.revenue-hero p { margin: 7px 0 0; color: #526579; font-size: 11px; line-height: 1.6; }
+.revenue-periods { display: flex; gap: 4px; overflow-x: auto; padding: 12px 10px 0; }
+.revenue-periods button { flex: 1 0 38px; min-height: 44px; padding: 0 4px; border: 1px solid #bad2e366; border-radius: 16px; background: #ffffff7a; color: #425f78; font-size: 12px; white-space: nowrap; }
+.revenue-periods button[aria-pressed="true"] { background: #c5eaff; border-color: #8cbbd7; color: #205981; font-weight: 750; box-shadow: inset 0 2px 0 #ffffffaa; }
+.revenue-summary { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 0; background: linear-gradient(#e9f4fc85,#ffffff25); }
+.revenue-summary > div { min-width: 0; padding: 14px 6px; text-align: center; }
+.revenue-summary strong { display: block; margin: 0 0 6px; font-size: 17px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.revenue-summary span { display: block; font-size: 13px; color: #374e63; }
+.revenue-summary small { display: block; margin-top: 5px; font-size: 10px; line-height: 1.6; color: #526579; }
+.revenue-expand { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; min-height: 44px; padding: 6px; border: 0; background: transparent; color: #426c8b; font-size: 12px; }
+.phone-shell .revenue-expand .toon-icon { width: 20px; height: 20px; }
+.revenue-quick-actions { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); padding: 12px 8px; border-radius: 18px; background: rgb(255 255 255 / 62%); }
+.revenue-quick-actions button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 66px; border: 0; border-radius: 14px; background: transparent; color: #31527d; font-size: 13px; }
+.phone-shell .revenue-quick-actions .toon-icon { width: 30px; height: 30px; }
+.revenue-quick-actions button:hover,.revenue-expand:hover { background: #ffffff60; }
+.revenue-account { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; padding: 16px; border-radius: 18px; background: rgb(255 255 255 / 68%); }
+.revenue-account > div { flex: 1; }
+.revenue-account span,.revenue-account small { display: block; font-size: 12px; color: #526579; }
+.revenue-account strong { display: block; margin: 6px 0; font-size: 23px; }
+.revenue-account > small { width: 100%; }
+.revenue-panel, .revenue-dates { padding: 16px; border-radius: 18px; background: rgb(255 255 255 / 68%); min-width: 0; }
+.revenue-section-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.revenue-section-title h2 { margin: 0; font-size: 17px; }
+.revenue-section-title > span { font-size: 12px; color: #526579; }
+.revenue-chart { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; }
+.revenue-chart button { flex: 1 0 44px; min-width: 44px; border: 0; background: transparent; padding: 4px; color: #526579; font-size: 11px; }
+.revenue-bar-track { display: flex; align-items: flex-end; justify-content: center; height: 126px; margin-bottom: 9px; border-bottom: 1px solid #d2e0ec; }
+.revenue-bar-track i { width: 22px; display: block; border-radius: 7px 7px 0 0; background: linear-gradient(#75bce9,#1974b8); }
+.revenue-chart .negative i { background: #b86443; }
+.revenue-chart button[aria-pressed="true"] { border-radius: 8px; background: #e0effa; color: #125b94; }
+.revenue-chart-value, .revenue-note { margin: 8px 0 0; font-size: 12px; line-height: 1.6; color: #526579; }
+.revenue-empty { margin: 0; padding: 35px 0; text-align: center; font-size: 14px; color: #526579; }
+.revenue-record { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 0; border-bottom: 1px solid #dce6ed; }
+.revenue-record > div { min-width: 0; }
+.revenue-record b { display: block; font-size: 14px; overflow-wrap: anywhere; }
+.revenue-record small { display: block; margin-top: 5px; font-size: 12px; color: #526579; overflow-wrap: anywhere; }
+.revenue-record > strong { font-size: 14px; flex-shrink: 0; }
+.revenue-more { display: block; width: 100%; min-height: 44px; border: 0; background: transparent; color: #1269aa; }
+.revenue-dates p { grid-column: 1 / -1; margin: 0; font-size: 13px; color: #a23729; }
+
+/* Calendar expands inside the phone canvas; no native browser popup or full-page overlay. */
+.revenue-date-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.revenue-date-fields > div { min-width: 0; font-size: 13px; }
+.revenue-date-trigger { display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 100%; min-height: 48px; margin-top: 8px; padding: 8px 10px; border: 1.5px solid #91bfdf; border-radius: 15px; background: linear-gradient(160deg,#ffffffed,#e2f3ff); color: #31527d; font: inherit; box-shadow: inset 0 2px 0 #fff,0 3px 0 #aacfe34d; }
+.revenue-date-trigger[aria-expanded="true"] { border-color: #287bb6; background: #e0f2ff; }
+.phone-shell .revenue-date-trigger .toon-icon { width: 24px; height: 24px; }
+.revenue-calendar { margin-top: 16px; padding: 12px; border: 1.5px solid #9cc8e4; border-radius: 22px; background: linear-gradient(150deg,#effaff 0%,#e4f3ff 72%,#fff8dc 100%); box-shadow: inset 0 2px 0 #fff,0 5px 0 #8ab8d526; color: #31527d; animation: revenue-calendar-in 160ms ease-out; }
+.revenue-calendar button { min-height: 44px; min-width: 0; border: 0; border-radius: 14px; color: #31527d; background: transparent; font: inherit; font-size: 14px; touch-action: manipulation; transition: background-color 140ms ease,box-shadow 140ms ease; }
+.revenue-calendar-title { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.phone-shell .revenue-calendar-title > .toon-icon { width: 34px; height: 34px; }
+.revenue-calendar-title > div { flex: 1; min-width: 0; }
+.revenue-calendar-title b { display: block; font-size: 17px; }
+.revenue-calendar-title small { display: block; margin-top: 4px; font-size: 11px; line-height: 1.5; color: #526d87; }
+.revenue-calendar-title > button { flex: 0 0 44px; }
+.revenue-calendar-nav { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.revenue-calendar-nav > button { flex: 0 0 44px; }
+.revenue-calendar-nav .revenue-calendar-month { flex: 1; display: flex; align-items: center; justify-content: center; gap: 4px; font-weight: 750; }
+.phone-shell .revenue-calendar-nav .toon-icon { width: 22px; height: 22px; }
+.phone-shell .revenue-calendar-month .toon-icon { width: 16px; height: 16px; }
+.revenue-calendar-week,.revenue-calendar-days { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 2px; }
+.revenue-calendar-week { padding: 5px 0; text-align: center; font-size: 12px; color: #526d87; }
+.revenue-calendar-days button { position: relative; font-variant-numeric: tabular-nums; }
+.revenue-calendar-days button.outside-month { color: #688198; }
+.revenue-calendar button:disabled { opacity: .35; cursor: default; }
+.revenue-calendar button:not(:disabled):hover { background: #fff9; }
+.revenue-calendar button:not(:disabled):active { box-shadow: inset 0 2px 4px #4489b933; }
+.revenue-calendar-days button[aria-pressed="true"] { background: linear-gradient(#a9e5ff,#70c1f5); box-shadow: inset 0 2px 0 #e7faff,0 3px 0 #76afd4; color: #173e69; font-weight: 800; outline: 1.5px solid #4b9cd0; outline-offset: -1px; }
+.revenue-calendar-days i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #246995; bottom: 5px; left: calc(50% - 2px); }
+.revenue-calendar-months { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; padding: 10px 0; }
+.revenue-calendar-months button { background: #ffffff80; }
+.revenue-calendar .revenue-calendar-selection { margin: 12px 0 8px; color: #526d87; font-size: 12px; }
+.revenue-calendar footer { scroll-margin-bottom: 110px; display: flex; gap: 6px; padding-top: 10px; border-top: 1px dashed #a5c6dd; }
+.revenue-calendar footer > button { flex: 1; background: #ffffff80; }
+.revenue-calendar footer .revenue-calendar-confirm { flex: 1.7; display: flex; align-items: center; justify-content: center; gap: 4px; background: #267bb8; color: #fff; box-shadow: inset 0 1px 0 #ffffff50,0 3px 0 #1c5d8e; font-weight: 700; }
+.revenue-calendar footer .revenue-calendar-confirm:hover { background: #206ca5; }
+.phone-shell .revenue-calendar-confirm .toon-icon { width: 20px; height: 20px; }
+@keyframes revenue-calendar-in { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .revenue-calendar { animation: none; } .revenue-calendar button { transition: none; } }
+.revenue-dashboard :is(button,input):focus-visible { outline: 2px solid #167cc0; outline-offset: 2px; }
+.revenue-dashboard button { cursor: pointer; }
+.seller-revenue-screen > .revenue-dashboard { margin: 0 14px 20px; }

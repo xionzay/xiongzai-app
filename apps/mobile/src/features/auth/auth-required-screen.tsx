@@ -1,41 +1,47 @@
-import { StyleSheet, Text, View } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
-import { resolveInternalReturnTo } from "@/auth/return-to";
-import { NativeButton, NativePage, nativeShadow } from "@/components/native-page";
-import { colors } from "@/theme/tokens";
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, useLocalSearchParams } from 'expo-router';
+import { resolveInternalReturnTo } from '@/auth/return-to';
+import { BrandBackdrop } from '@/components/brand-backdrop';
+import { NativeHeader } from '@/components/native-page';
+import { PrimaryButton } from '@/components/primary-button';
+import { NeutralStateBear } from '@/components/neutral-state-bear';
+import { FileImage } from '@/components/file-image';
+import { useServiceDetail, useCompanionDetail } from '@/features/discovery/discovery-api';
+import { usePanelEntrance } from '@/hooks/use-panel-entrance';
+import { colors } from '@/theme/tokens';
 
 export function AuthRequiredScreen() {
   const params = useLocalSearchParams<{ returnTo?: string; action?: string }>();
   const returnTo = resolveInternalReturnTo(params.returnTo);
-  const leave = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace("/(buyer-tabs)");
-  };
-  return (
-    <NativePage title="需要登录" subtitle="账号数据将在登录后安全同步" contentStyle={styles.content}>
-      <View style={styles.card}>
-        <View style={styles.markWrap}><Text style={styles.mark}>人</Text></View>
-        <Text style={styles.title}>登录后继续{params.action ?? "当前操作"}</Text>
-        <Text style={styles.copy}>登录成功后会返回原页面，并继续刚才的操作。</Text>
-        <View style={styles.actions}>
-          <NativeButton label="手机号登录" onPress={() => router.replace({ pathname: "/(auth)/login", params: { returnTo } })} />
-          <NativeButton tone="secondary" label="暂不登录" onPress={leave} />
-        </View>
+  const target = /^\/(services|companions)\/([^/?]+)(?:\?|$)/.exec(returnTo);
+  const productId = target?.[1] === 'services' ? target[2] ?? '' : returnTo.startsWith('/checkout/confirm?') ? new URLSearchParams(returnTo.split('?')[1]).get('productId') ?? '' : '';
+  const companionId = target?.[1] === 'companions' ? target[2] ?? '' : '';
+  const product = useServiceDetail(productId, Boolean(productId));
+  const companion = useCompanionDetail(companionId, Boolean(companionId));
+  const entrance = usePanelEntrance();
+  const title = product.data?.title ?? companion.data?.seller_nickname;
+  const image = product.data?.cover_file_id ?? companion.data?.seller_avatar_file_id;
+  const leave = () => { if (router.canGoBack()) router.back(); else router.replace('/(buyer-tabs)'); };
+  return <SafeAreaView style={styles.safe}><BrandBackdrop /><View pointerEvents="none" style={styles.dim} /><NativeHeader title="登录后继续" subtitle="游客可以浏览，交易操作需要登录" onBack={leave} />
+    <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.preview}>
+        {image ? <FileImage fileId={image} style={styles.image} label={title ? `${title}图片` : '来源图片'} /> : null}
+        <View style={styles.previewCopy}>{title ? <Text numberOfLines={2} style={styles.previewTitle}>{title}</Text> : null}<Text style={styles.note}>收藏、咨询、下单和查看订单需要账号</Text></View>
       </View>
-      <View style={styles.notice}><Text style={styles.noticeTitle}>为什么需要登录？</Text><Text style={styles.noticeText}>收藏、订单、消息、个人资料和陪玩经营数据属于账号数据，游客状态不会生成虚假记录。</Text></View>
-    </NativePage>
-  );
+      <View style={styles.spacer} />
+      <Animated.View style={[styles.sheet, entrance]}>
+        <NeutralStateBear />
+        <Text accessibilityRole="header" style={styles.title}>登录后使用完整功能</Text>
+        <Text style={styles.copy}>登录后可收藏陪玩、发起咨询、支付订单并同步交易和售后记录。</Text>
+        <Text style={styles.returnNote}>登录成功后返回原页面，继续{params.action ?? '刚才的操作'}。</Text>
+        <View style={styles.action}><PrimaryButton label="手机号登录 / 注册" onPress={() => router.replace({ pathname: '/(auth)/login', params: { returnTo } })} /></View>
+        <Pressable accessibilityRole="button" accessibilityLabel="继续浏览" onPress={leave} style={styles.browse}><Text style={styles.note}>继续浏览</Text></Pressable>
+      </Animated.View>
+    </ScrollView>
+  </SafeAreaView>;
 }
-
 const styles = StyleSheet.create({
-  content: { gap: 13 },
-  card: { alignItems: "center", padding: 22, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 19, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
-  markWrap: { width: 74, height: 74, alignItems: "center", justifyContent: "center", borderRadius: 25, backgroundColor: "#DCEEFF" },
-  mark: { color: colors.brandDeep, fontSize: 28, lineHeight: 34, fontWeight: "900" },
-  title: { marginTop: 17, color: colors.text, fontSize: 19, lineHeight: 25, fontWeight: "900", textAlign: "center" },
-  copy: { marginTop: 8, color: colors.textSecondary, fontSize: 12, lineHeight: 18, textAlign: "center" },
-  actions: { alignSelf: "stretch", gap: 10, marginTop: 20 },
-  notice: { padding: 16, borderWidth: 1, borderColor: "rgba(39,143,232,0.13)", borderRadius: 17, backgroundColor: "rgba(220,238,255,0.94)", ...nativeShadow },
-  noticeTitle: { color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "900" },
-  noticeText: { marginTop: 7, color: colors.textSecondary, fontSize: 12, lineHeight: 17 }
+  dim: { position: 'absolute', left: 0, right: 0, top: 170, bottom: 0, experimental_backgroundImage: 'linear-gradient(180deg, rgba(87,106,126,.08), rgba(87,106,126,.36))' },
+  safe: { flex: 1 }, content: { flexGrow: 1, padding: 12, paddingTop: 8 }, preview: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, borderRadius: 18, backgroundColor: 'rgba(255,255,255,.8)' }, image: { width: 80, height: 80, borderRadius: 14 }, previewCopy: { flex: 1, gap: 7 }, previewTitle: { color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: '600' }, note: { color: colors.textSecondary, fontSize: 12, lineHeight: 19 }, spacer: { flex: 1, minHeight: 32 }, sheet: { alignItems: 'center', paddingTop: 24, paddingHorizontal: 20, paddingBottom: 18, borderRadius: 22, borderWidth: 1, borderColor: colors.divider, backgroundColor: colors.dialog }, title: { marginTop: 12, marginBottom: 6, color: colors.text, fontSize: 22, lineHeight: 30, fontWeight: '700', textAlign: 'center' }, copy: { color: colors.textSecondary, fontSize: 12, lineHeight: 20, textAlign: 'center' }, returnNote: { color: colors.textSecondary, fontSize: 12, lineHeight: 20, marginTop: 6, textAlign: 'center' }, action: { alignSelf: 'stretch', marginTop: 18 }, browse: { minHeight: 44, minWidth: 100, justifyContent: 'center', alignItems: 'center', marginTop: 8 }
 });

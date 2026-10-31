@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { isOwnedCacheUri, recordingDurationMessage, recordingPermissionMessage, recordingPermissionState, shouldAcceptFinishedRecording, shouldExpireAccess, VOICE_NATIVE_AUTOSTOP_DURATION_MS } from "../src/features/files/voice-native-domain";
 
@@ -22,9 +23,11 @@ const companionDetail = source("../src/features/discovery/companion-detail-scree
 const sellerApplication = source("../src/features/seller/seller-application-screen.tsx");
 
 test("Expo 57 音频、文件选择和文件系统依赖固定在兼容版本，并关闭后台音频", () => {
-  assert.equal(packageJson.dependencies["expo-audio"], "~57.0.4");
-  assert.equal(packageJson.dependencies["expo-document-picker"], "~57.0.1");
-  assert.equal(packageJson.dependencies["expo-file-system"], "~57.0.5");
+  const sdkVersions = createRequire(import.meta.url)("expo/bundledNativeModules.json");
+  assert.match(packageJson.dependencies.expo!, /^~57\./);
+  for (const name of ["expo-audio", "expo-document-picker", "expo-file-system"]) {
+    assert.equal(packageJson.dependencies[name], sdkVersions[name]);
+  }
   assert.match(appConfig, /"expo-audio"[\s\S]*recordAudioAndroid: true[\s\S]*enableBackgroundRecording: false[\s\S]*enableBackgroundPlayback: false/u);
 });
 
@@ -76,8 +79,9 @@ test("原生录音使用缓存 M4A/AAC、支持暂停继续，并在取消和卸
   assert.match(nativeRecorder, /current\.granted \? current : await requestRecordingPermissionsAsync\(\)/u);
   assert.doesNotMatch(nativeRecorder, /current\.granted \|\| !current\.canAskAgain/u);
   assert.match(nativeRecorder, /Linking\.openSettings/u);
-  assert.match(nativeRecorder, /forDuration: VOICE_NATIVE_AUTOSTOP_DURATION_MS \/ 1_000/u);
-  assert.match(nativeRecorder, /VOICE_NATIVE_AUTOSTOP_DURATION_MS - state\.durationMillis/u);
+  assert.match(nativeRecorder, /purpose === "chat" \? 59000 : VOICE_NATIVE_AUTOSTOP_DURATION_MS/u);
+  assert.match(nativeRecorder, /forDuration: autoStopMs \/ 1_000/u);
+  assert.match(nativeRecorder, /autoStopMs - state\.durationMillis/u);
   assert.match(nativeRecorder, /elapsedMs: Date\.now\(\) - recordingStartedAt\.current/u);
   assert.match(nativeRecorder, /shouldAcceptFinishedRecording/u);
   assert.match(nativeRecorder, /recorder\.pause\(\)/u);
@@ -92,7 +96,9 @@ test("原生录音使用缓存 M4A/AAC、支持暂停继续，并在取消和卸
 test("原生播放器支持播放、暂停和停止，并显式管理原生共享对象", () => {
   assert.match(nativePlayer, /createAudioPlayer\(/u);
   assert.match(nativePlayer, /player\.addListener\("playbackStatusUpdate"/u);
-  assert.match(nativePlayer, /player\.play\(\)/u);
+  assert.match(nativePlayer, /await resumeAudioPlayer\(player, \(\) => playerRef\.current === player\)/u);
+  const playbackDomain = readFileSync(new URL("../src/features/files/audio-playback-domain.ts", import.meta.url), "utf8");
+  assert.match(playbackDomain, /if \(isCurrent\(\)\) player\.play\(\)/u);
   assert.match(nativePlayer, /player\.pause\(\)/u);
   assert.match(nativePlayer, /player\.seekTo\(0\)/u);
   assert.match(nativePlayer, /shouldPlayInBackground: false/u);
@@ -144,11 +150,15 @@ test("短时受控播放不区分 Web/原生且地址到期后从内存清除", 
   assert.equal(shouldExpireAccess("1970-01-01T00:00:02.000Z", 1_000), 1_000);
 });
 
-test("陪玩主页按原 UI 提供方形封面、经营数据、双列服务和底部操作", () => {
-  assert.match(companionDetail, /aspectRatio: 1/u);
-  for (const label of ["综合评分", "完成订单", "在售服务", "被收藏", "声音名片", "全部服务", "买家评价"]) assert.match(companionDetail, new RegExp(label, "u"));
-  assert.match(companionDetail, /item\.services\.map[\s\S]*ServiceCard[\s\S]*grid/u);
-  assert.match(companionDetail, /appearance="companion-action"/u);
+test("陪玩主页按最新 UI 提供头像资料、商品评价介绍栏目和联系卖家入口", () => {
+  const storefront = source('../src/features/discovery/storefront-view.tsx');
+  assert.match(storefront, /aspectRatio: 1/u);
+  for (const label of ["店铺主页", "完成订单", "商品", "评价", "介绍", "联系卖家", "主营游戏"]) assert.match(storefront, new RegExp(label, "u"));
+  assert.match(storefront, /productGameLabels\[game\]/u);
+  assert.match(storefront, /products\.map/u);
+  assert.match(storefront, /product\.status === 'ON_SALE'/u);
+  assert.match(companionDetail, /appearance="storefront"/u);
+  assert.match(companionDetail, /试听声音名片/u);
   assert.match(companionDetail, /咨询陪玩/u);
   assert.match(companionDetail, /item\.seller_nickname/u);
   assert.doesNotMatch(companionDetail, /Kirito|熊崽玩家 K/u);

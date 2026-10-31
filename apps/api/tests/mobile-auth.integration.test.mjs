@@ -52,7 +52,7 @@ before(async () => {
   await runMigration("0006_policy_version_bindings.sql");
   loginPolicyIds = await seedLoginPolicies();
 
-  database = createDatabaseClient({
+  await applyStageOneMigrations(migrationClient, schemaName); database = createDatabaseClient({
     connectionString: databaseUrl,
     application_name: "xiongzai-mobile-auth-test",
     options: `-c search_path=${schemaName},public`,
@@ -420,3 +420,4 @@ async function runMigration(fileName) {
   source = source.replaceAll('"public".', `"${schemaName}".`);
   for (const statement of splitMigration(source)) await migrationClient.query(statement);
 }
+import { applyStageOneMigrations } from "./stage-one-migrations.mjs";

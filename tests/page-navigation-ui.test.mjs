@@ -12,7 +12,7 @@ const css = await readFile(new URL("../app/globals.css", import.meta.url), "utf8
 const chatCss = await readFile(new URL("../app/chat-redesign.css", import.meta.url), "utf8");
 const source = ts.createSourceFile("page.tsx", page, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 // Exercise the real presentational components without mounting the app or calling its APIs.
-const componentNames = new Set(["Header", "IconButton", "MineScreen", "SectionTitle"]);
+const componentNames = new Set(["Header", "IconButton", "MineScreen", "MessagesScreen", "SectionTitle"]);
 const components = source.statements.filter((node) => ts.isFunctionDeclaration(node) && componentNames.has(node.name?.text));
 assert.equal(components.length, componentNames.size);
 const compiled = ts.transpileModule(components.map((node) => node.getText(source)).join("\n"), {
@@ -22,12 +22,57 @@ const commerceSource = await readFile(new URL("../app/commerce-model.ts", import
 const commerceContext={exports:{},require:name=>contractDependencies[name]};
 vm.runInNewContext(ts.transpileModule(commerceSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText,commerceContext);
 const stub = () => null;
+const chatHeaderSource = await readFile(new URL("../app/ChatHeader.tsx", import.meta.url), "utf8");
+const chatHeaderContext = { exports: {}, React, require: (name) => {
+  if (name === "react") return React;
+  if (name === "./ChatIcon") return { ChatIcon: stub };
+  throw new Error(`Unexpected chat header dependency: ${name}`);
+} };
+vm.runInNewContext(ts.transpileModule(chatHeaderSource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+}).outputText, chatHeaderContext);
+const { ChatHeader } = chatHeaderContext.exports;
 const iconContext={exports:{},React};
 const iconSource=await readFile(new URL("../app/ui/CartoonIcon.tsx",import.meta.url),"utf8");
 vm.runInNewContext(ts.transpileModule(iconSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.React}}).outputText,iconContext);
-const { Header, MineScreen } = vm.runInNewContext(`${compiled}\n({ Header, MineScreen });`, {
-  React, creamJellyIconUrl:iconContext.exports.creamJellyIconUrl, JellyLabel:iconContext.exports.JellyLabel, BuyerIdentity: stub, apiRequest: stub, mineOrderIcon: {}, buyerOrderEntries: commerceContext.exports.buyerOrderEntries, StatusBar: stub, CartoonIcon: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}], DEFAULT_PLAYER_IMAGE: "/assets/placeholders/player.svg",
+// Record real rendered controls, so the support shortcut is exercised through
+// the actual inbox component rather than a null stub or a source-only assertion.
+const renderedButtons = [];
+const presentationReact = { ...React, createElement(type, props, ...children) {
+  if (type === "button") renderedButtons.push(props);
+  return React.createElement(type, props, ...children);
+} };
+async function loadPresentationModule(file) {
+  const context = { exports: {}, React: presentationReact, require: name => {
+    if (name === "react") return React;
+    if (name === "./ui/CartoonIcon") return iconContext.exports;
+    throw new Error(`Unexpected presentation dependency: ${name}`);
+  } };
+  const text = await readFile(new URL(file, import.meta.url), "utf8");
+  vm.runInNewContext(ts.transpileModule(text, { compilerOptions: {
+    module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022,
+  } }).outputText, context);
+  return context.exports;
+}
+const { Header, MineScreen, MessagesScreen } = vm.runInNewContext(`${compiled}\n({ Header, MineScreen, MessagesScreen });`, {
+  MineOrderStrip: await loadMineOrderStrip(),
+  ConversationList: (await loadPresentationModule("../app/ConversationList.tsx")).ConversationList,
+  summarizeSupportInbox: (await loadPresentationModule("../app/SupportInboxEntry.tsx")).summarizeSupportInbox,
+  useRef: React.useRef, useState: React.useState, useEffect: React.useEffect, useLayoutEffect: React.useLayoutEffect,
+  React: presentationReact, creamJellyIconUrl:iconContext.exports.creamJellyIconUrl, JellyLabel:iconContext.exports.JellyLabel, BuyerIdentity: stub, apiRequest: stub, mineOrderIcon: {}, buyerOrderEntries: commerceContext.exports.buyerOrderEntries, StatusBar: stub, CartoonIcon: stub, Avatar: stub, AppIcon: stub, BuyerNav: stub, companions: [{}], DEFAULT_PLAYER_IMAGE: "/assets/placeholders/player.svg",
 });
+
+async function loadMineOrderStrip() {
+  const source = await readFile(new URL("../app/MineOrderStrip.tsx", import.meta.url), "utf8");
+  const context = { exports: {}, React, require: name => {
+    if (name === "react") return React;
+    throw new Error(`Unexpected order strip dependency: ${name}`);
+  } };
+  vm.runInNewContext(ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+  }).outputText, context);
+  return context.exports.MineOrderStrip;
+}
 
 function* elements(node) {
   if (!React.isValidElement(node)) return;
@@ -48,7 +93,7 @@ test("ordinary headers omit visible page titles and descriptions while keeping a
   assert.equal(backCount, 1);
 });
 
-test("headers with no controls collapse and centered chat identity stays available", () => {
+test("headers with no controls collapse and dedicated chat identity stays available", () => {
   const plain = renderToStaticMarkup(Header({ title: "消息", subtitle: "说明" }));
   assert.match(plain, /page-toolbar-empty/);
   assert.doesNotMatch(plain, /<h1|<p[\s>]/);
@@ -56,7 +101,24 @@ test("headers with no controls collapse and centered chat identity stays availab
   assert.match(identity, /<h1>平台客服<\/h1>/);
   assert.match(identity, /<p>等待客服接入<\/p>/);
   assert.doesNotMatch(identity, /page-toolbar/);
-  assert.equal((page.match(/<Header variant="identity"/g) || []).length, 2);
+  assert.equal((page.match(/<ChatHeader\s/g) || []).length, 2);
+  const chat = renderToStaticMarkup(React.createElement(ChatHeader, {
+    title: "平台客服", subtitle: "等待客服接入", avatar: React.createElement("img", { src: "/local-test.png", alt: "客服头像" }),
+    onBack() {}, actions: [{ label: "客服记录", onClick() {} }],
+  }));
+  assert.match(chat, /class="screen-header chat-navigation"/);
+  assert.match(chat, /<h1 title="平台客服">平台客服<\/h1>/);
+  assert.match(chat, /<p>等待客服接入<\/p>/);
+  assert.match(chat, /alt="客服头像"/);
+  assert.match(chat, /aria-label="返回消息列表"/);
+  assert.match(chat, /<summary aria-label="会话更多功能"/);
+  assert.match(chat, />客服记录<\/button>/);
+  assert.doesNotMatch(chat, /page-toolbar/);
+  const longTitle = "本地测试长会话名称".repeat(20);
+  const longChat = renderToStaticMarkup(React.createElement(ChatHeader, { title: longTitle, onBack() {} }));
+  assert.ok(longChat.includes(`title="${longTitle}"`));
+  assert.ok(longChat.includes(`>${longTitle}</h1>`));
+  assert.doesNotMatch(longChat, /<summary|<p>/);
 });
 
 test("the entire avatar, nickname and ID card opens edit profile using a native button", () => {
@@ -155,8 +217,17 @@ test("back-only, actions-only and combined toolbars do not collapse or lose call
 test("chat and support retain their independently owned safe area outside ordinary toolbars", () => {
   assert.doesNotMatch(chatCss, /page-toolbar/);
   assert.match(chatCss, /\.phone-shell \.chat-screen,\s*\.phone-shell \.customer-service-screen\s*\{[^}]*padding:\s*0 !important;/);
-  assert.match(chatCss, /\.phone-shell \.chat-screen \.chat-topbar,\s*\.phone-shell \.customer-service-screen \.chat-topbar\s*\{[^}]*padding:\s*calc\(5px \+ var\(--device-safe-top\)\)/);
-  assert.match(chatCss, /\.customer-service-screen \.chat-compose-dock\s*\{[^}]*calc\(10px \+ var\(--device-safe-bottom\)\)/);
+  const top = chatCss.match(/\.phone-shell \.chat-screen \.chat-topbar,\s*\.phone-shell \.customer-service-screen \.chat-topbar\s*\{([^}]+)\}/)?.[1];
+  const bottom = chatCss.match(/\.phone-shell \.chat-screen \.chat-compose-dock,\s*\.phone-shell \.customer-service-screen \.chat-compose-dock\s*\{([^}]+)\}/)?.[1];
+  assert.ok(top, "both chat headers must share safe-area ownership");
+  assert.ok(bottom, "both chat composers must share safe-area ownership");
+  for (const [rule, edge] of [[top, "top"], [bottom, "bottom"]]) {
+    for (const side of [edge, "left", "right"]) {
+      const inset = rule.match(new RegExp(`calc\\((\\d+)px \\+ var\\(--device-safe-${side}\\)\\)`));
+      assert.ok(inset, `missing ${side} safe area`);
+      assert.ok(Number(inset[1]) > 0, `${side} safe area needs positive base spacing`);
+    }
+  }
 });
 
 
@@ -184,15 +255,53 @@ test("mine consolidates profile/settings while account links and unauthenticated
   assert.doesNotMatch(markup, /文字消息|设置与隐私|陪玩身份申请入口|0 张可用/);
   assert.match(markup, /前往领券中心/);
   assert.equal((markup.match(/aria-label="编辑个人资料"/g) ?? []).length, 1);
-  for (const label of ['我的收藏', '优惠券', '消息', '平台规则', '平台客服']) {
+  for (const label of ['我的收藏', '优惠券', '消息', '平台规则']) {
     const row = [...elements(screen)].find(e => e.type === 'button' && renderToStaticMarkup(e).includes(label));
+    assert.ok(row, `missing reachable account link: ${label}`);
     row.props.onClick();
   }
+  assert.deepEqual(calls, ['favorites', 'coupons', 'messages', 'rules']);
+  // Support moved to the inbox: preserve the real mine -> messages -> support
+  // route, without restoring a superseded button just to satisfy this test.
+  renderedButtons.length = 0;
+  const inbox = renderToStaticMarkup(React.createElement(MessagesScreen, { go: p => calls.push(p), unreadCount: 7, onOpen() {} }));
+  assert.match(inbox, /aria-label="进入平台客服"/);
+  const support = renderedButtons.filter(button => button?.['aria-label'] === '进入平台客服');
+  assert.equal(support.length, 1);
+  support[0].onClick();
   assert.deepEqual(calls, ['favorites', 'coupons', 'messages', 'rules', 'customerService']);
   const signedOut = MineScreen({ go: p => calls.push(p), viewer: null });
   [...elements(signedOut)].find(e => e.props['aria-label'] === '登录账号').props.onClick();
   assert.equal(calls.at(-1), 'auth');
+  for (const label of ['我的收藏', '消息']) {
+    const guarded = [...elements(signedOut)].find(e => e.type === 'button' && renderToStaticMarkup(e).includes(label));
+    assert.ok(guarded);
+    guarded.props.onClick();
+    assert.equal(calls.at(-1), 'auth', `${label} must retain the signed-out guard`);
+  }
   assert.doesNotMatch(renderToStaticMarkup(signedOut), /10086|熊崽玩家 K|条未读/);
+});
+
+test("mine all-orders entry opens all statuses and guards signed-out buyers", () => {
+  const filters = [], destinations = [];
+  for (const viewer of [{ id: 'buyer', profile: {} }, null]) {
+    const screen = MineScreen({ viewer, onOrders: filter => filters.push(filter), go: target => destinations.push(target) });
+    const entries = [...elements(screen)].filter(element => element.props['aria-label'] === '全部订单');
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].type, 'button');
+    assert.equal(entries[0].props.type, 'button');
+    // The strip is now a real child component; inspect its passed children and
+    // separately assert the rendered container instead of assuming inline DOM.
+    const row = [...elements(screen)].find(element => element.type?.name === 'MineOrderStrip');
+    assert.ok(row);
+    assert.match(renderToStaticMarkup(row), /class="commerce-order-entries"/u);
+    const buttons = [...elements(row)].filter(element => element.type === 'button');
+    assert.equal(buttons[0].props['aria-label'], '全部订单');
+    assert.match(renderToStaticMarkup(buttons[1]), /待付款/);
+    entries[0].props.onClick();
+  }
+  assert.deepEqual(filters, ['全部']);
+  assert.deepEqual(destinations, ['auth']);
 });
 
 test("mine remembers its own scroll without capturing nested scrollers", () => {

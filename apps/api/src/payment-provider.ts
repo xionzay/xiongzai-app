@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { AppError, type PaymentChannel } from "@xiongzai/contracts";
+import type { MockTransferStore } from "./mock-transfer-store.js";
+import type { TransferResult } from "./durable-transfers.js";
 
 export type PaymentCallbackPayload = {
   event_id: string;
@@ -24,12 +26,15 @@ export interface PaymentProvider {
   queryPayment?(input: { paymentNo: string; providerTransactionId: string | null; platformStatus: string }): Promise<{ status: "PENDING" | "SUCCEEDED" | "FAILED" | "CLOSED"; providerTransactionId?: string }>;
   verifyCallback(payload: PaymentCallbackPayload, signature: string | undefined): boolean;
   /** Must be idempotent for the same refundNo, including retries after an unknown outcome. */
-  createRefund?(input: { refundNo: string; paymentNo: string; providerTransactionId: string | null; amountCent: bigint }): Promise<{ providerRefundNo: string }>;
+  createRefund?(input: { refundNo: string; paymentNo: string; providerTransactionId: string | null; amountCent: bigint; idempotencyKey?:string }): Promise<{ providerRefundNo: string }>;
+  queryRefund?(input:{refundNo:string;idempotencyKey:string}):Promise<TransferResult>;
   verifyRefundCallback?(payload: RefundCallbackPayload, signature: string | undefined): boolean;
 }
 
 export class MockPaymentProvider implements PaymentProvider {
   readonly mode = "mock";
+  private transferStore?:MockTransferStore;
+  bindTransferStore(store:MockTransferStore){this.transferStore=store;return this;}
   private readonly paymentStates = new Map<string, { status: "PENDING" | "SUCCEEDED" | "FAILED" | "CLOSED"; providerTransactionId?: string }>();
 
   constructor(private readonly webhookSecret: string, readonly channel: PaymentChannel = "WECHAT_APP") {}
@@ -67,8 +72,14 @@ export class MockPaymentProvider implements PaymentProvider {
     return actual.length === expected.length && timingSafeEqual(actual, expected);
   }
 
-  async createRefund(input: { refundNo: string; paymentNo: string; providerTransactionId: string | null; amountCent: bigint }) {
-    return { providerRefundNo: `mock-refund-${input.refundNo}` };
+  async createRefund(input: { refundNo: string; paymentNo: string; providerTransactionId: string | null; amountCent: bigint;idempotencyKey?:string }) {
+    const key=input.idempotencyKey??input.refundNo,providerRefundNo=`mock-refund-${key}`;
+    if(this.transferStore)await this.transferStore.create("REFUND",this.channel,key,input,providerRefundNo);
+    return { providerRefundNo };
+  }
+
+  async queryRefund(input:{refundNo:string;idempotencyKey:string}):Promise<TransferResult>{
+    return this.transferStore?this.transferStore.query("REFUND",this.channel,input.idempotencyKey):{status:"UNKNOWN"};
   }
 
   verifyRefundCallback(payload: RefundCallbackPayload, signature: string | undefined): boolean {

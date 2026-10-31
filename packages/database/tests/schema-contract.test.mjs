@@ -47,7 +47,7 @@ const migrationJournal = JSON.parse(await readFile(
   "utf8",
 ));
 const latestSnapshot = JSON.parse(await readFile(
-  new URL("../migrations/meta/0011_snapshot.json", import.meta.url),
+  new URL(`../migrations/meta/${String(migrationJournal.entries.at(-1).idx).padStart(4, "0")}_snapshot.json`, import.meta.url),
   "utf8",
 ));
 const schemaSource = await readFile(
@@ -243,8 +243,8 @@ test("migration files, journal and latest snapshot are synchronized", async () =
   const journalFiles = migrationJournal.entries.map((entry) => `${entry.tag}.sql`).sort();
   assert.deepEqual(sqlFiles, journalFiles);
   assert.deepEqual(migrationJournal.entries.map((entry) => entry.idx), Array.from({ length: sqlFiles.length }, (_, index) => index));
-  assert.equal(Object.keys(latestSnapshot.tables).length, 70);
-  assert.equal(Object.keys(latestSnapshot.enums).length, 68);
+  assert.equal(Object.keys(latestSnapshot.tables).length, 78);
+  assert.equal(Object.keys(latestSnapshot.enums).length, 70);
 });
 
 test("admin local completion migration adds dual control, review evidence and scoped permissions", () => {

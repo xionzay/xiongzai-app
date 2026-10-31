@@ -22,3 +22,6 @@
 .conversation-inbox :focus-visible { outline: 2px solid #5381c4; outline-offset: -2px; }
 .phone-shell .sw-view-messages .sw-content { padding: 0; }
 .phone-shell .conversation-inbox-row:active { background: #ffffff45; }
+
+.phone-shell .conversation-support-entry .conversation-inbox-avatar > .toon-icon { width: 48px; height: 48px; }
+.phone-shell .conversation-inbox-copy .conversation-official-label { display: inline-block; vertical-align: middle; margin: 0 0 0 5px; padding: 1px 5px; border-radius: 5px; background: #d8edfd; color: #2365a3; font-size: 11px; font-weight: 500; line-height: 1.5; }

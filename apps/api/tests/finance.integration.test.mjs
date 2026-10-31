@@ -8,18 +8,18 @@ import { createDatabaseClient, orders, refunds } from "@xiongzai/database";
 import { JsonLogger } from "@xiongzai/observability";
 import { eq } from "drizzle-orm";
 import pg from "pg";
-import { createApiApp, loadApiConfig, MockPayoutProvider } from "../dist/index.js";
+import { createApiApp, loadApiConfig, MockPayoutProvider, FinanceService, DrizzleMockTransferStore, DurableTransfers } from "../dist/index.js";
 
 const databaseUrl=process.env.TEST_DATABASE_URL;const enabled=Boolean(databaseUrl);const schemaName=`xiongzai_finance_${randomUUID().replaceAll("-","")}`;const payoutSecret="finance-payout-webhook-secret-at-least-32-bytes";let migrationClient;let database;let app;let admin;let finalAdmin;let ledger;let payoutProvider;const config=loadApiConfig({NODE_ENV:"test",DATABASE_URL:databaseUrl??"postgresql://test:test@127.0.0.1:5432/test",USER_TOKEN_SECRET:"finance-user-token-secret-at-least-32-bytes",ADMIN_TOKEN_SECRET:"finance-admin-token-secret-at-least-32-bytes",INTERNAL_TOKEN_SECRET:"finance-internal-token-secret-at-least-32-bytes",CURSOR_SIGNING_SECRET:"finance-cursor-secret-at-least-32-bytes",PII_ENCRYPTION_KEY:"finance-pii-encryption-key-at-least-32-bytes",PII_HMAC_KEY:"finance-pii-hmac-key-at-least-32-bytes",AUTH_HMAC_KEY:"finance-auth-hmac-key-at-least-32-bytes",SMS_PROVIDER_MODE:"injected",PAYMENT_PROVIDER_MODE:"mock",PAYMENT_WEBHOOK_SECRET:"finance-payment-webhook-secret-at-least-32",PAYOUT_PROVIDER_MODE:"mock",PAYOUT_WEBHOOK_SECRET:payoutSecret,ACCESS_TOKEN_TTL_SECONDS:"300",REFRESH_TOKEN_TTL_SECONDS:"3600",API_CORS_ORIGINS:"http://localhost:3001"});
 
-class TrackingPayoutProvider extends MockPayoutProvider { payoutCalls=[];async createPayout(input){this.payoutCalls.push(input);return super.createPayout(input);} }
+class TrackingPayoutProvider extends MockPayoutProvider { payoutCalls=[];loseNextResponse=false;failBeforeNext=false;async createPayout(input){this.payoutCalls.push(input);if(this.failBeforeNext){this.failBeforeNext=false;throw new Error("synthetic unavailable transport");}const result=await super.createPayout(input);if(this.loseNextResponse){this.loseNextResponse=false;throw new Error("synthetic transport response loss");}return result;} }
 
-before(async()=>{if(!enabled)return;migrationClient=new pg.Client({connectionString:databaseUrl});await migrationClient.connect();await migrationClient.query(`CREATE SCHEMA "${schemaName}"`);await migrationClient.query(`SET search_path TO "${schemaName}", public`);await runMigration("0000_initial_schema.sql");await runMigration("0001_core_invariants.sql");await runMigration("0004_payment_channels_voice_constraints.sql");await runMigration("0005_policy_acceptance_context.sql");await runMigration("0006_policy_version_bindings.sql");await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_version.sql");database=createDatabaseClient({connectionString:databaseUrl,application_name:"xiongzai-finance-test",options:`-c search_path=${schemaName},public`,max:16});payoutProvider=new TrackingPayoutProvider(payoutSecret);app=await createApiApp({config,databaseClient:database,smsProvider:{sendCode:async()=>{}},payoutProvider,logger:new JsonLogger("finance-test",()=>{})});admin=await seedAdmin(["finance.read","finance.manage","finance.export","withdrawal.read","withdrawal.manage","withdrawal.review.initial"]);finalAdmin=await seedAdmin(["withdrawal.read","withdrawal.review.final"]);await seedConfigs();ledger=new FinanceLedgerEngine(database.db);});
+before(async()=>{if(!enabled)return;migrationClient=new pg.Client({connectionString:databaseUrl});await migrationClient.connect();await migrationClient.query(`CREATE SCHEMA "${schemaName}"`);await migrationClient.query(`SET search_path TO "${schemaName}", public`);await runMigration("0000_initial_schema.sql");await runMigration("0001_core_invariants.sql");await runMigration("0004_payment_channels_voice_constraints.sql");await runMigration("0005_policy_acceptance_context.sql");await runMigration("0006_policy_version_bindings.sql");await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_version.sql");await applyStageOneMigrations(migrationClient, schemaName); database = createDatabaseClient({connectionString:databaseUrl,application_name:"xiongzai-finance-test",options:`-c search_path=${schemaName},public`,max:16});payoutProvider=new TrackingPayoutProvider(payoutSecret);app=await createApiApp({config,databaseClient:database,smsProvider:{sendCode:async()=>{}},payoutProvider,logger:new JsonLogger("finance-test",()=>{})});admin=await seedAdmin(["finance.read","finance.manage","finance.export","withdrawal.read","withdrawal.manage","withdrawal.review.initial"]);finalAdmin=await seedAdmin(["withdrawal.read","withdrawal.review.final"]);await seedConfigs();ledger=new FinanceLedgerEngine(database.db);});
 after(async()=>{if(!enabled)return;await app?.close();await migrationClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);await migrationClient.end();});
 
 test("order completion posts one balanced main income and settlement preserves bigint cents",{skip:!enabled},async()=>{const actor=await seedSeller("ledger");const order=await seedOrder(actor,10000000000000001n);await recordAndSettle(order.id);await recordIncome(order.id);const summary=await userRequest(actor,"GET","/api/v1/seller/finance/summary");assert.equal(summary.statusCode,200,summary.body);assert.equal(summary.json().available_cent,"9000000000000001");assert.equal(typeof summary.json().available_cent,"string");const facts=await migrationClient.query("SELECT (SELECT count(*) FROM seller_incomes WHERE order_id=$1)::integer income_count,(SELECT count(*) FROM ledger_transactions t WHERE t.source_id=$1 AND t.transaction_type='ORDER_COMPLETED')::integer tx_count",[order.id]);assert.deepEqual(facts.rows[0],{income_count:1,tx_count:1});await assertAllPostedBalanced();const account=await createAccount(actor,"13800138000");assert.equal(account.display_mask,"138******00");assert.equal("account_token_ciphertext" in account,false);const stored=await migrationClient.query("SELECT account_token_ciphertext,account_token_hash,display_mask FROM payout_accounts WHERE id=$1",[account.id]);assert.notEqual(stored.rows[0].account_token_ciphertext,"13800138000");assert.equal(stored.rows[0].account_token_hash.length,64);await createAccount(actor,"ledger-account-002");const wechat=await userRequest(actor,"POST","/api/v1/seller/payout-accounts",{account_type:"WECHAT",holder_name:"测试收款人",account_token:"wechat-account-001",is_default:true});assert.equal(wechat.statusCode,201,wechat.body);assert.equal(wechat.json().account_type,"WECHAT");const bank=await userRequest(actor,"POST","/api/v1/seller/payout-accounts",{account_type:"BANK",holder_name:"测试收款人",account_token:"bank-account-001",is_default:true});assert.equal(bank.statusCode,400,bank.body);const defaults=await migrationClient.query("SELECT count(*)::integer count FROM payout_accounts WHERE seller_id=$1 AND account_type='ALIPAY' AND is_default=true AND deleted_at IS NULL",[actor.sellerId]);assert.equal(defaults.rows[0].count,1);const duplicate=await userRequest(actor,"POST","/api/v1/seller/payout-accounts",{account_type:"ALIPAY",holder_name:"测试收款人",account_token:"ledger-account-002",is_default:true});assert.equal(duplicate.statusCode,409);assert.equal(duplicate.json().code,"PAYOUT_ACCOUNT_ALREADY_EXISTS");});
 
-test("seller finance APIs expose policy, signed pages, server preview and masked withdrawal detail",{skip:!enabled},async()=>{const actor=await seedSeller("mobile-stage8");const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);const policy=await userRequest(actor,"GET","/api/v1/seller/finance/withdrawal-policy");assert.equal(policy.statusCode,200,policy.body);assert.deepEqual(policy.json(),{fee_bps:100,min_amount_cent:"1",max_amount_cent:"1000000000000000"});const legacyIncomes=await userRequest(actor,"GET","/api/v1/seller/finance/incomes");assert.equal(Array.isArray(legacyIncomes.json()),true);const incomes=await userRequest(actor,"GET","/api/v1/seller/finance/incomes?limit=20");assert.equal(incomes.statusCode,200,incomes.body);assert.equal(incomes.json().items[0].order_no.startsWith("XZFN"),true);assert.equal(incomes.json().items[0].service_title,"财务测试服务");assert.equal(incomes.json().next_cursor,null);const account=await createAccount(actor,"stage8-account-123456");const preview=await userRequest(actor,"POST","/api/v1/seller/withdrawals/preview",{payout_account_id:account.id,amount_cent:"5000"});assert.equal(preview.statusCode,201,preview.body);assert.deepEqual({amount:preview.json().amount_cent,fee:preview.json().fee_cent,actual:preview.json().actual_amount_cent,mask:preview.json().payout_account.display_mask},{amount:"5000",fee:"50",actual:"4950",mask:account.display_mask});assert.equal(JSON.stringify(preview.json()).includes("stage8-account-123456"),false);const key=`stage8-${randomUUID()}`;const created=await userRequest(actor,"POST","/api/v1/seller/withdrawals",{payout_account_id:account.id,amount_cent:"5000"},{"idempotency-key":key});const replay=await userRequest(actor,"POST","/api/v1/seller/withdrawals",{payout_account_id:account.id,amount_cent:"5000"},{"idempotency-key":key});assert.equal(replay.json().id,created.json().id);const withdrawalsPage=await userRequest(actor,"GET","/api/v1/seller/withdrawals?limit=20");assert.equal(withdrawalsPage.json().items[0].id,created.json().id);const detail=await userRequest(actor,"GET",`/api/v1/seller/withdrawals/${created.json().id}`);assert.equal(detail.statusCode,200,detail.body);assert.equal(detail.json().payout_account.display_mask,account.display_mask);assert.equal(JSON.stringify(detail.json()).includes("stage8-account-123456"),false);const remove=await userRequest(actor,"DELETE",`/api/v1/seller/payout-accounts/${account.id}?version=${account.version}`);assert.equal(remove.statusCode,409);assert.equal(remove.json().code,"PAYOUT_ACCOUNT_IN_USE");});
+test("seller finance APIs expose policy, signed pages, server preview and masked withdrawal detail",{skip:!enabled},async()=>{const actor=await seedSeller("mobile-stage8");const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);const policy=await userRequest(actor,"GET","/api/v1/seller/finance/withdrawal-policy");assert.equal(policy.statusCode,200,policy.body);assert.deepEqual(policy.json(),{fee_bps:100,min_amount_cent:"1",max_amount_cent:"1000000000000000"});const legacyIncomes=await userRequest(actor,"GET","/api/v1/seller/finance/incomes");assert.equal(Array.isArray(legacyIncomes.json()),true);const incomes=await userRequest(actor,"GET","/api/v1/seller/finance/incomes?limit=20");assert.equal(incomes.statusCode,200,incomes.body);assert.equal(incomes.json().items[0].order_no.startsWith("XZFN"),true);assert.equal(incomes.json().items[0].service_title,"财务测试服务");const buyerRow=await migrationClient.query("SELECT buyer_id FROM orders WHERE id=$1",[order.id]);assert.equal(incomes.json().items[0].buyer_id,buyerRow.rows[0].buyer_id);assert.equal(incomes.json().items[0].order_amount_cent,"10000");assert.equal(incomes.json().items[0].platform_fee_cent,"1000");assert.equal(legacyIncomes.json()[0].buyer_id,buyerRow.rows[0].buyer_id);assert.equal(incomes.json().next_cursor,null);const account=await createAccount(actor,"stage8-account-123456");const preview=await userRequest(actor,"POST","/api/v1/seller/withdrawals/preview",{payout_account_id:account.id,amount_cent:"5000"});assert.equal(preview.statusCode,201,preview.body);assert.deepEqual({amount:preview.json().amount_cent,fee:preview.json().fee_cent,actual:preview.json().actual_amount_cent,mask:preview.json().payout_account.display_mask},{amount:"5000",fee:"50",actual:"4950",mask:account.display_mask});assert.equal(JSON.stringify(preview.json()).includes("stage8-account-123456"),false);const key=`stage8-${randomUUID()}`;const created=await userRequest(actor,"POST","/api/v1/seller/withdrawals",{payout_account_id:account.id,amount_cent:"5000"},{"idempotency-key":key});const replay=await userRequest(actor,"POST","/api/v1/seller/withdrawals",{payout_account_id:account.id,amount_cent:"5000"},{"idempotency-key":key});assert.equal(replay.json().id,created.json().id);const withdrawalsPage=await userRequest(actor,"GET","/api/v1/seller/withdrawals?limit=20");assert.equal(withdrawalsPage.json().items[0].id,created.json().id);const detail=await userRequest(actor,"GET",`/api/v1/seller/withdrawals/${created.json().id}`);assert.equal(detail.statusCode,200,detail.body);assert.equal(detail.json().payout_account.display_mask,account.display_mask);assert.equal(JSON.stringify(detail.json()).includes("stage8-account-123456"),false);const remove=await userRequest(actor,"DELETE",`/api/v1/seller/payout-accounts/${account.id}?version=${account.version}`);assert.equal(remove.statusCode,409);assert.equal(remove.json().code,"PAYOUT_ACCOUNT_IN_USE");});
 
 test("admin withdrawal detail returns only masked payout account facts",{skip:!enabled},async()=>{const actor=await seedSeller("admin-withdrawal-detail");const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);const rawToken="admin-detail-account-token";const account=await createAccount(actor,rawToken);const withdrawal=(await createWithdrawal(actor,5000n,account.id)).json();const detail=await adminRequest("GET",`/admin-api/v1/withdrawals/${withdrawal.id}`);assert.equal(detail.statusCode,200,detail.body);assert.equal(detail.json().payout_account.display_mask,account.display_mask);const serialized=JSON.stringify(detail.json());assert.equal(serialized.includes(rawToken),false);assert.equal(serialized.includes("account_token_ciphertext"),false);assert.equal(serialized.includes("account_token_hash"),false);});
 
@@ -30,6 +30,32 @@ test("finance summary, filtered report and CSV export use server facts, permissi
   const denied=await app.inject({method:"POST",url:"/admin-api/v1/finance/exports",headers:{authorization:`Bearer ${finalAdmin.token}`},payload:{from:today,to:today,reason:"无导出权限角色不应导出"}});assert.equal(denied.statusCode,403);assert.equal(denied.json().code,"ADMIN_PERMISSION_DENIED");
   const exported=await adminRequest("POST","/admin-api/v1/finance/exports",{from:today,to:today,channel:"WECHAT_APP",reason:"本地财务核对导出"});assert.equal(exported.statusCode,201,exported.body);assert.match(exported.headers["content-type"],/text\/csv/u);assert.match(exported.headers["content-disposition"],/xiongzai-finance/u);assert.match(exported.body,/支付金额\(人民币元\)/u);assert.match(exported.body,/123\.45/u);assert.match(exported.body,/WECHAT_APP\(Mock\)/u);assert.doesNotMatch(exported.body,/account_token|phone|identity|secret|token|presigned|https?:\/\//iu);
   const audit=await migrationClient.query("SELECT action,reason,after_json FROM admin_operation_logs WHERE action='FINANCE_CSV_EXPORTED' ORDER BY created_at DESC LIMIT 1");assert.deepEqual({action:audit.rows[0].action,reason:audit.rows[0].reason},{action:"FINANCE_CSV_EXPORTED",reason:"本地财务核对导出"});assert.equal(/secret|token|account|phone|url/iu.test(JSON.stringify(audit.rows[0].after_json)),false);
+});
+
+test("finance export requires read and export grants, MFA and session before any query",{skip:!enabled},async()=>{
+  const {FinanceService}=await import("../dist/finance.service.js");const service=app.get(FinanceService);const original=service.exportFinanceCsv;let calls=0;
+  service.exportFinanceCsv=function(...args){calls++;return original.apply(this,args);};
+  const today=new Date().toISOString().slice(0,10);const payload={from:today,to:today,reason:"验证独立导出权限"};
+  const count=async()=> (await migrationClient.query("SELECT count(*)::int n FROM admin_operation_logs WHERE action='FINANCE_CSV_EXPORTED'")).rows[0].n;const before=await count();
+  try{
+    for(const grants of [["finance.read"],["finance.export"],[]]){const actor=await seedAdmin(grants);const response=await app.inject({method:"POST",url:"/admin-api/v1/finance/exports",headers:{authorization:`Bearer ${actor.token}`},payload});assert.equal(response.statusCode,403);}
+    const anonymous=await app.inject({method:"POST",url:"/admin-api/v1/finance/exports",payload});assert.equal(anonymous.statusCode,401);
+    const actor=await seedAdmin(["finance.read","finance.export"]);const session=(await migrationClient.query("SELECT id FROM admin_sessions WHERE admin_id=$1",[actor.id])).rows[0];
+    const pending=issueAccessToken({sub:actor.id,principal_type:"admin",token_use:"access",session_id:session.id,mfa_verified:false},{secret:config.adminTokenSecret,issuer:config.tokenIssuer,audience:config.adminTokenAudience,expiresInSeconds:300});
+    const mfa=await app.inject({method:"POST",url:"/admin-api/v1/finance/exports",headers:{authorization:`Bearer ${pending}`},payload});assert.equal(mfa.statusCode,403);assert.equal(mfa.json().code,"ADMIN_MFA_REQUIRED");assert.equal(calls,0);assert.equal(await count(),before);
+    const allowed=await app.inject({method:"POST",url:"/admin-api/v1/finance/exports",headers:{authorization:`Bearer ${actor.token}`},payload});assert.equal(allowed.statusCode,201);assert.equal(calls,1);assert.equal(await count(),before+1);
+  }finally{service.exportFinanceCsv=original;}
+});
+
+test("CSV preserves bigint yuan, formula safety and real channel/status/date filters",{skip:!enabled},async()=>{
+  const actor=await seedSeller("csv-integer-boundary"),order=await seedOrder(actor,10000000000000001n);
+  const paymentNo=`=CSV-${randomUUID().replaceAll("-","")}`,orderNo=`+CSV-${randomUUID().replaceAll("-","")}`;
+  await migrationClient.query("UPDATE payments SET payment_no=$1,channel='ALIPAY_APP',created_at='2026-09-01T12:00:00Z' WHERE id=$2",[paymentNo,order.paymentId]);await migrationClient.query("UPDATE orders SET order_no=$1 WHERE id=$2",[orderNo,order.id]);
+  const filters={from:"2026-09-01",to:"2026-09-01",channel:"ALIPAY_APP",status:"PAID",reason:"隔离测试精确金额与公式防护"};
+  const response=await adminRequest("POST","/admin-api/v1/finance/exports",filters);assert.equal(response.statusCode,201);assert.ok(response.body.includes(`"'${paymentNo}"`));assert.ok(response.body.includes(`"'${orderNo}"`));assert.match(response.body,/100000000000000\.01/u);assert.match(response.body,/ALIPAY_APP\(Mock\)/u);assert.equal(response.body.split("\r\n").length,2);
+  const wrongChannel=await adminRequest("POST","/admin-api/v1/finance/exports",{...filters,channel:"WECHAT_APP"});assert.equal(wrongChannel.statusCode,201);assert.equal(wrongChannel.body.split("\r\n").length,1);
+  const wrongDate=await adminRequest("POST","/admin-api/v1/finance/exports",{...filters,from:"2050-01-01",to:"2050-01-01"});assert.equal(wrongDate.statusCode,201);assert.equal(wrongDate.body.split("\r\n").length,1);
+  const wrongStatus=await adminRequest("POST","/admin-api/v1/finance/exports",{...filters,status:"FAILED"});assert.equal(wrongStatus.statusCode,201);assert.equal(wrongStatus.body.split("\r\n").length,1);
 });
 
 test("withdrawal dual control rejects the initial reviewer even when that account holds both permissions",{skip:!enabled},async()=>{
@@ -123,4 +149,173 @@ test("V3.1 commission returned after withdrawal remains available and refund rep
   const next=await createWithdrawal(actor,999n,account.id);
   assert.equal(next.statusCode,201,next.body);
   await assertAllPostedBalanced();
+});
+
+test("independent final rejection releases funds once and cannot reject an executing payout",{skip:!enabled},async()=>{
+  const actor=await seedSeller("final-reject");
+  const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);
+  const account=await createAccount(actor,`synthetic-${randomUUID()}`);
+  const created=(await createWithdrawal(actor,5000n,account.id)).json();
+  const reviewer=await seedAdmin(["withdrawal.review.initial","withdrawal.review.final"]);
+  const command=(who,action,version)=>app.inject({method:"POST",url:`/admin-api/v1/withdrawals/${created.id}/${action}`,headers:{authorization:`Bearer ${who.token}`},payload:{version,reason:"本地复核未通过测试"}});
+  const first=await command(reviewer,"initial-review",created.version);assert.equal(first.statusCode,201);
+  const version=first.json().version;
+  const initialOnly=await seedAdmin(["withdrawal.review.initial"]);
+  assert.equal((await command(initialOnly,"final-reject",version)).statusCode,403);
+  assert.equal((await command(reviewer,"final-reject",version)).json().code,"WITHDRAWAL_DUAL_CONTROL_REQUIRED");
+  assert.equal((await command(finalAdmin,"final-reject",version+1)).statusCode,409);
+  const callsBefore=payoutProvider.payoutCalls.length;
+  const results=await Promise.all([command(finalAdmin,"final-reject",version),command(finalAdmin,"final-reject",version)]);
+  for(const response of results){assert.equal(response.statusCode,201);assert.equal(response.json().status,"REJECTED");}
+  assert.equal(payoutProvider.payoutCalls.length,callsBefore);
+  assert.equal((await command(finalAdmin,"final-approve",version)).statusCode,409);
+  const row=(await migrationClient.query("SELECT initial_review_admin_id, final_review_admin_id, version FROM withdrawals WHERE id=$1",[created.id])).rows[0];
+  assert.equal(row.initial_review_admin_id,reviewer.id);assert.equal(row.final_review_admin_id,finalAdmin.id);assert.equal(row.version,version+1);
+  assert.equal((await userRequest(actor,"GET","/api/v1/seller/finance/summary")).json().available_cent,"9000");
+  const count=(await migrationClient.query("SELECT count(*)::int n FROM ledger_transactions WHERE source_id=$1 AND transaction_type='WITHDRAWAL_RELEASE'",[created.id])).rows[0].n;assert.equal(count,1);
+  const audit=(await migrationClient.query("SELECT count(*)::int n FROM admin_operation_logs WHERE target_id=$1 AND action='WITHDRAWAL_REJECT'",[created.id])).rows[0].n;assert.equal(audit,1);
+  await assertAllPostedBalanced();
+});
+
+test("final approval racing rejection has exactly one winner",{skip:!enabled},async()=>{
+  const actor=await seedSeller("final-race"),order=await seedOrder(actor,10000n);await recordAndSettle(order.id);
+  const account=await createAccount(actor,`synthetic-${randomUUID()}`),created=(await createWithdrawal(actor,5000n,account.id)).json();
+  const request=(action,who,version)=>app.inject({method:"POST",url:`/admin-api/v1/withdrawals/${created.id}/${action}`,headers:{authorization:`Bearer ${who.token}`},payload:{version,reason:"并发复核回归测试"}});
+  const initial=await request("initial-review",admin,created.version);assert.equal(initial.statusCode,201);
+  const version=initial.json().version;
+  const responses=await Promise.all([request("final-approve",finalAdmin,version),request("final-reject",finalAdmin,version)]);
+  assert.deepEqual(responses.map(r=>r.statusCode).sort(),[201,409]);
+  const state=(await migrationClient.query("SELECT status,version FROM withdrawals WHERE id=$1",[created.id])).rows[0];
+  assert.equal(state.version,version+1);
+  const summary=(await userRequest(actor,"GET","/api/v1/seller/finance/summary")).json();
+  assert.equal(summary.available_cent,state.status==="REJECTED"?"9000":"4000");
+  if(state.status==="PAYOUT_PROCESSING")assert.equal((await request("final-reject",finalAdmin,state.version)).statusCode,409);
+  await assertAllPostedBalanced();
+});
+test("payout terminal replays with distinct event IDs are idempotent and failures cannot leak provider text",{skip:!enabled},async()=>{
+  for(const outcome of ["PAYOUT_SUCCEEDED","PAYOUT_FAILED"]){
+    const actor=await seedSeller(`replay-${randomUUID().slice(0,6)}`),order=await seedOrder(actor,10000n);
+    await recordAndSettle(order.id);
+    const account=await createAccount(actor,`synthetic-${randomUUID()}`);
+    const created=(await createWithdrawal(actor,5000n,account.id)).json();
+    const approved=await adminRequest("POST",`/admin-api/v1/withdrawals/${created.id}/approve`,{version:created.version,reason:"回调重放回归"});
+    assert.equal(approved.statusCode,201);
+    const processing=approved.json();
+    const marker=`synthetic-private-${randomUUID()}`;
+    const payload={event_type:outcome,withdrawal_no:processing.withdrawal_no,provider_payout_no:processing.provider_payout_no,amount_cent:processing.actual_amount_cent,...(outcome==="PAYOUT_FAILED"?{failure_reason:marker}:{})};
+    const responses=await Promise.all([payoutCallback({event_id:randomUUID(),...payload}),payoutCallback({event_id:randomUUID(),...payload})]);
+    assert.deepEqual(responses.map(r=>r.statusCode),[201,201]);
+    assert.deepEqual(responses.map(r=>r.json().duplicate).sort(),[false,true]);
+    assert.equal(responses.some(r=>r.body.includes(marker)),false);
+    const detail=await userRequest(actor,"GET",`/api/v1/seller/withdrawals/${created.id}`);
+    assert.equal(detail.body.includes(marker),false);
+    const logs=await migrationClient.query("SELECT reason FROM withdrawal_logs WHERE withdrawal_id=$1",[created.id]);
+    assert.equal(JSON.stringify(logs.rows).includes(marker),false);
+    const opposite=await payoutCallback({event_id:randomUUID(),...payload,event_type:outcome==="PAYOUT_FAILED"?"PAYOUT_SUCCEEDED":"PAYOUT_FAILED"});
+    assert.equal(opposite.statusCode,409);
+    const wrongAmount=await payoutCallback({event_id:randomUUID(),...payload,amount_cent:"1"});
+    assert.equal(wrongAmount.json().code,"PAYOUT_CALLBACK_MISMATCH");
+    const transactions=await migrationClient.query("SELECT count(*)::int count FROM ledger_transactions WHERE source_id=$1 AND transaction_type IN ('WITHDRAWAL_COMPLETE','WITHDRAWAL_RELEASE')",[created.id]);
+    assert.equal(transactions.rows[0].count,1);
+    const summary=(await userRequest(actor,"GET","/api/v1/seller/finance/summary")).json();
+    assert.equal(summary.locked_cent,"0");
+    assert.equal(summary.available_cent,outcome==="PAYOUT_SUCCEEDED"?"4000":"9000");
+    await assertAllPostedBalanced();
+  }
+});
+
+import { applyStageOneMigrations } from "./stage-one-migrations.mjs";
+test("durable payout survives accepted response loss and fresh-provider recovery without resubmission",{skip:!enabled},async()=>{
+  const actor=await seedSeller("durable-loss");const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);
+  const account=await createAccount(actor,"synthetic-durable-account");const withdrawal=(await createWithdrawal(actor,5000n,account.id)).json();
+  const calls=payoutProvider.payoutCalls.length;payoutProvider.loseNextResponse=true;
+  const approval=await adminRequest("POST",`/admin-api/v1/withdrawals/${withdrawal.id}/approve`,{version:withdrawal.version,reason:"模拟渠道响应丢失"});
+  assert.equal(approval.statusCode,201);
+  let operation=(await migrationClient.query("SELECT * FROM financial_transfer_operations WHERE withdrawal_id=$1",[withdrawal.id])).rows[0];
+  assert.equal(operation.status,"UNKNOWN");assert.equal(payoutProvider.payoutCalls.length,calls+1);
+  let detail=(await userRequest(actor,"GET",`/api/v1/seller/withdrawals/${withdrawal.id}`)).json();assert.equal(detail.status,"PAYOUT_PROCESSING");
+  const denied=await userRequest(actor,"GET",`/admin-api/v1/finance/transfers/${operation.id}`);assert.ok([401,403].includes(denied.statusCode));
+  const stale=await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/recover`,{version:operation.version+1,reason:"冲突测试"});assert.equal(stale.statusCode,409);
+  const simulated=await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/mock-result`,{version:operation.version,status:"SUCCEEDED",reason:"模拟渠道已成功但回调丢失"});assert.equal(simulated.statusCode,201,simulated.body);assert.equal(simulated.json().business_result_applied,false);
+  detail=(await userRequest(actor,"GET",`/api/v1/seller/withdrawals/${withdrawal.id}`)).json();assert.equal(detail.status,"PAYOUT_PROCESSING");
+  // Isolated fault fixture advances only the recovery clock, never business/ledger status.
+  await migrationClient.query("UPDATE financial_transfer_operations SET next_run_at=now()-interval '1 second' WHERE id=$1",[operation.id]);
+  const fresh=new MockPayoutProvider(payoutSecret).bindTransferStore(new DrizzleMockTransferStore(database,config.authHmacKey));
+  let submissions=0;const original=fresh.createPayout.bind(fresh);fresh.createPayout=async input=>{submissions++;return original(input);};
+  await new FinanceService(database,config,fresh).recoverPayout(operation.id);
+  assert.equal(submissions,0);operation=(await migrationClient.query("SELECT * FROM financial_transfer_operations WHERE id=$1",[operation.id])).rows[0];assert.equal(operation.status,"SUCCEEDED");
+  detail=(await userRequest(actor,"GET",`/api/v1/seller/withdrawals/${withdrawal.id}`)).json();assert.equal(detail.status,"COMPLETED");
+  const replay=await payoutCallback({event_id:randomUUID(),event_type:"PAYOUT_SUCCEEDED",withdrawal_no:detail.withdrawal_no,provider_payout_no:detail.provider_payout_no,amount_cent:detail.actual_amount_cent});assert.equal(replay.statusCode,201);assert.equal(replay.json().duplicate,true);
+  const opposite=await payoutCallback({event_id:randomUUID(),event_type:"PAYOUT_FAILED",withdrawal_no:detail.withdrawal_no,provider_payout_no:detail.provider_payout_no,amount_cent:detail.actual_amount_cent});assert.equal(opposite.statusCode,409);
+  const facts=(await migrationClient.query("SELECT count(*)::int n FROM ledger_transactions WHERE source_id=$1 AND transaction_type='WITHDRAWAL_COMPLETE'",[withdrawal.id])).rows[0];assert.equal(facts.n,1);await assertAllPostedBalanced();
+});
+
+test("unknown payout exhaustion stays locked and audited manual recovery uses original channel and intent",{skip:!enabled},async()=>{
+  const actor=await seedSeller("durable-manual");const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);
+  const account=await createAccount(actor,"synthetic-manual-account");const withdrawal=(await createWithdrawal(actor,5000n,account.id)).json();
+  assert.equal((await adminRequest("POST",`/admin-api/v1/withdrawals/${withdrawal.id}/approve`,{version:withdrawal.version,reason:"恢复测试"})).statusCode,201);
+  let operation=(await migrationClient.query("SELECT * FROM financial_transfer_operations WHERE withdrawal_id=$1",[withdrawal.id])).rows[0];
+  await new DrizzleMockTransferStore(database,config.authHmacKey).setResult("PAYOUT","ALIPAY",operation.id,"UNKNOWN");
+  // Exhaust recovery budget in the isolated integration fixture.
+  await migrationClient.query("UPDATE financial_transfer_operations SET attempts=max_attempts,next_run_at=now()-interval '1 second' WHERE id=$1",[operation.id]);
+  await new FinanceService(database,config,payoutProvider).recoverPayout(operation.id);
+  operation=(await migrationClient.query("SELECT * FROM financial_transfer_operations WHERE id=$1",[operation.id])).rows[0];assert.equal(operation.status,"MANUAL_REVIEW");
+  const locked=(await userRequest(actor,"GET","/api/v1/seller/finance/summary")).json();assert.equal(locked.withdrawal_locked_cent??locked.locked_cent,"5000");
+  const manualList=await adminRequest("GET","/admin-api/v1/finance/transfers");assert.equal(manualList.statusCode,200);assert.ok(manualList.json().some(x=>x.id===operation.id&&x.status==="MANUAL_REVIEW"));
+  assert.equal((await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/mock-result`,{version:operation.version,status:"FAILED",reason:"渠道明确失败"})).statusCode,201);
+  const calls=payoutProvider.payoutCalls.length;
+  const recovered=await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/recover`,{version:operation.version,reason:"查询原业务结果"});assert.equal(recovered.statusCode,201,recovered.body);assert.equal(recovered.json().status,"FAILED");assert.equal(payoutProvider.payoutCalls.length,calls);
+  const released=(await userRequest(actor,"GET","/api/v1/seller/finance/summary")).json();assert.equal(released.available_cent,"9000");
+  const audit=(await migrationClient.query("SELECT count(*)::int n FROM admin_operation_logs WHERE target_id=$1 AND action='FINANCIAL_TRANSFER_RECOVERY_REQUESTED'",[withdrawal.id])).rows[0];assert.equal(audit.n,1);
+  const again=await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/recover`,{version:recovered.json().version,reason:"终态禁止再次重发"});assert.equal(again.statusCode,409);
+  await assertAllPostedBalanced();
+});
+
+test("transfer ownership fences a late worker and sweep recovers missing jobs",{skip:!enabled},async()=>{
+  const actor=await seedSeller("durable-lease");const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);
+  const account=await createAccount(actor,"synthetic-lease-account");const withdrawal=(await createWithdrawal(actor,5000n,account.id)).json();
+  await adminRequest("POST",`/admin-api/v1/withdrawals/${withdrawal.id}/approve`,{version:withdrawal.version,reason:"租约接管测试"});
+  const operation=(await migrationClient.query("SELECT * FROM financial_transfer_operations WHERE withdrawal_id=$1",[withdrawal.id])).rows[0];
+  await migrationClient.query("UPDATE financial_transfer_operations SET next_run_at=now()-interval '1 second' WHERE id=$1",[operation.id]);
+  let release;let entered;const started=new Promise(resolve=>{entered=resolve;});const pending=new Promise(resolve=>{release=resolve;});
+  const runner=new DurableTransfers(database);let applied=0;
+  const stale=runner.run(operation.id,{submit:async()=>{throw new Error("must query");},query:async()=>{entered();await pending;return {status:"SUCCEEDED",providerReference:`mock-payout-${operation.id}`};},bind:async()=>{},apply:async()=>{applied++;}});
+  await started;
+  await migrationClient.query("UPDATE financial_transfer_operations SET lease_until=now()-interval '1 second',next_run_at=now()-interval '1 second' WHERE id=$1",[operation.id]);
+  await runner.enqueueDue();
+  const sweep=await migrationClient.query("SELECT count(*)::int n FROM scheduled_jobs WHERE target_id=$1 AND job_key LIKE '%sweep:%'",[operation.id]);assert.ok(sweep.rows[0].n>=1);
+  await runner.run(operation.id,{submit:async()=>{throw new Error("must query");},query:async()=>({status:"UNKNOWN"}),bind:async()=>{},apply:async()=>{applied++;}});
+  release();await stale;assert.equal(applied,0);
+  assert.equal((await migrationClient.query("SELECT status FROM financial_transfer_operations WHERE id=$1",[operation.id])).rows[0].status,"UNKNOWN");
+});
+test("persistent Mock request binding rejects changed amount and never stores payout credentials",{skip:!enabled},async()=>{
+  const store=new DrizzleMockTransferStore(database,config.authHmacKey);
+  const provider=new MockPayoutProvider(payoutSecret).bindTransferStore(store);
+  const key=randomUUID();const input={withdrawalNo:"synthetic-binding-"+key,accountType:"WECHAT",accountToken:"synthetic-private-account-marker",amountCent:1234n,idempotencyKey:key};
+  const first=await provider.createPayout(input);const replay=await provider.createPayout(input);assert.equal(replay.providerPayoutNo,first.providerPayoutNo);
+  await assert.rejects(provider.createPayout({...input,amountCent:1235n}),error=>error.code==="TRANSFER_IDEMPOTENCY_CONFLICT");
+  const rows=(await migrationClient.query("SELECT * FROM mock_transfer_results WHERE idempotency_key=$1",[key])).rows;assert.equal(rows.length,1);
+  assert.match(rows[0].request_hash,/^[0-9a-f]{64}$/);assert.equal(JSON.stringify(rows).includes(input.accountToken),false);
+  const fresh=new MockPayoutProvider(payoutSecret).bindTransferStore(new DrizzleMockTransferStore(database,config.authHmacKey));
+  const result=await fresh.queryPayout({withdrawalNo:input.withdrawalNo,accountType:"WECHAT",idempotencyKey:key});assert.equal(result.status,"PROCESSING");assert.equal(result.providerReference,first.providerPayoutNo);
+});
+test("unsubmitted payout resumes with stable intent key and callback races query without duplicate ledger entries",{skip:!enabled},async()=>{
+  const actor=await seedSeller("durable-not-found");const order=await seedOrder(actor,10000n);await recordAndSettle(order.id);
+  const account=await createAccount(actor,"synthetic-not-found-account");const withdrawal=(await createWithdrawal(actor,5000n,account.id)).json();
+  payoutProvider.failBeforeNext=true;
+  const approval=await adminRequest("POST",`/admin-api/v1/withdrawals/${withdrawal.id}/approve`,{version:withdrawal.version,reason:"提交前传输故障"});assert.equal(approval.statusCode,201);
+  let operation=(await adminRequest("GET","/admin-api/v1/finance/transfers")).json().find(x=>x.withdrawal_id===withdrawal.id);
+  assert.equal(operation.status,"UNKNOWN");
+  const store=new DrizzleMockTransferStore(database,config.authHmacKey);assert.equal((await store.query("PAYOUT","ALIPAY",operation.id)).status,"NOT_FOUND");
+  const retry=await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/recover`,{version:operation.version,reason:"查询不存在后以原标识补交"});
+  assert.equal(retry.statusCode,201,retry.body);operation=retry.json();assert.equal(operation.status,"PROCESSING");
+  assert.equal(payoutProvider.payoutCalls.at(-1).idempotencyKey,operation.id);
+  assert.equal(payoutProvider.payoutCalls.at(-2).idempotencyKey,operation.id);
+  await store.setResult("PAYOUT","ALIPAY",operation.id,"SUCCEEDED");
+  await migrationClient.query("UPDATE financial_transfer_operations SET next_run_at=now()-interval '1 second' WHERE id=$1",[operation.id]);
+  const payload={event_id:randomUUID(),event_type:"PAYOUT_SUCCEEDED",withdrawal_no:approval.json().withdrawal_no,provider_payout_no:approval.json().provider_payout_no,amount_cent:approval.json().actual_amount_cent};
+  const [,callback]=await Promise.all([new FinanceService(database,config,payoutProvider).recoverPayout(operation.id),payoutCallback(payload)]);
+  assert.equal(callback.statusCode,201,callback.body);
+  const count=(await migrationClient.query("SELECT count(*)::int n FROM ledger_transactions WHERE source_id=$1 AND transaction_type='WITHDRAWAL_COMPLETE'",[withdrawal.id])).rows[0].n;assert.equal(count,1);
+  assert.equal((await adminRequest("GET",`/admin-api/v1/finance/transfers/${operation.id}`)).json().status,"SUCCEEDED");await assertAllPostedBalanced();
 });

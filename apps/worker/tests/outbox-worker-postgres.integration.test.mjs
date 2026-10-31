@@ -42,7 +42,13 @@ test("two outbox consumers claim once and a stale processing lease recovers afte
   assert.equal(recovered.length, 1);
   assert.equal(recovered[0].eventId, eventId);
   assert.equal(recovered[0].attempts, 2);
-  await repositoryB.published(recovered[0].id);
+  const stale = [...claimedA, ...claimedB][0];
+  await repositoryA.failed(stale.id, stale.attempts, new Error("late failure"));
+  assert.equal((await database.pool.query("SELECT status FROM outbox_events WHERE id=$1", [stale.id])).rows[0].status, "PROCESSING");
+  await repositoryA.published(stale.id, stale.attempts);
+  assert.equal((await database.pool.query("SELECT status FROM outbox_events WHERE id=$1", [stale.id])).rows[0].status, "PROCESSING");
+  await repositoryB.published(recovered[0].id, recovered[0].attempts);
+  await repositoryA.failed(stale.id, stale.attempts, new Error("late failure after publication"));
   assert.equal((await repositoryA.claim(1)).length, 0);
   const state = await database.pool.query("SELECT status, attempts, last_error FROM outbox_events WHERE event_id=$1", [eventId]);
   assert.deepEqual(state.rows, [{ status: "PUBLISHED", attempts: 2, last_error: null }]);
@@ -61,6 +67,20 @@ test("outbox retry is bounded and stored errors contain only a safe category", {
   assert.equal((await repository.claim(1)).length, 0);
   const state = await database.pool.query("SELECT status, attempts, last_error FROM outbox_events WHERE event_id=$1", [eventId]);
   assert.deepEqual(state.rows, [{ status: "FAILED", attempts: 2, last_error: "broker_unavailable" }]);
+});
+
+test("a crashed final publish attempt is failed explicitly and cannot be acknowledged late", { skip: !enabled }, async () => {
+  const repository = new DrizzleOutboxRepository(database.db, { maxAttempts: 1, lockTimeoutMs: 1_000 });
+  const eventId = await insertEvent();
+  const [claimed] = await repository.claim(1);
+  assert.equal(claimed.eventId, eventId);
+  assert.equal((await repository.claim(1)).length, 0);
+  await database.pool.query("UPDATE outbox_events SET updated_at=now()-interval '2 seconds' WHERE id=$1", [claimed.id]);
+  assert.equal((await repository.claim(1)).length, 0);
+  assert.equal(await repository.published(claimed.id, claimed.attempts), false);
+  assert.equal(await repository.failed(claimed.id, claimed.attempts, new Error("late")), false);
+  const state = await database.pool.query("SELECT status,attempts,last_error FROM outbox_events WHERE id=$1", [claimed.id]);
+  assert.deepEqual(state.rows, [{ status: "FAILED", attempts: 1, last_error: "lease_expired_attempts_exhausted" }]);
 });
 
 async function insertEvent() {

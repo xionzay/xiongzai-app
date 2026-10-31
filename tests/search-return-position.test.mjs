@@ -6,7 +6,7 @@ import ts from 'typescript';
 import React from 'react';
 
 const source = await readFile(new URL('../app/page.tsx', import.meta.url), 'utf8');
-const component = source.slice(source.indexOf('function SearchResultsScreen('), source.indexOf('const homeAnnouncements'));
+const component = source.slice(source.indexOf('function SearchResultsScreen('), source.indexOf('const homeShortcuts:'));
 const compiled = ts.transpileModule(component + '\nexports.Screen = SearchResultsScreen;', {compilerOptions:{target:ts.ScriptTarget.ES2022,jsx:ts.JsxEmit.React}}).outputText;
 function mount(snapshot, key, loading = false) {
   let cursor = 0, tree; const slots = [], effects = [];

@@ -73,7 +73,7 @@ before(async () => {
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
   await runMigration("0006_policy_version_bindings.sql");
-  database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-file-api-test", options: `-c search_path=${schemaName},public`, max: 4 });
+  await applyStageOneMigrations(migrationClient, schemaName); database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-file-api-test", options: `-c search_path=${schemaName},public`, max: 4 });
   app = await createApiApp({ config, databaseClient: database, objectStorageProvider: storage, previewConcurrencyLimiter: previewLimiter, logger: new JsonLogger("file-api-test", () => {}) });
   user = await seedUser();
   otherUser = await seedUser();
@@ -85,9 +85,31 @@ before(async () => {
 
 after(async () => {
   if (!enabled) return;
-  await app?.close();
-  await migrationClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
-  await migrationClient.end();
+  try { await app?.close(); }
+  finally {
+    try { await migrationClient.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`); }
+    finally { await migrationClient.end(); }
+  }
+});
+
+test("immediate file job acknowledgements are fenced even when a worker name is reused", { skip: !enabled }, async () => {
+  for (const throws of [false, true]) {
+    const id = randomUUID();
+    await migrationClient.query("INSERT INTO scheduled_jobs(id,job_key,job_type,target_type,target_id,run_at,max_attempts) VALUES($1,$2,'FILE_OBJECT_DELETE','PLATFORM',$3,now()-interval '1 second',4)", [id, `fencing:${id}`, randomUUID()]);
+    const logs = [];
+    const lifecycle = new FileLifecycleService(database, config, storage, new JsonLogger("file-fencing-test", value => logs.push(value)));
+    // This is a lease repository integration fixture, not a file deletion or business E2E.
+    lifecycle.handleClaimedJob = async job => {
+      await migrationClient.query("UPDATE scheduled_jobs SET attempts=attempts+1,locked_at=now() WHERE id=$1 AND attempts=$2", [job.id, job.attempts]);
+      if (throws) throw new Error("synthetic late failure");
+    };
+    assert.equal(await lifecycle.runSpecificJob(id, "api-immediate-delete"), "not_claimed");
+    const state = await migrationClient.query("SELECT status,attempts,locked_by FROM scheduled_jobs WHERE id=$1", [id]);
+    assert.deepEqual(state.rows, [{ status: "RUNNING", attempts: 2, locked_by: "api-immediate-delete" }]);
+    assert.equal(JSON.stringify(logs).includes("file_lifecycle_job_completed"), false);
+    assert.equal(JSON.stringify(logs).includes("file_lifecycle_job_failed"), false);
+    await migrationClient.query("UPDATE scheduled_jobs SET status='CANCELLED' WHERE id=$1", [id]);
+  }
 });
 
 test("file upload is integrity-checked, moderated, and exposed without leaking storage keys", { skip: !enabled }, async () => {
@@ -761,6 +783,128 @@ test("PAYMENT_PAYLOAD uses a service-only real MinIO chain and remains non-previ
   }
 });
 
+test("fulfillment images and recording traverse local MinIO quarantine, integrity and explicit manual review", { skip: !realMinioEnabled }, async () => {
+  assert.ok(["127.0.0.1","localhost","[::1]"].includes(new URL(process.env.FILE_STORAGE_ENDPOINT).hostname), "Local MinIO required");
+  const realStorage = new MinioStorageProvider({ endpoint: process.env.FILE_STORAGE_ENDPOINT, region: process.env.FILE_STORAGE_REGION, accessKeyId: process.env.FILE_STORAGE_ACCESS_KEY_ID, secretAccessKey: process.env.FILE_STORAGE_SECRET_ACCESS_KEY });
+  const realConfig = { ...config, fileStorageProvider:"minio",filePublicBucket:process.env.FILE_PUBLIC_BUCKET,filePrivateBucket:process.env.FILE_PRIVATE_BUCKET,fileQuarantineBucket:process.env.FILE_QUARANTINE_BUCKET,publicAssetBaseUrl:undefined };
+  const realDatabase = createDatabaseClient({connectionString:databaseUrl,application_name:"stage-one-media-minio",options:`-c search_path=${schemaName},public`,max:2});
+  const realApp = await createApiApp({config:realConfig,databaseClient:realDatabase,objectStorageProvider:realStorage,logger:new JsonLogger("stage-one-media-minio",()=>{})});
+  const locations=[];
+  try {
+    for(const [fileType,mimeType,bytes] of [["ORDER_FULFILLMENT_IMAGE","image/png",png(110,110)],["ORDER_FULFILLMENT_VIDEO","video/mp4",concat(mp4("vide",48000,480000),box("mdat",new Uint8Array([1,2,3,4])))]]){
+      const sha256=createHash("sha256").update(bytes).digest("hex");
+      const requested=await realApp.inject({method:"POST",url:"/api/v1/files/uploads",headers:{authorization:`Bearer ${user.token}`},payload:{file_type:fileType,mime_type:mimeType,size_bytes:bytes.byteLength,sha256}});
+      assert.equal(requested.statusCode,201,"fulfillment upload request failed; sensitive response suppressed");
+      const id=requested.json().file.id,upload=requested.json().upload;
+      locations.push((await migrationClient.query("SELECT bucket,object_key FROM files WHERE id=$1",[id])).rows[0]);
+      assert.ok(["127.0.0.1","localhost","[::1]"].includes(new URL(upload.url).hostname),"Local upload URL required");
+      assert.equal((await fetch(upload.url,{method:upload.method,headers:upload.headers,body:bytes})).ok,true);
+      const verified=await realApp.inject({method:"POST",url:`/api/v1/files/${id}/complete`,headers:{authorization:`Bearer ${user.token}`}});assert.equal(verified.statusCode,201,verified.body);assert.equal(verified.json().visibility,"PRIVATE");assert.equal(verified.json().moderation_status,"PENDING");
+      const payload={decision:"APPROVED",reason:"本地合成材料验证人工审核契约，非真实履约判责"};
+      if(fileType==="ORDER_FULFILLMENT_VIDEO"){
+        assert.equal(verified.json().duration_ms,10000);
+        assert.equal((await realApp.inject({method:"POST",url:`/admin-api/v1/files/${id}/moderation`,headers:{authorization:`Bearer ${admin.token}`},payload})).json().code,"FILE_VIDEO_CONTINUITY_REVIEW_REQUIRED");
+        payload.continuous_recording_confirmed=true;
+      }
+      const approved=await realApp.inject({method:"POST",url:`/admin-api/v1/files/${id}/moderation`,headers:{authorization:`Bearer ${admin.token}`},payload});assert.equal(approved.statusCode,201,approved.body);
+      const destination=(await migrationClient.query("SELECT bucket,object_key FROM files WHERE id=$1",[id])).rows[0];locations.push(destination);assert.equal(destination.bucket,realConfig.filePrivateBucket);await realStorage.headObject({bucket:destination.bucket,objectKey:destination.object_key});
+      assert.equal((await realApp.inject({method:"GET",url:`/api/v1/files/${id}`})).statusCode,404);
+      assert.equal((await realApp.inject({method:"DELETE",url:`/api/v1/files/${id}`,headers:{authorization:`Bearer ${otherUser.token}`}})).statusCode,404);
+    }
+  } finally {
+    for(const location of locations)await realStorage.deleteObject({bucket:location.bucket,objectKey:location.object_key}).catch(()=>undefined);
+    await realApp.close();
+  }
+});
+
+test("chat media is private, moderated, member-gated and transactionally idempotent", { skip: !enabled }, async () => {
+  const conversationId = randomUUID(); const outsider = await seedUser();
+  await migrationClient.query("INSERT INTO conversations (id,conversation_no,conversation_type) VALUES ($1,$2,'CONSULTATION')", [conversationId, `MEDIA-${conversationId}`]);
+  await migrationClient.query("INSERT INTO conversation_members (conversation_id,user_id,role) VALUES ($1,$2,'USER'),($1,$3,'SELLER')", [conversationId,user.id,otherUser.id]);
+  const fileId = await createVerifiedFile("CHAT_IMAGE", png(160,120));
+  const payload = { client_message_id: `image-${randomUUID()}`, message_type: "IMAGE", file_id: fileId };
+  const send = (body = payload, actor = user) => userRequestAs(actor, "POST", `/api/v1/conversations/${conversationId}/messages`, body);
+  assert.equal((await send()).json().code, "CHAT_MEDIA_NOT_READY");
+  assert.equal((await adminRequest("POST", `/admin-api/v1/files/${fileId}/moderation`, { decision: "APPROVED", reason: "隔离测试聊天图片审核" })).statusCode, 201);
+  assert.equal((await send(payload, otherUser)).json().code, "CHAT_MEDIA_NOT_ALLOWED");
+  const responses = await Promise.all([send(),send(),send()]);
+  for (const response of responses) assert.equal(response.statusCode,201,response.body);
+  const messageId = responses[0].json().id;
+  assert.equal(new Set(responses.map(r=>r.json().id)).size,1);
+  assert.equal(responses[0].json().media_file_id,fileId);
+  assert.equal(/object_key|https:|bucket/.test(responses[0].body),false);
+  const counts = await migrationClient.query("SELECT (SELECT count(*) FROM messages WHERE media_file_id=$1)::int AS messages, (SELECT count(*) FROM file_usages WHERE file_id=$1)::int AS usages",[fileId]);
+  assert.deepEqual(counts.rows[0],{messages:1,usages:1});
+  assert.equal((await send({...payload,client_message_id:`different-${randomUUID()}`})).json().code,"CHAT_MEDIA_ALREADY_BOUND");
+  assert.equal((await send({...payload,file_id:randomUUID()})).json().code,"MESSAGE_IDEMPOTENCY_CONFLICT");
+  assert.equal((await send({...payload,client_message_id:`purpose-${randomUUID()}`,file_id:firstApprovedFileId})).json().code,"CHAT_MEDIA_NOT_ALLOWED");
+  const secondConversation = randomUUID();
+  await migrationClient.query("INSERT INTO conversations (id,conversation_no,conversation_type) VALUES ($1,$2,'CONSULTATION')",[secondConversation,`MEDIA-${secondConversation}`]);
+  await migrationClient.query("INSERT INTO conversation_members (conversation_id,user_id,role) VALUES ($1,$2,'USER')",[secondConversation,user.id]);
+  assert.equal((await userRequest("POST",`/api/v1/conversations/${secondConversation}/messages`,{...payload,client_message_id:`cross-${randomUUID()}`})).json().code,"CHAT_MEDIA_ALREADY_BOUND");
+  const url = `/api/v1/files/chat-media/${conversationId}/${messageId}/access`;
+  const access = await userRequestAs(otherUser,"GET",url);
+  assert.equal(access.statusCode,200,access.body);
+  assert.equal(access.headers["cache-control"],"no-store, private");
+  assert.ok(Date.parse(access.json().access.expires_at)-Date.now() <= 60_000);
+  assert.equal((await userRequestAs(outsider,"GET",url)).statusCode,404);
+  assert.equal((await userRequest("GET",`/api/v1/files/chat-media/${secondConversation}/${messageId}/access`)).statusCode,404);
+  assert.equal((await userRequestAs(otherUser,"GET",`/api/v1/files/${fileId}/access`)).statusCode,404);
+  assert.equal((await userRequest("DELETE",`/api/v1/files/${fileId}`)).statusCode,409);
+  await migrationClient.query("UPDATE messages SET deleted_at=now() WHERE id=$1",[messageId]);
+  assert.equal((await userRequestAs(otherUser,"GET",url)).statusCode,404);
+  await migrationClient.query("UPDATE messages SET deleted_at=null WHERE id=$1",[messageId]);
+  await migrationClient.query("UPDATE conversation_members SET left_at=now() WHERE conversation_id=$1 AND user_id=$2",[conversationId,otherUser.id]);
+  assert.equal((await userRequestAs(otherUser,"GET",url)).statusCode,404);
+  await migrationClient.query("UPDATE conversation_members SET left_at=now() WHERE conversation_id=$1 AND user_id=$2",[conversationId,user.id]);
+  assert.equal((await userRequest("GET",`/api/v1/files/${fileId}/access`)).statusCode,404);
+});
+
+test("chat image and voice traverse local MinIO, manual review, durable send and member download", { skip: !realMinioEnabled }, async () => {
+  const realStorage = new MinioStorageProvider({ endpoint: process.env.FILE_STORAGE_ENDPOINT, region: process.env.FILE_STORAGE_REGION, accessKeyId: process.env.FILE_STORAGE_ACCESS_KEY_ID, secretAccessKey: process.env.FILE_STORAGE_SECRET_ACCESS_KEY });
+  const realConfig = { ...config, filePublicBucket:process.env.FILE_PUBLIC_BUCKET, filePrivateBucket:process.env.FILE_PRIVATE_BUCKET, fileQuarantineBucket:process.env.FILE_QUARANTINE_BUCKET };
+  const realDatabase = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-chat-minio-test", options: `-c search_path=${schemaName},public`, max: 2 });
+  const realApp = await createApiApp({ config:realConfig,databaseClient:realDatabase,objectStorageProvider:realStorage,logger:new JsonLogger("chat-media-minio-test",()=>{}) });
+  const ids=[]; const conversationId=randomUUID();
+  await migrationClient.query("INSERT INTO conversations (id,conversation_no,conversation_type) VALUES ($1,$2,'CONSULTATION')",[conversationId,`MINIO-${conversationId}`]);
+  await migrationClient.query("INSERT INTO conversation_members (conversation_id,user_id,role) VALUES ($1,$2,'USER'),($1,$3,'SELLER')",[conversationId,user.id,otherUser.id]);
+  const request=(actor,method,url,payload)=>realApp.inject({method,url,headers:{authorization:`Bearer ${actor.token}`},...(payload?{payload}:{})});
+  try {
+    for (const [fileType,messageType,mimeType,bytes] of [["CHAT_IMAGE","IMAGE","image/png",png(100,80)],["CHAT_VOICE","VOICE","audio/mp4",mp4("soun",48000,96000)]]) {
+      const requested=await request(user,"POST","/api/v1/files/uploads",{file_type:fileType,mime_type:mimeType,size_bytes:bytes.byteLength,sha256:createHash("sha256").update(bytes).digest("hex")});
+      assert.equal(requested.statusCode,201);
+      const {file,upload}=requested.json();ids.push(file.id);
+      assert.equal((await fetch(upload.url,{method:"PUT",headers:upload.headers,body:bytes})).ok,true);
+      assert.equal((await request(user,"POST",`/api/v1/files/${file.id}/complete`)).statusCode,201);
+      assert.equal((await request(admin,"POST",`/admin-api/v1/files/${file.id}/moderation`,{decision:"APPROVED",reason:"本地聊天媒体审核测试"})).statusCode,201);
+      const sent=await request(user,"POST",`/api/v1/conversations/${conversationId}/messages`,{client_message_id:`media-${randomUUID()}`,message_type:messageType,file_id:file.id});
+      assert.equal(sent.statusCode,201,sent.body);
+      const access=await request(otherUser,"GET",`/api/v1/files/chat-media/${conversationId}/${sent.json().id}/access`);
+      assert.equal(access.statusCode,200);
+      const downloaded=await fetch(access.json().access.url);
+      assert.equal(downloaded.status,200);assert.deepEqual(new Uint8Array(await downloaded.arrayBuffer()),bytes);
+      assert.equal((await realApp.inject({method:"GET",url:`/api/v1/files/${file.id}`})).statusCode,404);
+    }
+    const history=await request(otherUser,"GET",`/api/v1/conversations/${conversationId}/messages`);
+    assert.deepEqual(new Set(history.json().items.map(item=>item.message_type)),new Set(["IMAGE","VOICE"]));
+  } finally {
+    for(const id of ids) { const row=(await migrationClient.query("SELECT bucket,object_key FROM files WHERE id=$1",[id])).rows[0];if(row)await realStorage.deleteObject({bucket:row.bucket,objectKey:row.object_key}); }
+    await realApp.close();
+  }
+});
+
+test("chat voice enforces real 1–60 second duration separately from voice profile", { skip: !enabled }, async () => {
+  for (const [duration,expected] of [[999,400],[1000,201],[60000,201],[60001,400]]) {
+    const bytes=mp4("soun",48_000,duration*48); const sha256=createHash("sha256").update(bytes).digest("hex");
+    const requested=await userRequest("POST","/api/v1/files/uploads",{file_type:"CHAT_VOICE",mime_type:"audio/mp4",size_bytes:bytes.byteLength,sha256});
+    assert.equal(requested.statusCode,201);
+    objects.set(`${latestUpload.bucket}/${latestUpload.objectKey}`,{body:bytes,contentType:"audio/mp4",sizeBytes:bytes.byteLength,metadata:{sha256,"size-bytes":String(bytes.byteLength)}});
+    const complete=await userRequest("POST",`/api/v1/files/${requested.json().file.id}/complete`);
+    assert.equal(complete.statusCode,expected,complete.body);
+    if(expected===201) { assert.equal(complete.json().duration_ms,duration); assert.equal(complete.json().visibility,"PRIVATE"); }
+  }
+});
+
 test("VOICE_SAMPLE rejects server-side duration boundaries and disguised video payloads", { skip: !enabled }, async () => {
   const acceptedVoice = async (durationMs) => {
     const bytes = mp4("soun", 48_000, durationMs * 48);
@@ -1055,3 +1199,4 @@ function adminRequestAs(actor, method, url, payload) { return app.inject({ metho
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(fileName) { let source = await readFile(new URL(`../../../packages/database/migrations/${fileName}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }
 async function waitFor(predicate, timeoutMs = 2_000) { const deadline = Date.now() + timeoutMs; while (!predicate()) { if (Date.now() >= deadline) throw new Error("Timed out waiting for local preview test state"); await new Promise((resolve) => setTimeout(resolve, 10)); } }
+import { applyStageOneMigrations } from "./stage-one-migrations.mjs";

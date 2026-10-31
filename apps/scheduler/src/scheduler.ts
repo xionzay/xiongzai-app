@@ -16,8 +16,8 @@ export interface ClaimedJob {
 
 export interface ScheduledJobRepository {
   claim(batchSize: number, schedulerId: string): Promise<ClaimedJob[]>;
-  complete(id: string): Promise<void>;
-  fail(id: string, attempts: number, maxAttempts: number, error: unknown): Promise<void>;
+  complete(id: string, attempts: number): Promise<boolean>;
+  fail(id: string, attempts: number, maxAttempts: number, error: unknown): Promise<boolean>;
 }
 
 export type JobHandler = (job: ClaimedJob) => Promise<void>;
@@ -28,11 +28,20 @@ export class DrizzleScheduledJobRepository implements ScheduledJobRepository {
   async claim(batchSize: number, schedulerId: string): Promise<ClaimedJob[]> {
     return this.database.transaction(async (tx) => {
       const lockTimeoutMs = this.options.lockTimeoutMs ?? 300_000;
+      // A crash on the last attempt must not leave RUNNING forever or exceed the retry budget.
+      await tx.execute(sql`
+        UPDATE scheduled_jobs SET status = 'FAILED', locked_at = NULL, locked_by = NULL,
+          last_error = 'lease_expired_attempts_exhausted', updated_at = now()
+        WHERE attempts >= max_attempts
+          AND ((status = 'RUNNING' AND locked_at <= now() - (${lockTimeoutMs} * interval '1 millisecond'))
+            OR status = 'PENDING')
+      `);
       const result = await tx.execute(sql`
         WITH candidates AS (
           SELECT id FROM scheduled_jobs
-          WHERE (status = 'PENDING' AND run_at <= now())
-             OR (status = 'RUNNING' AND locked_at <= now() - (${lockTimeoutMs} * interval '1 millisecond'))
+          WHERE attempts < max_attempts
+            AND ((status = 'PENDING' AND run_at <= now())
+             OR (status = 'RUNNING' AND locked_at <= now() - (${lockTimeoutMs} * interval '1 millisecond')))
           ORDER BY run_at, id
           FOR UPDATE SKIP LOCKED
           LIMIT ${batchSize}
@@ -53,23 +62,26 @@ export class DrizzleScheduledJobRepository implements ScheduledJobRepository {
     });
   }
 
-  async complete(id: string): Promise<void> {
+  async complete(id: string, attempts: number): Promise<boolean> {
     const now = this.options.now?.() ?? new Date();
-    await this.database.update(scheduledJobs).set({ status: "COMPLETED", completedAt: now, lockedAt: null, lockedBy: null, lastError: null, updatedAt: now }).where(sql`${scheduledJobs.id} = ${id}`);
+    // Claim increments attempts atomically: it is the fencing generation, never reset on retry.
+    const changed = await this.database.update(scheduledJobs).set({ status: "COMPLETED", completedAt: now, lockedAt: null, lockedBy: null, lastError: null, updatedAt: now }).where(sql`${scheduledJobs.id} = ${id} AND ${scheduledJobs.status} = 'RUNNING' AND ${scheduledJobs.attempts} = ${attempts}`).returning({ id: scheduledJobs.id });
+    return changed.length === 1;
   }
 
-  async fail(id: string, attempts: number, maxAttempts: number, error: unknown): Promise<void> {
+  async fail(id: string, attempts: number, maxAttempts: number, error: unknown): Promise<boolean> {
     const failure = safeFailure(error);
     const exhausted = !failure.retryable || attempts >= maxAttempts;
     const now = this.options.now?.() ?? new Date();
-    await this.database.update(scheduledJobs).set({
+    const changed = await this.database.update(scheduledJobs).set({
       status: exhausted ? "FAILED" : "PENDING",
       lastError: failure.message,
       runAt: exhausted ? undefined : new Date(now.getTime() + retryDelayMs(attempts, id)),
       lockedAt: null,
       lockedBy: null,
       updatedAt: now,
-    }).where(sql`${scheduledJobs.id} = ${id}`);
+    }).where(sql`${scheduledJobs.id} = ${id} AND ${scheduledJobs.status} = 'RUNNING' AND ${scheduledJobs.attempts} = ${attempts}`).returning({ id: scheduledJobs.id });
+    return changed.length === 1;
   }
 }
 
@@ -99,12 +111,18 @@ export class Scheduler {
         const handler = this.handlers.get(job.jobType);
         if (!handler) throw new Error(`No handler registered for scheduled job type: ${job.jobType}`);
         await handler(job);
-        await this.repository.complete(job.id);
+        if (!await this.repository.complete(job.id, job.attempts)) {
+          this.logger.info("scheduled_job_claim_lost", { job_id: job.id, attempt: job.attempts });
+          continue;
+        }
         completedCount += 1;
         this.logger.info("scheduled_job_completed", { job_id: job.id, job_key: job.jobKey, job_type: job.jobType, elapsed_ms: Date.now() - jobStartedAt });
       } catch (error) {
+        if (!await this.repository.fail(job.id, job.attempts, job.maxAttempts, error)) {
+          this.logger.info("scheduled_job_claim_lost", { job_id: job.id, attempt: job.attempts });
+          continue;
+        }
         failedCount += 1;
-        await this.repository.fail(job.id, job.attempts, job.maxAttempts, error);
         const failure = safeFailure(error);
         this.logger.error("scheduled_job_failed", { job_id: job.id, job_key: job.jobKey, job_type: job.jobType, error_category: failure.message, retryable: failure.retryable, attempt: job.attempts, elapsed_ms: Date.now() - jobStartedAt });
       }

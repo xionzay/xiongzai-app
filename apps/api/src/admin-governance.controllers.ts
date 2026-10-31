@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req, Res } from "@nestjs/common";
-import { AppError, errorCodes } from "@xiongzai/contracts";
+import { AppError, errorCodes, productGames, orderStatuses, afterSaleStatuses } from "@xiongzai/contracts";
 import { requestContext } from "@xiongzai/observability";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -14,7 +14,7 @@ import { Inject } from "@nestjs/common";
 const loginSchema = z.object({ username: z.string().trim().min(3).max(64), password: z.string().min(8).max(256) });
 const mfaSchema = z.object({ code: z.string().regex(/^\d{6}$/u) });
 const roleSchema = z.object({ key: z.string().regex(/^[a-z][a-z0-9_.-]{2,63}$/u), name: z.string().trim().min(2).max(64), description: z.string().trim().max(500).optional(), permission_keys: z.array(z.string().min(1).max(128)).max(200), reason: z.string().trim().min(2).max(1000) });
-const assignRolesSchema = z.object({ role_ids: z.array(z.uuid()).max(30), reason: z.string().trim().min(2).max(1000) });
+const assignRolesSchema = z.object({ role_ids: z.array(z.uuid()).max(30), version: z.number().int().nonnegative(), confirm_empty_roles: z.boolean().default(false), reason: z.string().trim().min(2).max(1000) });
 const pageSchema = z.object({
   cursor: z.string().trim().min(1).max(4096).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -23,6 +23,8 @@ const pageSchema = z.object({
   target_id: z.uuid().optional(),
   sort: z.enum(["created_desc", "created_asc"]).default("created_desc"),
 });
+const productPageSchema = pageSchema.extend({ game: z.enum(productGames).optional() });
+const orderPageSchema = pageSchema.extend({ status: z.enum(orderStatuses).optional(), after_sale_status: z.enum(afterSaleStatuses).optional() });
 const userStatusSchema = z.object({ current_status: z.enum(["NORMAL", "DISABLED", "CANCELLED"]), next_status: z.enum(["NORMAL", "DISABLED"]), version: z.number().int().nonnegative(), reason: z.string().trim().min(2).max(1000) });
 const riskSchema = z.object({ version: z.number().int().nonnegative(), resolution: z.string().trim().min(2).max(2000), reason: z.string().trim().min(2).max(1000) });
 const createRiskSchema = z.object({ risk_type:z.string().trim().min(2).max(128), severity:z.enum(["NORMAL","MEDIUM","HIGH","URGENT"]), target_type:z.enum(["USER","SELLER","PRODUCT","ORDER","PAYMENT","REFUND","COMPLAINT","REVIEW","WITHDRAWAL","CONVERSATION","SUPPORT_CASE","PLATFORM"]), target_id:z.uuid(), rule_key:z.string().trim().min(2).max(128), details_json:z.record(z.string(),z.unknown()).default({}), reason:z.string().trim().min(2).max(1000) });
@@ -71,7 +73,7 @@ export class AdminRbacController {
   @Get("roles/:roleId") @RequirePermissions("role.read") role(@Param("roleId", new ZodValidationPipe(z.uuid())) roleId: string) { return this.service.roleDetail(roleId); }
   @Get("permissions") @RequirePermissions("role.read") permissions() { return this.service.listPermissions(); }
   @Post("roles") @RequirePermissions("role.manage") createRole(@Req() request: AdminRequest, @Body(new ZodValidationPipe(roleSchema)) body: z.infer<typeof roleSchema>) { return this.service.createRole(principal(request), { key: body.key, name: body.name, description: body.description, permissionKeys: body.permission_keys, reason: body.reason }, metadata(request)); }
-  @Patch("admins/:adminId/roles") @RequirePermissions("admin.manage", "role.manage") assign(@Req() request: AdminRequest, @Param("adminId", new ZodValidationPipe(z.uuid())) adminId: string, @Body(new ZodValidationPipe(assignRolesSchema)) body: z.infer<typeof assignRolesSchema>) { return this.service.assignRoles(principal(request), adminId, body.role_ids, body.reason, metadata(request)); }
+  @Patch("admins/:adminId/roles") @RequirePermissions("admin.manage", "role.manage") assign(@Req() request: AdminRequest, @Param("adminId", new ZodValidationPipe(z.uuid())) adminId: string, @Body(new ZodValidationPipe(assignRolesSchema)) body: z.infer<typeof assignRolesSchema>) { return this.service.assignRoles(principal(request), adminId, body.role_ids, body.version, body.reason, metadata(request), body.confirm_empty_roles); }
 }
 
 @Controller("admin-api/v1/users") @RequireMfa()
@@ -86,14 +88,14 @@ export class AdminUserGovernanceController {
 export class AdminCatalogController {
   constructor(private readonly service: AdminGovernanceService) {}
   @Get("sellers") @RequirePermissions("seller.read") sellers(@Query(new ZodValidationPipe(pageSchema)) query: z.infer<typeof pageSchema>) { return this.service.listSellers(query); }
-  @Get("products") @RequirePermissions("product.read") products(@Query(new ZodValidationPipe(pageSchema)) query: z.infer<typeof pageSchema>) { return this.service.listProducts(query); }
+  @Get("products") @RequirePermissions("product.read") products(@Query(new ZodValidationPipe(productPageSchema)) query: z.infer<typeof productPageSchema>) { return this.service.listProducts(query); }
 }
 
 @Controller("admin-api/v1/orders") @RequireMfa()
 export class AdminOrderGovernanceController {
   constructor(private readonly service: AdminGovernanceService) {}
-  @Get() @RequirePermissions("order.read") list(@Query(new ZodValidationPipe(pageSchema)) query: z.infer<typeof pageSchema>) { return this.service.listOrders(query); }
-  @Get(":orderId") @RequirePermissions("order.read") detail(@Param("orderId") orderId: string) { return this.service.orderDetail(orderId); }
+  @Get() @RequirePermissions("order.read") list(@Query(new ZodValidationPipe(orderPageSchema)) query: z.infer<typeof orderPageSchema>) { return this.service.listOrders(query); }
+  @Get(":orderId") @RequirePermissions("order.read") detail(@Req() request: AdminRequest, @Param("orderId") orderId: string) { return this.service.orderDetail(orderId, principal(request)); }
 }
 
 @Controller("admin-api/v1/payments") @RequireMfa()
@@ -119,7 +121,7 @@ export class AdminPlatformGovernanceController {
   @Get("configs") @RequirePermissions("config.read") configs() { return this.service.listConfigs(); }
   @Get("config-definitions") @RequirePermissions("config.read") configDefinitions() { return this.service.configDefinitions(); }
   @Post("configs") @RequirePermissions("config.manage") publish(@Req() request: AdminRequest, @Body(new ZodValidationPipe(configSchema)) body: z.infer<typeof configSchema>) { return this.service.publishConfig(principal(request), { key: body.config_key, value: body.value_json, reason: body.reason }, metadata(request)); }
-  @Get("search") @RequirePermissions("global_search.read") search(@Query(new ZodValidationPipe(searchSchema)) query: z.infer<typeof searchSchema>) { return this.service.globalSearch(query.q); }
+  @Get("search") @RequirePermissions("global_search.read") search(@Req() request: AdminRequest, @Query(new ZodValidationPipe(searchSchema)) query: z.infer<typeof searchSchema>) { return this.service.globalSearch(principal(request), query.q); }
 }
 
 @Controller("admin-api/v1/todos") @RequireMfa()

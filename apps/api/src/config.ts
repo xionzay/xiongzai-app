@@ -30,6 +30,8 @@ const apiConfigSchema = z.object({
   corsOrigins: z.array(z.url()).min(1),
   trustedProxyCidrs: z.array(z.string().trim().min(1).max(128)).max(32),
   requestBodyLimitBytes: z.number().int().min(16_384).max(10 * 1_024 * 1_024),
+  feedbackMaxCharacters: z.number().int().min(1).max(5000),
+  feedbackHourlyLimit: z.number().int().min(1).max(100),
   tokenIssuer: z.string().min(1),
   userTokenAudience: z.string().min(1),
   adminTokenAudience: z.string().min(1),
@@ -38,6 +40,7 @@ const apiConfigSchema = z.object({
   publicAssetPathMode: z.enum(["bucket-and-key", "key-only"]),
   fileStorageProvider: z.enum(["disabled", "minio", "aliyun-oss", "injected"]),
   fileStorageEndpoint: z.url().optional(),
+  fileStorageClientEndpoint: z.url().optional(),
   fileStorageRegion: z.string().min(1).max(64),
   fileStorageAccessKeyId: z.string().min(1).optional(),
   fileStorageSecretAccessKey: z.string().min(8).optional(),
@@ -63,6 +66,8 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   const environment = env.DEPLOYMENT_ENV ?? env.NODE_ENV ?? "development";
   const input = {
     environment,
+    feedbackMaxCharacters: integer(env.FEEDBACK_MAX_CHARACTERS, 2000),
+    feedbackHourlyLimit: integer(env.FEEDBACK_HOURLY_LIMIT, 5),
     host: env.API_HOST ?? "0.0.0.0",
     port: integer(env.API_PORT, 3002),
     databaseUrl: env.DATABASE_URL,
@@ -97,6 +102,7 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
     publicAssetPathMode: env.FILE_PUBLIC_ASSET_PATH_MODE ?? "bucket-and-key",
     fileStorageProvider: env.FILE_STORAGE_PROVIDER ?? "disabled",
     fileStorageEndpoint: env.FILE_STORAGE_ENDPOINT?.trim() || undefined,
+    fileStorageClientEndpoint: env.FILE_STORAGE_CLIENT_ENDPOINT?.trim() || undefined,
     fileStorageRegion: env.FILE_STORAGE_REGION ?? "auto",
     fileStorageAccessKeyId: env.FILE_STORAGE_ACCESS_KEY_ID?.trim() || undefined,
     fileStorageSecretAccessKey: env.FILE_STORAGE_SECRET_ACCESS_KEY?.trim() || undefined,
@@ -121,6 +127,11 @@ export function loadApiConfig(env: NodeJS.ProcessEnv = process.env): ApiConfig {
   }
   const protectedEnvironment = isProtectedEnvironment(result.data.environment);
   const invalidProtectedKeys: string[] = [];
+  if (result.data.fileStorageClientEndpoint) {
+    const endpoint = new URL(result.data.fileStorageClientEndpoint);
+    const localHost = /^(?:127(?:\.\d{1,3}){3}|10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})$/u.test(endpoint.hostname);
+    if (protectedEnvironment || result.data.fileStorageProvider !== "minio" || !localHost || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || !["http:", "https:"].includes(endpoint.protocol) || endpoint.pathname !== "/") throw new Error("Invalid API configuration: FILE_STORAGE_CLIENT_ENDPOINT");
+  }
   if (protectedEnvironment && result.data.smsProviderMode !== "injected") invalidProtectedKeys.push("SMS_PROVIDER_MODE");
   if (protectedEnvironment && result.data.paymentProviderMode !== "injected") invalidProtectedKeys.push("PAYMENT_PROVIDER_MODE");
   if (protectedEnvironment && result.data.payoutProviderMode !== "injected") invalidProtectedKeys.push("PAYOUT_PROVIDER_MODE");
@@ -187,7 +198,8 @@ function environmentKey(property: string): string {
     piiHmacKey: "PII_HMAC_KEY", authHmacKey: "AUTH_HMAC_KEY", smsProviderMode: "SMS_PROVIDER_MODE", paymentProviderMode: "PAYMENT_PROVIDER_MODE",
     paymentWebhookSecret: "PAYMENT_WEBHOOK_SECRET", payoutProviderMode: "PAYOUT_PROVIDER_MODE", payoutWebhookSecret: "PAYOUT_WEBHOOK_SECRET",
     corsOrigins: "API_CORS_ORIGINS", trustedProxyCidrs: "API_TRUSTED_PROXY_CIDRS", requestBodyLimitBytes: "API_BODY_LIMIT_BYTES",
-    fileStorageProvider: "FILE_STORAGE_PROVIDER", fileStorageEndpoint: "FILE_STORAGE_ENDPOINT", fileStorageRegion: "FILE_STORAGE_REGION",
+    feedbackMaxCharacters: "FEEDBACK_MAX_CHARACTERS", feedbackHourlyLimit: "FEEDBACK_HOURLY_LIMIT",
+    fileStorageProvider: "FILE_STORAGE_PROVIDER", fileStorageEndpoint: "FILE_STORAGE_ENDPOINT", fileStorageClientEndpoint: "FILE_STORAGE_CLIENT_ENDPOINT", fileStorageRegion: "FILE_STORAGE_REGION",
     fileStorageAccessKeyId: "FILE_STORAGE_ACCESS_KEY_ID", fileStorageSecretAccessKey: "FILE_STORAGE_SECRET_ACCESS_KEY",
     filePublicBucket: "FILE_PUBLIC_BUCKET", filePrivateBucket: "FILE_PRIVATE_BUCKET", fileQuarantineBucket: "FILE_QUARANTINE_BUCKET",
   } as Record<string, string>)[property] ?? property;

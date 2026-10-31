@@ -1,10 +1,12 @@
+import { cursorColumns, cursorTimestamp, cursorTimeValue } from "./cursor-time.js";
+import { todoCounts } from "./todo-counts.js";
 import { createHmac, randomBytes, scrypt as nodeScrypt, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import { Inject, Injectable } from "@nestjs/common";
 import { decodeCursor, encodeCursor, normalizePageSize, AppError, errorCodes } from "@xiongzai/contracts";
 import {
   adminAccounts, adminMfaFactors, adminOperationLogs, adminRoles, adminSessions, authSessions,
-  complaints, files, identityVerifications, orders, payments, permissions, platformConfigs, policyVersions, products, refunds, riskEvents, rolePermissions, roles,
+  complaints, files, identityVerifications, orders, orderStatusLogs, payments, permissions, platformConfigs, policyVersions, products, refunds, riskEvents, rolePermissions, roles,
   securityLogs, sellerApplications, sellerProfiles, supportCases, userProfiles, users, uuidv7, withdrawals, type DatabaseClient, type DatabaseTransaction,
   userPolicyAcceptances,
 } from "@xiongzai/database";
@@ -22,18 +24,18 @@ const ADMIN_CHALLENGE_TTL_SECONDS = 300;
 const CONFIG_DEFINITIONS = [
   { key:"finance.commission_rate_bps",label:"平台佣金比例",unit:"基点（100 = 1%）",minimum:0,maximum:5000 },
   { key:"order.payment_timeout_seconds",label:"待付款自动取消时间",unit:"秒",minimum:60,maximum:86400 },
-  { key:"order.accept_reminder_seconds",label:"待接单提醒时间",unit:"秒",minimum:60,maximum:86400 },
+  { key:"order.accept_reminder_seconds",label:"待接单提醒时间（未接入，禁止发布）",unit:"秒",minimum:60,maximum:86400 },
   { key:"order.accept_timeout_seconds",label:"待接单超时时间",unit:"秒",minimum:60,maximum:172800 },
   { key:"order.auto_confirm_seconds",label:"待确认自动完成时间",unit:"秒",minimum:60,maximum:2592000 },
   { key:"finance.settlement_delay_seconds",label:"收益结算等待时间",unit:"秒",minimum:0,maximum:2592000 },
   { key:"finance.withdrawal_min_cent",label:"最低提现金额",unit:"人民币分",minimum:1,maximum:100000000 },
   { key:"finance.withdrawal_max_cent",label:"最高提现金额",unit:"人民币分",minimum:1,maximum:1000000000 },
-  { key:"product.image_max_count",label:"服务图片数量限制",unit:"张",minimum:1,maximum:20 },
-  { key:"product.image_max_bytes",label:"服务图片大小限制",unit:"字节",minimum:1024,maximum:20971520 },
+  { key:"product.image_max_count",label:"商品图及详情图合计限制",unit:"张",minimum:1,maximum:30 },
+  { key:"product.image_max_bytes",label:"商品单张图片大小限制",unit:"字节",minimum:1024,maximum:10485760 },
 ] as const;
 
 type AdminPrincipal = { sub: string; session_id: string };
-type PageInput = { cursor?: string; limit?: number; keyword?: string; status?: string; target_id?: string; sort?: "created_desc" | "created_asc" };
+type PageInput = { game?: typeof products.$inferSelect.game; after_sale_status?: typeof orders.$inferSelect.afterSaleStatus; cursor?: string; limit?: number; keyword?: string; status?: string; target_id?: string; sort?: "created_desc" | "created_asc" };
 
 @Injectable()
 export class AdminGovernanceService {
@@ -44,7 +46,7 @@ export class AdminGovernanceService {
 
   async login(username: string, password: string, metadata: RequestMetadata) {
     const normalized = username.normalize("NFKC").trim().toLowerCase();
-    const [account] = await this.database.db.select().from(adminAccounts).where(eq(adminAccounts.username, normalized)).limit(1);
+    const [account] = await this.database.db.select(cursorColumns(adminAccounts)).from(adminAccounts).where(eq(adminAccounts.username, normalized)).limit(1);
     if (account?.status === "LOCKED" && account.lockedUntil && account.lockedUntil <= new Date()) {
       await this.database.db.update(adminAccounts).set({ status: "ACTIVE", failedLoginCount: 0, lockedUntil: null, version: sql`${adminAccounts.version} + 1`, updatedAt: new Date() }).where(eq(adminAccounts.id, account.id));
       account.status = "ACTIVE"; account.failedLoginCount = 0; account.lockedUntil = null;
@@ -100,7 +102,7 @@ export class AdminGovernanceService {
       input.status ? sql`${adminAccounts.status}::text = ${input.status}` : undefined,
       cursor ? dateCursor(adminAccounts.createdAt, adminAccounts.id, cursor, ascending) : undefined,
     ].filter(Boolean);
-    const accounts = await this.database.db.select({ id: adminAccounts.id, username: adminAccounts.username, displayName: adminAccounts.displayName, status: adminAccounts.status, mfaRequired: adminAccounts.mfaRequired, version: adminAccounts.version, lastLoginAt: adminAccounts.lastLoginAt, createdAt: adminAccounts.createdAt })
+    const accounts = await this.database.db.select({ id: adminAccounts.id, username: adminAccounts.username, displayName: adminAccounts.displayName, status: adminAccounts.status, mfaRequired: adminAccounts.mfaRequired, version: adminAccounts.version, lastLoginAt: adminAccounts.lastLoginAt, createdAt: cursorTimestamp(adminAccounts.createdAt) })
       .from(adminAccounts).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(adminAccounts.createdAt) : desc(adminAccounts.createdAt), ascending ? asc(adminAccounts.id) : desc(adminAccounts.id)).limit(limit + 1);
     const pageRows = accounts.slice(0, limit); const ids = pageRows.map((row) => row.id);
     const grants = ids.length ? await this.database.db.select({ adminId: adminRoles.adminId, roleKey: roles.roleKey, roleName: roles.name }).from(adminRoles).innerJoin(roles, eq(roles.id, adminRoles.roleId)).where(inArray(adminRoles.adminId, ids)).orderBy(asc(roles.roleKey)) : [];
@@ -112,7 +114,7 @@ export class AdminGovernanceService {
     const [account] = await this.database.db.select({ id: adminAccounts.id, username: adminAccounts.username, displayName: adminAccounts.displayName, status: adminAccounts.status, mfaRequired: adminAccounts.mfaRequired, version: adminAccounts.version, lastLoginAt: adminAccounts.lastLoginAt }).from(adminAccounts).where(eq(adminAccounts.id, adminId)).limit(1);
     if (!account) throw notFound("管理员不存在");
     const [grants,history] = await Promise.all([
-      this.database.db.select({ key: roles.roleKey, name: roles.name }).from(adminRoles).innerJoin(roles, eq(roles.id, adminRoles.roleId)).where(eq(adminRoles.adminId, adminId)).orderBy(asc(roles.roleKey)),
+      this.database.db.select({ id: roles.id, key: roles.roleKey, name: roles.name }).from(adminRoles).innerJoin(roles, eq(roles.id, adminRoles.roleId)).where(eq(adminRoles.adminId, adminId)).orderBy(asc(roles.roleKey)),
       this.database.db.select({id:adminOperationLogs.id,admin_id:adminOperationLogs.adminId,action:adminOperationLogs.action,reason:adminOperationLogs.reason,before_json:adminOperationLogs.beforeJson,after_json:adminOperationLogs.afterJson,request_id:adminOperationLogs.requestId,created_at:adminOperationLogs.createdAt}).from(adminOperationLogs).where(and(eq(adminOperationLogs.targetId,adminId),eq(adminOperationLogs.action,"RBAC_ADMIN_ROLES_UPDATED"))).orderBy(desc(adminOperationLogs.createdAt)).limit(100),
     ]);
     return {...adminView(account, grants),role_change_history:history.map((row)=>({...row,before_json:safeJson(row.before_json),after_json:safeJson(row.after_json)}))};
@@ -120,8 +122,10 @@ export class AdminGovernanceService {
 
   async listRoles(input: PageInput = {}) {
     const limit = normalizePageSize(input.limit, 20); const scope = `admin-roles:${input.keyword ?? ""}:${input.sort ?? "created_desc"}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
-    const predicates = [input.keyword ? or(ilike(roles.roleKey, `%${input.keyword}%`), ilike(roles.name, `%${input.keyword}%`)) : undefined, cursor ? dateCursor(roles.createdAt, roles.id, cursor, ascending) : undefined].filter(Boolean);
-    const base = await this.database.db.select({ id: roles.id, key: roles.roleKey, name: roles.name, description: roles.description, createdAt: roles.createdAt }).from(roles).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(roles.createdAt) : desc(roles.createdAt), ascending ? asc(roles.id) : desc(roles.id)).limit(limit + 1);
+    // Keep native chronological order; retain microseconds only at serialization.
+    const createdAt = roles.createdAt;
+    const predicates = [input.keyword ? or(ilike(roles.roleKey, `%${input.keyword}%`), ilike(roles.name, `%${input.keyword}%`)) : undefined, cursor ? dateCursor(createdAt, roles.id, cursor, ascending) : undefined].filter(Boolean);
+    const base = await this.database.db.select({ id: roles.id, key: roles.roleKey, name: roles.name, description: roles.description, createdAt: cursorTimestamp(createdAt) }).from(roles).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(createdAt) : desc(createdAt), ascending ? asc(roles.id) : desc(roles.id)).limit(limit + 1);
     const pageRows = base.slice(0, limit); const ids = pageRows.map((row) => row.id);
     const grants = ids.length ? await this.database.db.select({ roleId: rolePermissions.roleId, permission: permissions.permissionKey }).from(rolePermissions).innerJoin(permissions, eq(permissions.id, rolePermissions.permissionId)).where(inArray(rolePermissions.roleId, ids)).orderBy(asc(permissions.permissionKey)) : [];
     const byRole = new Map<string, string[]>(); for (const grant of grants) byRole.set(grant.roleId, [...(byRole.get(grant.roleId) ?? []), grant.permission]);
@@ -146,34 +150,41 @@ export class AdminGovernanceService {
     });
   }
 
-  async assignRoles(admin: AdminPrincipal, targetAdminId: string, roleIds: string[], reason: string, metadata: RequestMetadata) {
+  async assignRoles(admin: AdminPrincipal, targetAdminId: string, roleIds: string[], version: number, reason: string, metadata: RequestMetadata, confirmEmptyRoles = false) {
     if (targetAdminId === admin.sub && roleIds.length === 0) throw new AppError({ code: "RBAC_SELF_LOCKOUT", message: "不能移除自己的全部角色", statusCode: 409 });
+    if (roleIds.length === 0 && !confirmEmptyRoles) throw new AppError({ code: "RBAC_EMPTY_ROLES_CONFIRMATION_REQUIRED", message: "清空角色需要明确确认，该管理员将失去所有业务权限", statusCode: 400 });
     return this.database.db.transaction(async (tx) => {
-      const [target] = await tx.select({id:adminAccounts.id,status:adminAccounts.status}).from(adminAccounts).where(eq(adminAccounts.id,targetAdminId)).limit(1).for("update");
+      // Serialize super-admin membership changes before taking account locks: two
+      // concurrent removals must not both observe another available super-admin.
+      const [superRole] = await tx.select({ id: roles.id }).from(roles).where(eq(roles.roleKey, "super_admin")).limit(1).for("update");
+      const [target] = await tx.select({id:adminAccounts.id,status:adminAccounts.status,version:adminAccounts.version}).from(adminAccounts).where(eq(adminAccounts.id,targetAdminId)).limit(1).for("update");
       if(!target)throw notFound("管理员不存在");
+      if (target.version !== version) throw conflict("RESOURCE_VERSION_CONFLICT", "管理员角色版本已变化，请刷新后重试");
       const existing = await tx.select({ roleId: adminRoles.roleId }).from(adminRoles).where(eq(adminRoles.adminId, targetAdminId));
       const valid = roleIds.length ? await tx.select({ id: roles.id }).from(roles).where(inArray(roles.id, roleIds)) : [];
       if (valid.length !== new Set(roleIds).size) throw notFound("角色不存在");
-      const [superRole]=await tx.select({id:roles.id}).from(roles).where(eq(roles.roleKey,"super_admin")).limit(1).for("share");
       const removesSuper=Boolean(superRole&&existing.some((item)=>item.roleId===superRole.id)&&!roleIds.includes(superRole.id));
       if(removesSuper){const activeSuperAdmins=await tx.select({id:adminAccounts.id}).from(adminRoles).innerJoin(adminAccounts,eq(adminAccounts.id,adminRoles.adminId)).where(and(eq(adminRoles.roleId,superRole!.id),eq(adminAccounts.status,"ACTIVE"))).for("update");if(activeSuperAdmins.length<=1)throw conflict("RBAC_LAST_SUPER_ADMIN","系统必须保留至少一个可用超级管理员");}
       await tx.delete(adminRoles).where(eq(adminRoles.adminId, targetAdminId));
       if (roleIds.length) await tx.insert(adminRoles).values([...new Set(roleIds)].map((roleId) => ({ adminId: targetAdminId, roleId, grantedByAdminId: admin.sub })));
-      await this.audit(tx, admin.sub, "RBAC_ADMIN_ROLES_UPDATED", "PLATFORM", targetAdminId, reason, { role_ids: existing.map((r) => r.roleId) }, { role_ids: roleIds }, metadata);
-      return { admin_id: targetAdminId, role_ids: roleIds };
+      const [updated] = await tx.update(adminAccounts).set({ version: sql`${adminAccounts.version} + 1`, updatedAt: new Date() }).where(and(eq(adminAccounts.id, targetAdminId), eq(adminAccounts.version, version))).returning({ version: adminAccounts.version });
+      if (!updated) throw conflict("RESOURCE_VERSION_CONFLICT", "管理员角色版本已变化，请刷新后重试");
+      const assignedRoleIds = [...new Set(roleIds)];
+      await this.audit(tx, admin.sub, "RBAC_ADMIN_ROLES_UPDATED", "PLATFORM", targetAdminId, reason, { role_ids: existing.map((r) => r.roleId), version }, { role_ids: assignedRoleIds, version: updated.version }, metadata);
+      return { admin_id: targetAdminId, role_ids: assignedRoleIds, version: updated.version };
     });
   }
 
   async listUsers(input: { cursor?: string; limit?: number; keyword?: string; status?: "NORMAL" | "DISABLED" | "CANCELLED"; sort?: "created_desc" | "created_asc" }) {
     const limit = normalizePageSize(input.limit, 20); const scope = `admin-users:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort ?? "created_desc"}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
     const predicates = [input.status ? eq(users.status, input.status) : undefined, input.keyword ? or(ilike(users.phoneMask, `%${input.keyword}%`), ilike(userProfiles.nickname, `%${input.keyword}%`), ilike(userProfiles.publicUserNo, `%${input.keyword}%`)) : undefined, cursor ? dateCursor(users.createdAt, users.id, cursor, ascending) : undefined].filter(Boolean);
-    const rows = await this.database.db.select({ id: users.id, phoneMask: users.phoneMask, status: users.status, profileInitialized: users.profileInitialized, lastActiveAt: users.lastActiveAt, version: users.version, createdAt: users.createdAt, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, sellerId: sellerProfiles.id, sellerStatus: sellerProfiles.status })
+    const rows = await this.database.db.select({ id: users.id, phoneMask: users.phoneMask, status: users.status, profileInitialized: users.profileInitialized, lastActiveAt: users.lastActiveAt, version: users.version, createdAt: cursorTimestamp(users.createdAt), nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, sellerId: sellerProfiles.id, sellerStatus: sellerProfiles.status })
       .from(users).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt))).leftJoin(sellerProfiles, eq(sellerProfiles.userId, users.id)).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(users.createdAt) : desc(users.createdAt), ascending ? asc(users.id) : desc(users.id)).limit(limit + 1);
     return page(rows, limit, this.config.cursorSigningSecret, scope, userListView);
   }
 
   async userDetail(userId: string) {
-    const [row] = await this.database.db.select({ id: users.id, phoneMask: users.phoneMask, status: users.status, profileInitialized: users.profileInitialized, lastActiveAt: users.lastActiveAt, version: users.version, createdAt: users.createdAt, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, bio: userProfiles.bio, avatarFileId: userProfiles.avatarFileId, sellerId: sellerProfiles.id, sellerStatus: sellerProfiles.status })
+    const [row] = await this.database.db.select({ id: users.id, phoneMask: users.phoneMask, status: users.status, profileInitialized: users.profileInitialized, lastActiveAt: users.lastActiveAt, version: users.version, createdAt: cursorTimestamp(users.createdAt), nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, bio: userProfiles.bio, avatarFileId: userProfiles.avatarFileId, sellerId: sellerProfiles.id, sellerStatus: sellerProfiles.status })
       .from(users).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt))).leftJoin(sellerProfiles, eq(sellerProfiles.userId, users.id)).where(eq(users.id, userId)).limit(1);
     if (!row) throw notFound("用户不存在");
     const [acceptances, identityRows, userRisks, securityHistory, governanceHistory] = await Promise.all([
@@ -186,11 +197,11 @@ export class AdminGovernanceService {
         .where(eq(userPolicyAcceptances.userId, userId)).orderBy(desc(userPolicyAcceptances.acceptedAt)),
       this.database.db.select({ id: identityVerifications.id, status: identityVerifications.status, submittedAt: identityVerifications.submittedAt, verifiedAt: identityVerifications.verifiedAt, updatedAt: identityVerifications.updatedAt })
         .from(identityVerifications).where(eq(identityVerifications.userId, userId)).orderBy(desc(identityVerifications.createdAt)).limit(1),
-      this.database.db.select({ id: riskEvents.id, riskType: riskEvents.riskType, severity: riskEvents.severity, status: riskEvents.status, ruleKey: riskEvents.ruleKey, resolution: riskEvents.resolution, createdAt: riskEvents.createdAt, resolvedAt: riskEvents.resolvedAt })
+      this.database.db.select({ id: riskEvents.id, riskType: riskEvents.riskType, severity: riskEvents.severity, status: riskEvents.status, ruleKey: riskEvents.ruleKey, resolution: riskEvents.resolution, createdAt: cursorTimestamp(riskEvents.createdAt), resolvedAt: riskEvents.resolvedAt })
         .from(riskEvents).where(and(eq(riskEvents.targetType, "USER"), eq(riskEvents.targetId, userId))).orderBy(desc(riskEvents.createdAt)).limit(50),
-      this.database.db.select({ id: securityLogs.id, eventType: securityLogs.eventType, status: securityLogs.status, riskScore: securityLogs.riskScore, createdAt: securityLogs.createdAt, resolvedAt: securityLogs.resolvedAt })
+      this.database.db.select({ id: securityLogs.id, eventType: securityLogs.eventType, status: securityLogs.status, riskScore: securityLogs.riskScore, createdAt: cursorTimestamp(securityLogs.createdAt), resolvedAt: securityLogs.resolvedAt })
         .from(securityLogs).where(eq(securityLogs.userId, userId)).orderBy(desc(securityLogs.createdAt)).limit(50),
-      this.database.db.select({ id: adminOperationLogs.id, action: adminOperationLogs.action, reason: adminOperationLogs.reason, beforeJson: adminOperationLogs.beforeJson, afterJson: adminOperationLogs.afterJson, requestId: adminOperationLogs.requestId, createdAt: adminOperationLogs.createdAt })
+      this.database.db.select({ id: adminOperationLogs.id, action: adminOperationLogs.action, reason: adminOperationLogs.reason, beforeJson: adminOperationLogs.beforeJson, afterJson: adminOperationLogs.afterJson, requestId: adminOperationLogs.requestId, createdAt: cursorTimestamp(adminOperationLogs.createdAt) })
         .from(adminOperationLogs).where(and(eq(adminOperationLogs.targetType, "USER"), eq(adminOperationLogs.targetId, userId))).orderBy(desc(adminOperationLogs.createdAt)).limit(50),
     ]);
     const identity = identityRows[0];
@@ -210,6 +221,11 @@ export class AdminGovernanceService {
 
   async setUserStatus(admin: AdminPrincipal, userId: string, input: { currentStatus: "NORMAL" | "DISABLED" | "CANCELLED"; nextStatus: "NORMAL" | "DISABLED"; version: number; reason: string }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
+      // Use the same user-row lock as cancellation; never trust a submitted status.
+      const [current] = await tx.select({ status: users.status, cancelledAt: users.cancelledAt, version: users.version }).from(users).where(eq(users.id, userId)).limit(1).for("update");
+      if (!current) throw notFound("用户不存在");
+      if (current.status === "CANCELLED" || current.cancelledAt !== null) throw conflict("USER_CANCELLED", "已注销账号不能通过禁用或解禁恢复");
+      if (current.status !== input.currentStatus || current.version !== input.version) throw conflict("VERSION_CONFLICT", "用户状态已变化，请刷新后重试");
       const [updated] = await tx.update(users).set({ status: input.nextStatus, version: sql`${users.version} + 1`, updatedAt: new Date() }).where(and(eq(users.id, userId), eq(users.status, input.currentStatus), eq(users.version, input.version))).returning();
       if (!updated) throw conflict("VERSION_CONFLICT", "用户状态已变化，请刷新后重试");
       if (input.nextStatus === "DISABLED") await tx.update(authSessions).set({ revokedAt: new Date() }).where(and(eq(authSessions.userId, userId), isNull(authSessions.revokedAt)));
@@ -221,33 +237,41 @@ export class AdminGovernanceService {
   async listSellers(input: PageInput = {}) {
     const limit = normalizePageSize(input.limit, 20); const scope = `admin-sellers:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort ?? "created_desc"}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
     const predicates = [input.status ? sql`${sellerProfiles.status}::text = ${input.status}` : undefined, input.keyword ? ilike(sellerProfiles.sellerNickname, `%${input.keyword}%`) : undefined, cursor ? dateCursor(sellerProfiles.createdAt, sellerProfiles.id, cursor, ascending) : undefined].filter(Boolean);
-    const rows = await this.database.db.select({ id: sellerProfiles.id, user_id: sellerProfiles.userId, seller_nickname: sellerProfiles.sellerNickname, status: sellerProfiles.status, accepting_orders: sellerProfiles.acceptingOrders, rating_avg: sellerProfiles.ratingAvg, completed_order_count: sellerProfiles.completedOrderCount, version: sellerProfiles.version, createdAt: sellerProfiles.createdAt, created_at: sellerProfiles.createdAt }).from(sellerProfiles).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(sellerProfiles.createdAt) : desc(sellerProfiles.createdAt), ascending ? asc(sellerProfiles.id) : desc(sellerProfiles.id)).limit(limit + 1);
+    const rows = await this.database.db.select({ id: sellerProfiles.id, user_id: sellerProfiles.userId, seller_nickname: sellerProfiles.sellerNickname, status: sellerProfiles.status, accepting_orders: sellerProfiles.acceptingOrders, rating_avg: sellerProfiles.ratingAvg, completed_order_count: sellerProfiles.completedOrderCount, version: sellerProfiles.version, createdAt: cursorTimestamp(sellerProfiles.createdAt), created_at: sellerProfiles.createdAt }).from(sellerProfiles).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(sellerProfiles.createdAt) : desc(sellerProfiles.createdAt), ascending ? asc(sellerProfiles.id) : desc(sellerProfiles.id)).limit(limit + 1);
     return page(rows, limit, this.config.cursorSigningSecret, scope, ({ createdAt, ...row }) => { void createdAt; return row; });
   }
   async listProducts(input: PageInput = {}) {
-    const limit = normalizePageSize(input.limit, 20); const scope = `admin-products:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort ?? "created_desc"}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
-    const predicates = [isNull(products.deletedAt), input.status ? sql`${products.status}::text = ${input.status}` : undefined, input.keyword ? ilike(products.title, `%${input.keyword}%`) : undefined, cursor ? dateCursor(products.createdAt, products.id, cursor, ascending) : undefined].filter(Boolean);
-    const rows = await this.database.db.select({ id: products.id, seller_id: products.sellerId, title: products.title, status: products.status, min_price_cent: products.minPriceCent, sold_count: products.soldCount, rating_avg: products.ratingAvg, version: products.version, createdAt: products.createdAt, created_at: products.createdAt }).from(products).where(and(...predicates as never[])).orderBy(ascending ? asc(products.createdAt) : desc(products.createdAt), ascending ? asc(products.id) : desc(products.id)).limit(limit + 1);
+    const limit = normalizePageSize(input.limit, 20); const scope = `admin-products:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort ?? "created_desc"}:${input.game ?? ""}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
+    const predicates = [input.game ? eq(products.game, input.game) : undefined, isNull(products.deletedAt), input.status ? sql`${products.status}::text = ${input.status}` : undefined, input.keyword ? ilike(products.title, `%${input.keyword}%`) : undefined, cursor ? dateCursor(products.createdAt, products.id, cursor, ascending) : undefined].filter(Boolean);
+    const rows = await this.database.db.select({ id: products.id, seller_id: products.sellerId, title: products.title, game: products.game, pricing_mode: products.pricingMode, fulfillment_seconds: products.fulfillmentSeconds, status: products.status, min_price_cent: products.minPriceCent, sold_count: products.soldCount, rating_avg: products.ratingAvg, version: products.version, createdAt: cursorTimestamp(products.createdAt), created_at: products.createdAt }).from(products).where(and(...predicates as never[])).orderBy(ascending ? asc(products.createdAt) : desc(products.createdAt), ascending ? asc(products.id) : desc(products.id)).limit(limit + 1);
     return page(rows, limit, this.config.cursorSigningSecret, scope, ({ createdAt, ...row }) => { void createdAt; return row; });
   }
 
   async listOrders(input: PageInput) {
-    const limit = normalizePageSize(input.limit, 20); const scope = `admin-orders:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort ?? "created_desc"}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
-    const predicates = [input.keyword ? or(ilike(orders.orderNo, `%${input.keyword}%`), ilike(orders.productTitleSnapshot, `%${input.keyword}%`), ilike(orders.sellerNameSnapshot, `%${input.keyword}%`)) : undefined, input.status ? sql`${orders.status}::text = ${input.status}` : undefined, cursor ? dateCursor(orders.createdAt, orders.id, cursor, ascending) : undefined].filter(Boolean);
-    const rows = await this.database.db.select().from(orders).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(orders.createdAt) : desc(orders.createdAt), ascending ? asc(orders.id) : desc(orders.id)).limit(limit + 1);
+    const limit = normalizePageSize(input.limit, 20); const scope = `admin-orders:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort ?? "created_desc"}:${input.after_sale_status ?? ""}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
+    const predicates = [input.after_sale_status ? eq(orders.afterSaleStatus, input.after_sale_status) : undefined, input.keyword ? or(ilike(orders.orderNo, `%${input.keyword}%`), ilike(orders.productTitleSnapshot, `%${input.keyword}%`), ilike(orders.sellerNameSnapshot, `%${input.keyword}%`)) : undefined, input.status ? sql`${orders.status}::text = ${input.status}` : undefined, cursor ? dateCursor(orders.createdAt, orders.id, cursor, ascending) : undefined].filter(Boolean);
+    const rows = await this.database.db.select(cursorColumns(orders)).from(orders).where(predicates.length ? and(...predicates as never[]) : undefined).orderBy(ascending ? asc(orders.createdAt) : desc(orders.createdAt), ascending ? asc(orders.id) : desc(orders.id)).limit(limit + 1);
     return page(rows, limit, this.config.cursorSigningSecret, scope, orderView);
   }
 
-  async orderDetail(orderId: string) {
-    const [order] = await this.database.db.select().from(orders).where(or(eq(orders.id, orderId), eq(orders.orderNo, orderId))).limit(1); if (!order) throw notFound("订单不存在");
+  async orderDetail(orderId: string, admin?: AdminPrincipal) {
+    const grants = new Set(admin ? (await this.session(admin.sub)).permissions : []);
+    const [order] = await this.database.db.select(cursorColumns(orders)).from(orders).where(or(eq(orders.id, orderId), eq(orders.orderNo, orderId))).limit(1); if (!order) throw notFound("订单不存在");
     const policyIds = [order.transactionPolicyVersionId, order.refundPolicyVersionId].filter((value): value is string => Boolean(value));
-    const [paymentRows, policyRows] = await Promise.all([
-      this.database.db.select().from(payments).where(eq(payments.orderId, order.id)).orderBy(desc(payments.createdAt)),
+    const [paymentRows, policyRows, statusRows, refundRows, complaintRows] = await Promise.all([
+      this.database.db.select(cursorColumns(payments)).from(payments).where(eq(payments.orderId, order.id)).orderBy(desc(payments.createdAt)),
       policyIds.length ? this.database.db.select().from(policyVersions).where(inArray(policyVersions.id, policyIds)) : Promise.resolve([]),
+      this.database.db.select().from(orderStatusLogs).where(eq(orderStatusLogs.orderId, order.id)).orderBy(desc(orderStatusLogs.createdAt)),
+      grants.has("refund.read") ? this.database.db.select({ id: refunds.id, refund_no: refunds.refundNo, status: refunds.status }).from(refunds).where(eq(refunds.orderId, order.id)).orderBy(desc(refunds.createdAt), desc(refunds.id)).limit(21) : [],
+      grants.has("complaint.read") ? this.database.db.select({ id: complaints.id, complaint_no: complaints.complaintNo, status: complaints.status }).from(complaints).where(eq(complaints.orderId, order.id)).orderBy(desc(complaints.createdAt), desc(complaints.id)).limit(21) : [],
     ]);
     const policiesById = new Map(policyRows.map((policy) => [policy.id, policyReferenceView(policy)]));
     return {
       ...orderView(order), payments: paymentRows.map(paymentView),
+      ...(grants.has("finance.read") ? { commission_rate_bps: order.commissionRateBpsSnapshot, platform_fee_cent: order.platformFeeCent.toString(), seller_income_cent: order.sellerIncomeCent.toString() } : {}),
+      ...(grants.has("refund.read") ? { related_refunds: refundRows.slice(0, 20), related_refunds_has_more: refundRows.length > 20 } : {}),
+      ...(grants.has("complaint.read") ? { related_complaints: complaintRows.slice(0, 20), related_complaints_has_more: complaintRows.length > 20 } : {}),
+      status_logs: statusRows.map(row => ({ id: row.id, action: row.action, old_status: row.oldStatus, new_status: row.newStatus, operator_role: row.operatorRole, created_at: row.createdAt, request_id: row.requestId })),
       transaction_policy: order.transactionPolicyVersionId ? policiesById.get(order.transactionPolicyVersionId) ?? null : null,
       refund_policy: order.refundPolicyVersionId ? policiesById.get(order.refundPolicyVersionId) ?? null : null,
     };
@@ -255,7 +279,7 @@ export class AdminGovernanceService {
   async listPayments(input: PageInput) {
     const limit = normalizePageSize(input.limit, 20); const scope = `admin-payments:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort ?? "created_desc"}`; const cursor = this.scopedCursor(input.cursor, scope); const ascending = input.sort === "created_asc";
     const predicates = [input.status ? sql`${payments.status}::text = ${input.status}` : undefined, input.keyword ? or(ilike(payments.paymentNo, `%${input.keyword}%`), ilike(orders.orderNo, `%${input.keyword}%`), ilike(userProfiles.nickname, `%${input.keyword}%`), ilike(userProfiles.publicUserNo, `%${input.keyword}%`)) : undefined, cursor ? dateCursor(payments.createdAt, payments.id, cursor, ascending) : undefined].filter(Boolean);
-    const rows = await this.database.db.select({ id:payments.id, createdAt:payments.createdAt, payment: payments, orderNo: orders.orderNo, buyerId: orders.buyerId, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask })
+    const rows = await this.database.db.select({ id:payments.id, createdAt: cursorTimestamp(payments.createdAt), payment: payments, orderNo: orders.orderNo, buyerId: orders.buyerId, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask })
       .from(payments).innerJoin(orders, eq(orders.id, payments.orderId)).innerJoin(users, eq(users.id, orders.buyerId)).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt)))
       .where(predicates.length?and(...predicates as never[]):undefined).orderBy(ascending?asc(payments.createdAt):desc(payments.createdAt),ascending?asc(payments.id):desc(payments.id)).limit(limit+1);
     return page(rows,limit,this.config.cursorSigningSecret,scope,(row)=>({ ...paymentView(row.payment), order_no: row.orderNo, user: paymentUserView(row), provider_mode: this.config.paymentProviderMode }));
@@ -268,40 +292,50 @@ export class AdminGovernanceService {
     return { ...paymentView(row.payment), order_no: row.orderNo, product_title: row.productTitle, seller_name: row.sellerName, user: paymentUserView(row), provider_mode: this.config.paymentProviderMode };
   }
 
-  async listRiskEvents(input: PageInput = {}) { const limit=normalizePageSize(input.limit,20);const scope=`admin-risks:${input.status??""}:${input.keyword??""}:${input.sort??"created_desc"}`;const cursor=this.scopedCursor(input.cursor,scope);const ascending=input.sort==="created_asc";const predicates=[input.status?sql`${riskEvents.status}::text = ${input.status}`:undefined,input.keyword?or(ilike(riskEvents.riskType,`%${input.keyword}%`),ilike(riskEvents.ruleKey,`%${input.keyword}%`)):undefined,cursor?dateCursor(riskEvents.createdAt,riskEvents.id,cursor,ascending):undefined].filter(Boolean);const rows=await this.database.db.select().from(riskEvents).where(predicates.length?and(...predicates as never[]):undefined).orderBy(ascending?asc(riskEvents.createdAt):desc(riskEvents.createdAt),ascending?asc(riskEvents.id):desc(riskEvents.id)).limit(limit+1);return page(rows,limit,this.config.cursorSigningSecret,scope,riskView); }
-  async riskDetail(id:string){const [row]=await this.database.db.select().from(riskEvents).where(eq(riskEvents.id,id)).limit(1);if(!row)throw notFound("风险事件不存在");return riskView(row);}
+  async listRiskEvents(input: PageInput = {}) { const limit=normalizePageSize(input.limit,20);const scope=`admin-risks:${input.status??""}:${input.keyword??""}:${input.sort??"created_desc"}`;const cursor=this.scopedCursor(input.cursor,scope);const ascending=input.sort==="created_asc";const predicates=[input.status?sql`${riskEvents.status}::text = ${input.status}`:undefined,input.keyword?or(ilike(riskEvents.riskType,`%${input.keyword}%`),ilike(riskEvents.ruleKey,`%${input.keyword}%`)):undefined,cursor?dateCursor(riskEvents.createdAt,riskEvents.id,cursor,ascending):undefined].filter(Boolean);const rows=await this.database.db.select(cursorColumns(riskEvents)).from(riskEvents).where(predicates.length?and(...predicates as never[]):undefined).orderBy(ascending?asc(riskEvents.createdAt):desc(riskEvents.createdAt),ascending?asc(riskEvents.id):desc(riskEvents.id)).limit(limit+1);return page(rows,limit,this.config.cursorSigningSecret,scope,riskView); }
+  async riskDetail(id:string){const [row]=await this.database.db.select(cursorColumns(riskEvents)).from(riskEvents).where(eq(riskEvents.id,id)).limit(1);if(!row)throw notFound("风险事件不存在");return riskView(row);}
   async createRisk(admin: AdminPrincipal, input: { riskType: string; severity: "NORMAL" | "MEDIUM" | "HIGH" | "URGENT"; targetType: typeof riskEvents.$inferInsert.targetType; targetId: string; ruleKey: string; details: Record<string, unknown>; reason: string }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => { const [created] = await tx.insert(riskEvents).values({ id: uuidv7(), riskType: input.riskType, severity: input.severity, targetType: input.targetType, targetId: input.targetId, ruleKey: input.ruleKey, detailsJson: input.details, status: "OPEN", assignedAdminId: admin.sub }).returning(); await this.audit(tx, admin.sub, "RISK_EVENT_CREATED", input.targetType, input.targetId, input.reason, null, created!, metadata); return riskView(created!); });
   }
   async resolveRisk(admin: AdminPrincipal, id: string, input: { version: number; resolution: string; reason: string }, metadata: RequestMetadata) {
-    return this.database.db.transaction(async (tx) => { const [before] = await tx.select().from(riskEvents).where(eq(riskEvents.id, id)).limit(1); if (!before) throw notFound("风险事件不存在"); const [updated] = await tx.update(riskEvents).set({ status: "RESOLVED", assignedAdminId: admin.sub, resolution: input.resolution, resolvedAt: new Date(), version: sql`${riskEvents.version} + 1`, updatedAt: new Date() }).where(and(eq(riskEvents.id, id), eq(riskEvents.version, input.version))).returning(); if (!updated) throw conflict("VERSION_CONFLICT", "风险事件已被其他管理员处理"); await this.audit(tx, admin.sub, "RISK_EVENT_RESOLVED", before.targetType, before.targetId, input.reason, before, updated, metadata); return riskView(updated); });
+    return this.database.db.transaction(async (tx) => { const [before] = await tx.select(cursorColumns(riskEvents)).from(riskEvents).where(eq(riskEvents.id, id)).limit(1); if (!before) throw notFound("风险事件不存在"); const [updated] = await tx.update(riskEvents).set({ status: "RESOLVED", assignedAdminId: admin.sub, resolution: input.resolution, resolvedAt: new Date(), version: sql`${riskEvents.version} + 1`, updatedAt: new Date() }).where(and(eq(riskEvents.id, id), eq(riskEvents.version, input.version))).returning(); if (!updated) throw conflict("VERSION_CONFLICT", "风险事件已被其他管理员处理"); await this.audit(tx, admin.sub, "RISK_EVENT_RESOLVED", before.targetType, before.targetId, input.reason, before, updated, metadata); return riskView(updated); });
   }
-  async listSecurityLogs(input:PageInput={}){const limit=normalizePageSize(input.limit,20);const scope=`admin-security:${input.status??""}:${input.keyword??""}:${input.sort??"created_desc"}`;const cursor=this.scopedCursor(input.cursor,scope);const ascending=input.sort==="created_asc";const predicates=[input.status?sql`${securityLogs.status}::text = ${input.status}`:undefined,input.keyword?ilike(securityLogs.eventType,`%${input.keyword}%`):undefined,cursor?dateCursor(securityLogs.createdAt,securityLogs.id,cursor,ascending):undefined].filter(Boolean);const rows=await this.database.db.select().from(securityLogs).where(predicates.length?and(...predicates as never[]):undefined).orderBy(ascending?asc(securityLogs.createdAt):desc(securityLogs.createdAt),ascending?asc(securityLogs.id):desc(securityLogs.id)).limit(limit+1);return page(rows,limit,this.config.cursorSigningSecret,scope,securityView);}
-  async securityLogDetail(id:string){const [row]=await this.database.db.select().from(securityLogs).where(eq(securityLogs.id,id)).limit(1);if(!row)throw notFound("安全日志不存在");return securityView(row);}
-  async listOperationLogs(input:PageInput={}){const limit=normalizePageSize(input.limit,20);const scope=`admin-operations:${input.keyword??""}:${input.target_id??""}:${input.sort??"created_desc"}`;const cursor=this.scopedCursor(input.cursor,scope);const ascending=input.sort==="created_asc";const predicates=[input.target_id?eq(adminOperationLogs.targetId,input.target_id):undefined,input.keyword?or(ilike(adminOperationLogs.action,`%${input.keyword}%`),ilike(adminOperationLogs.reason,`%${input.keyword}%`),ilike(adminAccounts.displayName,`%${input.keyword}%`)):undefined,cursor?dateCursor(adminOperationLogs.createdAt,adminOperationLogs.id,cursor,ascending):undefined].filter(Boolean);const rows=await this.database.db.select({ id: adminOperationLogs.id, admin_id: adminOperationLogs.adminId, action: adminOperationLogs.action, target_type: adminOperationLogs.targetType, target_id: adminOperationLogs.targetId, reason: adminOperationLogs.reason, before_json: adminOperationLogs.beforeJson, after_json: adminOperationLogs.afterJson, request_id: adminOperationLogs.requestId, trace_id: adminOperationLogs.traceId, ip: adminOperationLogs.ip, user_agent: adminOperationLogs.userAgent, createdAt:adminOperationLogs.createdAt, created_at: adminOperationLogs.createdAt, admin_name: adminAccounts.displayName }).from(adminOperationLogs).innerJoin(adminAccounts, eq(adminAccounts.id, adminOperationLogs.adminId)).where(predicates.length?and(...predicates as never[]):undefined).orderBy(ascending?asc(adminOperationLogs.createdAt):desc(adminOperationLogs.createdAt),ascending?asc(adminOperationLogs.id):desc(adminOperationLogs.id)).limit(limit+1);return page(rows,limit,this.config.cursorSigningSecret,scope,operationView);}
-  async operationLogDetail(id:string){const [row]=await this.database.db.select({ id: adminOperationLogs.id, admin_id: adminOperationLogs.adminId, action: adminOperationLogs.action, target_type: adminOperationLogs.targetType, target_id: adminOperationLogs.targetId, reason: adminOperationLogs.reason, before_json: adminOperationLogs.beforeJson, after_json: adminOperationLogs.afterJson, request_id: adminOperationLogs.requestId, trace_id: adminOperationLogs.traceId, ip: adminOperationLogs.ip, user_agent: adminOperationLogs.userAgent, createdAt:adminOperationLogs.createdAt, created_at: adminOperationLogs.createdAt, admin_name: adminAccounts.displayName }).from(adminOperationLogs).innerJoin(adminAccounts, eq(adminAccounts.id, adminOperationLogs.adminId)).where(eq(adminOperationLogs.id,id)).limit(1);if(!row)throw notFound("操作日志不存在");return operationView(row);}
+  async listSecurityLogs(input:PageInput={}){const limit=normalizePageSize(input.limit,20);const scope=`admin-security:${input.status??""}:${input.keyword??""}:${input.sort??"created_desc"}`;const cursor=this.scopedCursor(input.cursor,scope);const ascending=input.sort==="created_asc";const predicates=[input.status?sql`${securityLogs.status}::text = ${input.status}`:undefined,input.keyword?ilike(securityLogs.eventType,`%${input.keyword}%`):undefined,cursor?dateCursor(securityLogs.createdAt,securityLogs.id,cursor,ascending):undefined].filter(Boolean);const rows=await this.database.db.select(cursorColumns(securityLogs)).from(securityLogs).where(predicates.length?and(...predicates as never[]):undefined).orderBy(ascending?asc(securityLogs.createdAt):desc(securityLogs.createdAt),ascending?asc(securityLogs.id):desc(securityLogs.id)).limit(limit+1);return page(rows,limit,this.config.cursorSigningSecret,scope,securityView);}
+  async securityLogDetail(id:string){const [row]=await this.database.db.select(cursorColumns(securityLogs)).from(securityLogs).where(eq(securityLogs.id,id)).limit(1);if(!row)throw notFound("安全日志不存在");return securityView(row);}
+  async listOperationLogs(input:PageInput={}){const limit=normalizePageSize(input.limit,20);const scope=`admin-operations:${input.keyword??""}:${input.target_id??""}:${input.sort??"created_desc"}`;const cursor=this.scopedCursor(input.cursor,scope);const ascending=input.sort==="created_asc";const predicates=[input.target_id?eq(adminOperationLogs.targetId,input.target_id):undefined,input.keyword?or(ilike(adminOperationLogs.action,`%${input.keyword}%`),ilike(adminOperationLogs.reason,`%${input.keyword}%`),ilike(adminAccounts.displayName,`%${input.keyword}%`)):undefined,cursor?dateCursor(adminOperationLogs.createdAt,adminOperationLogs.id,cursor,ascending):undefined].filter(Boolean);const rows=await this.database.db.select({ id: adminOperationLogs.id, admin_id: adminOperationLogs.adminId, action: adminOperationLogs.action, target_type: adminOperationLogs.targetType, target_id: adminOperationLogs.targetId, reason: adminOperationLogs.reason, before_json: adminOperationLogs.beforeJson, after_json: adminOperationLogs.afterJson, request_id: adminOperationLogs.requestId, trace_id: adminOperationLogs.traceId, ip: adminOperationLogs.ip, user_agent: adminOperationLogs.userAgent, createdAt: cursorTimestamp(adminOperationLogs.createdAt), created_at: adminOperationLogs.createdAt, admin_name: adminAccounts.displayName }).from(adminOperationLogs).innerJoin(adminAccounts, eq(adminAccounts.id, adminOperationLogs.adminId)).where(predicates.length?and(...predicates as never[]):undefined).orderBy(ascending?asc(adminOperationLogs.createdAt):desc(adminOperationLogs.createdAt),ascending?asc(adminOperationLogs.id):desc(adminOperationLogs.id)).limit(limit+1);return page(rows,limit,this.config.cursorSigningSecret,scope,operationView);}
+  async operationLogDetail(id:string){const [row]=await this.database.db.select({ id: adminOperationLogs.id, admin_id: adminOperationLogs.adminId, action: adminOperationLogs.action, target_type: adminOperationLogs.targetType, target_id: adminOperationLogs.targetId, reason: adminOperationLogs.reason, before_json: adminOperationLogs.beforeJson, after_json: adminOperationLogs.afterJson, request_id: adminOperationLogs.requestId, trace_id: adminOperationLogs.traceId, ip: adminOperationLogs.ip, user_agent: adminOperationLogs.userAgent, createdAt: cursorTimestamp(adminOperationLogs.createdAt), created_at: adminOperationLogs.createdAt, admin_name: adminAccounts.displayName }).from(adminOperationLogs).innerJoin(adminAccounts, eq(adminAccounts.id, adminOperationLogs.adminId)).where(eq(adminOperationLogs.id,id)).limit(1);if(!row)throw notFound("操作日志不存在");return operationView(row);}
 
   listConfigs() { return this.database.db.select({ id: platformConfigs.id, config_key: platformConfigs.configKey, value_json: platformConfigs.valueJson, version_no: platformConfigs.versionNo, status: platformConfigs.status, effective_at: platformConfigs.effectiveAt, created_by_admin_id: platformConfigs.createdByAdminId, created_at: platformConfigs.createdAt }).from(platformConfigs).orderBy(asc(platformConfigs.configKey), desc(platformConfigs.versionNo)); }
-  configDefinitions(){return CONFIG_DEFINITIONS.map((definition)=>({...definition,value_shape:{value:"integer"}}));}
+  configDefinitions(){return CONFIG_DEFINITIONS.map((definition)=>({...definition,value_shape:{value:"integer"},editable:definition.key!=="order.accept_reminder_seconds",scope:definition.key==="finance.commission_rate_bps"?"仅旧预约规则；新商品订单固定 10%，不修改历史快照":definition.key==="order.auto_confirm_seconds"?"仅旧预约规则；新规则收货等待固定 72 小时":definition.key.startsWith("order.accept_")?"仅旧预约接单流程；新商品无需接单":definition.key==="product.image_max_count"?"新绑定的商品图及详情图合计；默认 30 张，不删除历史图片":definition.key==="product.image_max_bytes"?"商品图新上传、上传完成及图片绑定校验；默认/硬上限 10 MiB，不影响其他用途": "按现有服务端策略作用于后续业务，不改历史快照"}));}
   async publishConfig(admin: AdminPrincipal, input: { key: string; value: unknown; reason: string }, metadata: RequestMetadata) {
     const definition=CONFIG_DEFINITIONS.find((item)=>item.key===input.key);
-    if(definition){const value=typeof input.value==="object"&&input.value!==null&&"value" in input.value?Number((input.value as {value:unknown}).value):NaN;if(!Number.isSafeInteger(value)||value<definition.minimum||value>definition.maximum)throw new AppError({code:errorCodes.VALIDATION_FAILED,message:`${definition.label}必须是 ${definition.minimum} 到 ${definition.maximum} 之间的整数（${definition.unit}）`,statusCode:400});input={...input,value:{value}};}
+    if(input.key==="order.accept_reminder_seconds")throw new AppError({code:"PLATFORM_CONFIG_NOT_IMPLEMENTED",message:"旧预约接单提醒任务尚未接入，不能发布该配置",statusCode:400});
+    if(definition){const value=typeof input.value==="object"&&input.value!==null&&"value" in input.value?(typeof (input.value as {value:unknown}).value==="number"?(input.value as {value:number}).value:NaN):NaN;if(!Number.isSafeInteger(value)||value<definition.minimum||value>definition.maximum)throw new AppError({code:errorCodes.VALIDATION_FAILED,message:`${definition.label}必须是 ${definition.minimum} 到 ${definition.maximum} 之间的整数（${definition.unit}）`,statusCode:400});input={...input,value:{value}};}
     else {let serialized="";try{serialized=JSON.stringify(input.value);}catch{throw new AppError({code:errorCodes.VALIDATION_FAILED,message:"高级配置必须是可序列化 JSON",statusCode:400});}if(!serialized||serialized.length>20_000)throw new AppError({code:errorCodes.VALIDATION_FAILED,message:"高级配置 JSON 不能为空且不能超过 20000 字符",statusCode:400});}
     return this.database.db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('admin-platform-config'))`);
       const [current] = await tx.select().from(platformConfigs).where(eq(platformConfigs.configKey, input.key)).orderBy(desc(platformConfigs.versionNo)).limit(1).for("update");
+      if (["finance.withdrawal_min_cent", "finance.withdrawal_max_cent"].includes(input.key)) {
+        const otherKey = input.key === "finance.withdrawal_min_cent" ? "finance.withdrawal_max_cent" : "finance.withdrawal_min_cent";
+        const [other] = await tx.select({ value: platformConfigs.valueJson }).from(platformConfigs).where(and(eq(platformConfigs.configKey, otherKey), eq(platformConfigs.status, "ACTIVE"))).orderBy(desc(platformConfigs.versionNo)).limit(1);
+        const n = (input.value as { value: number }).value, bound = (other?.value as { value?: number } | undefined)?.value;
+        if (bound !== undefined && (input.key === "finance.withdrawal_min_cent" ? n > bound : n < bound)) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "最低提现金额不能高于最高提现金额", statusCode: 400 });
+      }
       if (current?.status === "ACTIVE") await tx.update(platformConfigs).set({ status: "RETIRED" }).where(eq(platformConfigs.id, current.id));
       const [created] = await tx.insert(platformConfigs).values({ id: uuidv7(), configKey: input.key, valueJson: input.value as Record<string, unknown>, versionNo: (current?.versionNo ?? 0) + 1, status: "ACTIVE", effectiveAt: new Date(), createdByAdminId: admin.sub }).returning();
       await this.audit(tx, admin.sub, "PLATFORM_CONFIG_PUBLISHED", "PLATFORM", created!.id, input.reason, current ?? null, created!, metadata); return configView(created!);
     });
   }
 
-  async globalSearch(query: string) {
+  async globalSearch(admin: AdminPrincipal, query: string) {
+    const grants = new Set((await this.session(admin.sub)).permissions);
+    if (!grants.has("global_search.read")) throw new AppError({ code: errorCodes.ADMIN_PERMISSION_DENIED, message: "没有执行此操作的权限", statusCode: 403 });
     const pattern = `%${query}%`;
     const [userRows, orderRows, sellerRows, productRows] = await Promise.all([
-      this.database.db.select({ id: users.id, title: userProfiles.nickname, subtitle: userProfiles.publicUserNo }).from(users).leftJoin(userProfiles, eq(userProfiles.userId, users.id)).where(or(ilike(userProfiles.nickname, pattern), ilike(userProfiles.publicUserNo, pattern), ilike(users.phoneMask, pattern))).limit(5),
-      this.database.db.select({ id: orders.id, title: orders.orderNo, subtitle: orders.productTitleSnapshot }).from(orders).where(or(ilike(orders.orderNo, pattern), ilike(orders.productTitleSnapshot, pattern))).limit(5),
-      this.database.db.select({ id: sellerProfiles.id, title: sellerProfiles.sellerNickname, subtitle: sellerProfiles.gameRank }).from(sellerProfiles).where(ilike(sellerProfiles.sellerNickname, pattern)).limit(5),
-      this.database.db.select({ id: products.id, title: products.title, subtitle: sellerProfiles.sellerNickname }).from(products).innerJoin(sellerProfiles, eq(sellerProfiles.id, products.sellerId)).where(ilike(products.title, pattern)).limit(5),
+      grants.has("user.read") ? this.database.db.select({ id: users.id, title: userProfiles.nickname, subtitle: userProfiles.publicUserNo }).from(users).leftJoin(userProfiles, eq(userProfiles.userId, users.id)).where(or(ilike(userProfiles.nickname, pattern), ilike(userProfiles.publicUserNo, pattern), ilike(users.phoneMask, pattern))).limit(5) : [],
+      grants.has("order.read") ? this.database.db.select({ id: orders.id, title: orders.orderNo, subtitle: orders.productTitleSnapshot }).from(orders).where(or(ilike(orders.orderNo, pattern), ilike(orders.productTitleSnapshot, pattern))).limit(5) : [],
+      grants.has("seller.read") ? this.database.db.select({ id: sellerProfiles.id, title: sellerProfiles.sellerNickname, subtitle: sellerProfiles.gameRank }).from(sellerProfiles).where(ilike(sellerProfiles.sellerNickname, pattern)).limit(5) : [],
+      grants.has("product.read") ? this.database.db.select({ id: products.id, title: products.title, subtitle: sellerProfiles.sellerNickname }).from(products).innerJoin(sellerProfiles, eq(sellerProfiles.id, products.sellerId)).where(and(isNull(products.deletedAt), ilike(products.title, pattern))).limit(5) : [],
     ]);
     return [...userRows.map((v) => ({ module: "users", ...v })), ...orderRows.map((v) => ({ module: "orders", ...v })), ...sellerRows.map((v) => ({ module: "sellers", ...v })), ...productRows.map((v) => ({ module: "services", ...v }))];
   }
@@ -359,7 +393,7 @@ export class AdminGovernanceService {
     {type:"file_review",title:"待审核文件",count:dashboard.pending_files,severity:"medium",target_module:"files",required_permission:"file.read"},
     {type:"risk",title:"开放风险事件",count:dashboard.open_risk_events,severity:"urgent",target_module:"logs",required_permission:"risk.read"},
     {type:"security",title:"开放安全异常",count:dashboard.open_security_events,severity:"urgent",target_module:"logs",required_permission:"security_log.read"},
-  ];return {items:definitions.filter((item)=>granted.has(item.required_permission)&&item.count>0),updated_at:dashboard.generated_at,mode:"realtime_todos" as const};}
+  ];const items=definitions.filter((item)=>granted.has(item.required_permission)&&item.count>0);const counts=todoCounts(items);return {items,module_counts:Object.fromEntries(counts),total_count:[...counts.values()].reduce((sum,count)=>sum+count,0),updated_at:dashboard.generated_at,mode:"realtime_todos" as const};}
 
   async systemHealth(){
     const checkedAt=new Date();let databaseStatus:"healthy"|"unavailable"="healthy";
@@ -383,10 +417,10 @@ export class AdminGovernanceService {
         process_liveness:"NOT_MEASURED",
       };
     }catch{databaseStatus="unavailable";}
-    const checks:Array<{component:string;status:"healthy"|"unavailable"}>=[{component:"数据库",status:databaseStatus}];
+    const checks:Array<{component:string;status:"healthy"|"unavailable"|"unknown"|"degraded"}>=[{component:"数据库",status:databaseStatus}];
     if(taskQueues){
-      checks.push({component:`Worker任务队列（到期待处理${taskQueues.worker.due_pending}、处理中${taskQueues.worker.processing}、失败${taskQueues.worker.failed}；进程在线状态未测量）`,status:taskQueues.worker.failed>0?"unavailable":"healthy"});
-      checks.push({component:`Scheduler任务队列（到期待处理${taskQueues.scheduler.due_pending}、处理中${taskQueues.scheduler.processing}、失败${taskQueues.scheduler.failed}；进程在线状态未测量）`,status:taskQueues.scheduler.failed>0?"unavailable":"healthy"});
+      checks.push({component:`Worker任务队列（到期待处理${taskQueues.worker.due_pending}、处理中${taskQueues.worker.processing}、失败${taskQueues.worker.failed}；进程在线状态未测量）`,status:taskQueues.worker.failed>0?"unavailable":taskQueues.worker.due_pending>0?"degraded":"unknown"});
+      checks.push({component:`Scheduler任务队列（到期待处理${taskQueues.scheduler.due_pending}、处理中${taskQueues.scheduler.processing}、失败${taskQueues.scheduler.failed}；进程在线状态未测量）`,status:taskQueues.scheduler.failed>0?"unavailable":taskQueues.scheduler.due_pending>0?"degraded":"unknown"});
     }
     return {status:databaseStatus==="healthy"?"healthy":"unavailable",checks,task_queues:taskQueues,checked_at:checkedAt};
   }
@@ -428,11 +462,11 @@ export function totpCode(secret: string, at = Date.now()): string { const counte
 function verifyTotp(secret: string, code: string, at = Date.now()) { return /^\d{6}$/u.test(code) && [-1, 0, 1].some((window) => { const candidate = Buffer.from(totpCode(secret, at + window * 30_000)); const supplied = Buffer.from(code); return candidate.length === supplied.length && timingSafeEqual(candidate, supplied); }); }
 function decodeBase32(value: string) { const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"; let bits = ""; for (const char of value.toUpperCase().replace(/=+$/u, "").replace(/\s+/gu, "")) { const index = alphabet.indexOf(char); if (index < 0) throw new TypeError("Invalid TOTP secret."); bits += index.toString(2).padStart(5, "0"); } const bytes: number[] = []; for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(Number.parseInt(bits.slice(i, i + 8), 2)); return Buffer.from(bytes); }
 function page<T extends { id: string; createdAt: Date }, V>(rows: T[], limit: number, secret: string, scope: string, view: (row: T) => V) { const items = rows.slice(0, limit); const last = items.at(-1); return { items: items.map(view), next_cursor: rows.length > limit && last ? encodeCursor({ sort_value: last.createdAt.toISOString(), id: last.id, scope }, secret) : null }; }
-function dateCursor(createdAt:SQLWrapper,id:SQLWrapper,cursor:{sort_value:string;id:string},ascending:boolean){const value=new Date(cursor.sort_value);if(Number.isNaN(value.getTime()))throw new AppError({code:errorCodes.VALIDATION_FAILED,message:"分页游标无效",statusCode:400});return ascending?or(gt(createdAt,value),and(eq(createdAt,value),gt(id,cursor.id))):or(lt(createdAt,value),and(eq(createdAt,value),lt(id,cursor.id)));}
+function dateCursor(createdAt:SQLWrapper,id:SQLWrapper,cursor:{sort_value:string;id:string},ascending:boolean){const value=cursorTimeValue(cursor.sort_value);return ascending?or(gt(createdAt,value),and(eq(createdAt,value),gt(id,cursor.id))):or(lt(createdAt,value),and(eq(createdAt,value),lt(id,cursor.id)));}
 function userListView(row:{id:string;publicUserNo:string|null;nickname:string|null;phoneMask:string;status:string;profileInitialized:boolean;sellerId:string|null;sellerStatus:string|null;version:number;lastActiveAt:Date|null;createdAt:Date}){return {id:row.id,public_user_no:row.publicUserNo,nickname:row.nickname??"未初始化用户",phone_mask:row.phoneMask,status:row.status,profile_initialized:row.profileInitialized,seller_id:row.sellerId,seller_status:row.sellerStatus,version:row.version,last_active_at:row.lastActiveAt,created_at:row.createdAt};}
 function adminView(row:{id:string;username:string;displayName:string;status:string;mfaRequired:boolean;version:number;lastLoginAt:Date|null},grants:Array<{key:string;name:string}>){return {id:row.id,username:row.username,display_name:row.displayName,status:row.status,mfa_required:row.mfaRequired,version:row.version,last_login_at:row.lastLoginAt,roles:grants};}
 function roleView(row:{id:string;key:string;name:string;description:string|null},permissionKeys:string[]){return {id:row.id,key:row.key,name:row.name,description:row.description,permissions:permissionKeys};}
-function orderView(row: typeof orders.$inferSelect) { return { id: row.id, order_no: row.orderNo, buyer_id: row.buyerId, seller_user_id: row.sellerUserId, seller_id: row.sellerId, product_id: row.productId, product_title: row.productTitleSnapshot, seller_name: row.sellerNameSnapshot, sku_name: row.skuNameSnapshot, quantity: row.quantity, payable_amount_cent: row.payableAmountCent, paid_amount_cent: row.paidAmountCent, refunded_amount_cent: row.refundedAmountCent, status: row.status, payment_status: row.paymentStatus, after_sale_status: row.afterSaleStatus, service_starts_at: row.serviceStartsAt, service_ends_at: row.serviceEndsAt, transaction_policy_version_id: row.transactionPolicyVersionId, refund_policy_version_id: row.refundPolicyVersionId, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
+function orderView(row: typeof orders.$inferSelect) { return { rule_version: row.ruleVersion, game: row.gameSnapshot, fulfillment_seconds: row.fulfillmentSecondsSnapshot, fulfillment_due_at: row.fulfillmentDueAt, auto_confirm_at: row.autoConfirmAt, receipt_extension_used: row.receiptExtensionUsed, last_reminded_at: row.lastRemindedAt, evidence_review_pending: row.evidenceReviewPending, fulfillment_evidence: row.fulfillmentEvidenceJson.map(({file_id,kind})=>({file_id,kind})), id: row.id, order_no: row.orderNo, buyer_id: row.buyerId, seller_user_id: row.sellerUserId, seller_id: row.sellerId, product_id: row.productId, product_title: row.productTitleSnapshot, seller_name: row.sellerNameSnapshot, sku_name: row.skuNameSnapshot, sku_id: row.skuId, sku_description: row.skuDescriptionSnapshot, sku_price_cent: row.skuPriceCentSnapshot, total_amount_cent: row.totalAmountCent, discount_cent: row.discountCent, quantity: row.quantity, payable_amount_cent: row.payableAmountCent, paid_amount_cent: row.paidAmountCent, refunded_amount_cent: row.refundedAmountCent, status: row.status, payment_status: row.paymentStatus, after_sale_status: row.afterSaleStatus, service_starts_at: row.serviceStartsAt, service_ends_at: row.serviceEndsAt, transaction_policy_version_id: row.transactionPolicyVersionId, refund_policy_version_id: row.refundPolicyVersionId, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
 function paymentView(row: typeof payments.$inferSelect) { return { id: row.id, order_id: row.orderId, payment_no: row.paymentNo, channel: row.channel, provider_transaction_id: row.providerTransactionId, amount_cent: row.amountCent, refunded_amount_cent: row.refundedAmountCent, currency: row.currency, status: row.status, paid_at: row.paidAt, closed_at: row.closedAt, version: row.version, created_at: row.createdAt }; }
 function paymentUserView(row: { buyerId: string; nickname: string | null; publicUserNo: string | null; phoneMask: string }) { return { id: row.buyerId, nickname: row.nickname ?? "未设置昵称", public_user_no: row.publicUserNo, phone_mask: row.phoneMask }; }
 function policyReferenceView(row: typeof policyVersions.$inferSelect) { return { id: row.id, policy_type: row.policyType, title: row.title, version_no: row.versionNo, status: row.status, effective_at: row.effectiveAt }; }

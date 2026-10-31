@@ -49,7 +49,7 @@ before(async () => {
   await runMigration("0006_policy_version_bindings.sql");
   await runMigration("0010_order_rule_version.sql");
   await runMigration("0011_bear_sticker_messages.sql");
-  database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-chat-support-test", options: `-c search_path=${schemaName},public`, max: 10 });
+  await applyStageOneMigrations(migrationClient, schemaName); database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-chat-support-test", options: `-c search_path=${schemaName},public`, max: 10 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, logger: new JsonLogger("chat-support-test", () => {}) });
   buyer = await seedUser("buyer"); seller = await seedUser("seller"); stranger = await seedUser("stranger");
   adminA = await seedAdmin("support-a", ["support.read", "support.manage", "support.reply"]);
@@ -98,6 +98,137 @@ test("consultation messages are idempotent, paginated, readable, and private to 
   assert.equal(buyerMessages.json().items.find((item) => item.id === first.json().id).read_by_recipient, true);
   const wrongScope = await userRequest(buyer, "GET", `/api/v1/conversations?cursor=${encodeURIComponent(sellerMessages.json().next_cursor)}`);
   assert.equal(wrongScope.statusCode, 400);
+});
+
+test("product consultation retries and concurrent entry reuse one private conversation without duplicate events", { skip: !enabled }, async () => {
+  const requester = await seedUser("consultation-retry");
+  const responses = await Promise.all(Array.from({ length: 6 }, () => userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId })));
+  assert.ok(responses.every(item => item.statusCode === 201), responses.map(item => item.body).join("\n"));
+  const id = responses[0].json().id;
+  assert.equal(new Set(responses.map(item => item.json().id)).size, 1);
+  const sent = await userRequest(requester, "POST", `/api/v1/conversations/${id}/messages`, { client_message_id: randomUUID(), content: "重复打开咨询仍应看到这条原消息" });
+  assert.equal(sent.statusCode, 201, sent.body);
+  const again = await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId });
+  assert.equal(again.json().id, id);
+  const history = await userRequest(requester, "GET", `/api/v1/conversations/${again.json().id}/messages`);
+  assert.ok(history.json().items.some(item => item.id === sent.json().id));
+  await userRequest(seller, "POST", `/api/v1/conversations/${id}/messages`, { client_message_id: randomUUID(), content: "重复进入不能清空这条未读回复" });
+  assert.equal((await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId })).json().unread_count, 1);
+  const counts = await migrationClient.query("SELECT (SELECT count(*) FROM conversation_members WHERE conversation_id=$1)::int members,(SELECT count(*) FROM messages WHERE conversation_id=$1 AND sender_role='SYSTEM')::int system_messages,(SELECT count(*) FROM outbox_events WHERE aggregate_id=$1 AND event_type='ConsultationConversationCreated')::int events", [id]);
+  assert.deepEqual(counts.rows[0], { members: 2, system_messages: 1, events: 1 });
+  assert.equal((await userRequest(buyer, "GET", `/api/v1/conversations/${id}/messages`)).statusCode, 403);
+});
+
+test("consultation reuse keeps legacy duplicates, prefers human history and isolates products and departed members", { skip: !enabled }, async () => {
+  const requester = await seedUser("consultation-legacy");
+  const first = (await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId })).json();
+  const duplicate = randomUUID();
+  await migrationClient.query("INSERT INTO conversations(id,conversation_no,conversation_type,product_id) VALUES($1,$2,'CONSULTATION',$3)", [duplicate, `CVLEGACY${randomUUID()}`, productId]);
+  await migrationClient.query("INSERT INTO conversation_members(conversation_id,user_id,role) VALUES($1,$2,'USER'),($1,$3,'SELLER')", [duplicate, requester.id, seller.id]);
+  const sent = await userRequest(requester, "POST", `/api/v1/conversations/${duplicate}/messages`, { client_message_id: randomUUID(), content: "旧重复会话中已有的真实历史" });
+  assert.equal(sent.statusCode, 201, sent.body);
+  const again = await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId });
+  assert.equal(again.json().id, duplicate);
+  assert.equal((await userRequest(requester, "GET", `/api/v1/conversations/${first.id}`)).statusCode, 200);
+  const otherProduct = randomUUID();
+  await migrationClient.query("INSERT INTO products(id,seller_id,title,description,status,min_price_cent,approved_at) SELECT $1,seller_id,'另一项咨询商品','隔离测试商品','ON_SALE',2500,now() FROM products WHERE id=$2", [otherProduct, productId]);
+  const other = await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: otherProduct });
+  assert.notEqual(other.json().id, duplicate);
+  await migrationClient.query("UPDATE conversation_members SET left_at=now() WHERE conversation_id IN ($1,$2) AND user_id=$3", [first.id, duplicate, requester.id]);
+  const rejoined = await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId });
+  assert.equal(rejoined.statusCode, 201, rejoined.body);
+  assert.ok(![first.id, duplicate].includes(rejoined.json().id));
+  assert.equal((await migrationClient.query("SELECT count(*)::int n FROM conversations WHERE id IN ($1,$2)", [first.id, duplicate])).rows[0].n, 2);
+  assert.equal((await migrationClient.query("SELECT count(*)::int n FROM messages WHERE id=$1", [sent.json().id])).rows[0].n, 1);
+});
+
+test("consultation reuse never bypasses self-contact, withdrawn service or suspended seller checks", { skip: !enabled }, async () => {
+  const requester = await seedUser("consultation-restricted");
+  await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId });
+  assert.equal((await userRequest(seller, "POST", "/api/v1/conversations/consultations", { product_id: productId })).statusCode, 409);
+  await migrationClient.query("UPDATE products SET status='OFF_SALE' WHERE id=$1", [productId]);
+  try { assert.equal((await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId })).statusCode, 404); }
+  finally { await migrationClient.query("UPDATE products SET status='ON_SALE' WHERE id=$1", [productId]); }
+  await migrationClient.query("UPDATE seller_profiles SET status='SUSPENDED' WHERE user_id=$1", [seller.id]);
+  try { assert.equal((await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId })).statusCode, 404); }
+  finally { await migrationClient.query("UPDATE seller_profiles SET status='APPROVED' WHERE user_id=$1", [seller.id]); }
+  await migrationClient.query("UPDATE users SET status='DISABLED' WHERE id=$1", [seller.id]);
+  try { assert.equal((await userRequest(requester, "POST", "/api/v1/conversations/consultations", { product_id: productId })).statusCode, 404); }
+  finally { await migrationClient.query("UPDATE users SET status='NORMAL' WHERE id=$1", [seller.id]); }
+});
+
+test("first support text retries persist one case, initial message, creation log and outbox event", { skip: !enabled }, async () => {
+  const input = { topic: "首条文字创建幂等", initial_message: "网络超时重试只能生成一个工单", client_message_id: randomUUID(), source_page: "mobile/support" };
+  const responses = await Promise.all(Array.from({ length: 6 }, () => userRequest(buyer, "POST", "/api/v1/support-cases", input)));
+  assert.ok(responses.every(item => item.statusCode === 201), responses.map(item => item.body).join("\n"));
+  const result = responses[0].json();
+  assert.equal(new Set(responses.map(item => item.json().id)).size, 1);
+  const counts = await migrationClient.query("SELECT (SELECT count(*) FROM messages WHERE sender_user_id=$1 AND client_message_id=$2)::int messages,(SELECT count(*) FROM support_case_logs WHERE support_case_id=$3 AND action='CREATED')::int logs,(SELECT count(*) FROM outbox_events WHERE aggregate_id=$3 AND event_type='SupportCaseCreated')::int events", [buyer.id, input.client_message_id, result.id]);
+  assert.deepEqual(counts.rows[0], { messages: 1, logs: 1, events: 1 });
+  const history = await userRequest(buyer, "GET", `/api/v1/conversations/${result.conversation_id}/messages`);
+  assert.equal(history.json().items.filter(item => item.client_message_id === input.client_message_id).length, 1);
+});
+
+test("support creation keys bind full original payload and user, not only the first message", { skip: !enabled }, async () => {
+  const input = { topic: "绑定原请求", priority: "NORMAL", queue_key: "general", initial_message: "请协助核验测试订单", client_message_id: randomUUID(), related_type: "ORDER", related_id: orderId, source_page: "order-detail" };
+  const first = await userRequest(buyer, "POST", "/api/v1/support-cases", input);
+  assert.equal(first.statusCode, 201, first.body);
+  for (const change of [{ topic: "另一个主题" }, { initial_message: "不同消息内容" }, { priority: "HIGH" }, { queue_key: "trade" }, { source_page: "other-page" }, { related_type: undefined, related_id: undefined }]) {
+    const response = await userRequest(buyer, "POST", "/api/v1/support-cases", { ...input, ...change });
+    assert.equal(response.statusCode, 409, response.body);
+    assert.equal(response.json().code, "IDEMPOTENCY_KEY_CONFLICT");
+  }
+  const other = await userRequest(seller, "POST", "/api/v1/support-cases", input);
+  assert.equal(other.statusCode, 201, other.body);
+  assert.notEqual(other.json().id, first.json().id);
+});
+
+test("support retry after transfer or closure returns current original case without reopening", { skip: !enabled }, async () => {
+  const input = { topic: "重放已处理工单", queue_key: "general", initial_message: "转交以后也必须复用原工单", client_message_id: randomUUID() };
+  const first = (await userRequest(buyer, "POST", "/api/v1/support-cases", input)).json();
+  const received = (await adminRequest(adminA, "POST", `/admin-api/v1/support-cases/${first.id}/receive`, { version: first.version })).json();
+  const transferred = await adminRequest(adminA, "POST", `/admin-api/v1/support-cases/${first.id}/transfer`, { version: received.version, queue_key: "trade", reason: "隔离测试转交队列" });
+  assert.equal(transferred.statusCode, 201, transferred.body);
+  const receivedAgain = (await adminRequest(adminA, "POST", `/admin-api/v1/support-cases/${first.id}/receive`, { version: transferred.json().version })).json();
+  const closed = await adminRequest(adminA, "POST", `/admin-api/v1/support-cases/${first.id}/close`, { version: receivedAgain.version, reason: "隔离测试已处理完成" });
+  assert.equal(closed.statusCode, 201, closed.body);
+  const replay = await userRequest(buyer, "POST", "/api/v1/support-cases", input);
+  assert.equal(replay.statusCode, 201, replay.body);
+  assert.equal(replay.json().id, first.id);
+  assert.equal(replay.json().status, "CLOSED");
+  assert.equal(replay.json().version, closed.json().version);
+  const counts = await migrationClient.query("SELECT count(*)::int n FROM support_case_logs WHERE support_case_id=$1 AND action='CREATED'", [first.id]);
+  assert.equal(counts.rows[0].n, 1);
+  await migrationClient.query("DELETE FROM idempotency_keys WHERE resource_type='SUPPORT_CASE' AND resource_id=$1", [first.id]);
+  const afterCacheExpiry = await userRequest(buyer, "POST", "/api/v1/support-cases", input);
+  assert.equal(afterCacheExpiry.statusCode, 201, afterCacheExpiry.body);
+  assert.equal(afterCacheExpiry.json().id, first.id);
+  assert.equal(afterCacheExpiry.json().status, "CLOSED");
+});
+
+test("support key collision with another conversation cannot create orphan cases or leak messages", { skip: !enabled }, async () => {
+  const initialId = randomUUID();
+  const conversation = (await userRequest(buyer, "POST", "/api/v1/conversations/orders", { order_id: orderId })).json();
+  await userRequest(buyer, "POST", `/api/v1/conversations/${conversation.id}/messages`, { client_message_id: initialId, content: "原订单私有消息" });
+  const before = (await migrationClient.query("SELECT count(*)::int n FROM support_cases")).rows[0].n;
+  const response = await userRequest(buyer, "POST", "/api/v1/support-cases", { topic: "不能挪用消息编号", initial_message: "原订单私有消息", client_message_id: initialId });
+  assert.equal(response.statusCode, 409, response.body);
+  assert.equal((await migrationClient.query("SELECT count(*)::int n FROM support_cases")).rows[0].n, before);
+});
+
+test("support creation and ordinary message race on one client key produce one winner and no orphan", { skip: !enabled }, async () => {
+  const conversation = (await userRequest(buyer, "POST", "/api/v1/conversations/orders", { order_id: orderId })).json();
+  const before = (await migrationClient.query("SELECT count(*)::int n FROM support_cases")).rows[0].n;
+  const key = randomUUID();
+  const responses = await Promise.all([
+    userRequest(buyer, "POST", `/api/v1/conversations/${conversation.id}/messages`, { client_message_id: key, content: "不能跨接口重复编号" }),
+    userRequest(buyer, "POST", "/api/v1/support-cases", { topic: "跨接口编号冲突", initial_message: "不能跨接口重复编号", client_message_id: key })
+  ]);
+  assert.deepEqual(responses.map(item => item.statusCode).sort(), [201, 409], responses.map(item => item.body).join("\n"));
+  const messages = await migrationClient.query("SELECT count(*)::int n FROM messages WHERE sender_user_id=$1 AND client_message_id=$2", [buyer.id, key]);
+  assert.equal(messages.rows[0].n, 1);
+  assert.equal((await migrationClient.query("SELECT count(*)::int n FROM support_cases")).rows[0].n, before + (responses[1].statusCode === 201 ? 1 : 0));
+  assert.equal((await migrationClient.query("SELECT count(*)::int n FROM conversations c LEFT JOIN support_cases sc ON sc.conversation_id=c.id WHERE c.conversation_type='SUPPORT' AND sc.id IS NULL")).rows[0].n, 0);
 });
 
 test("order conversations are unique and administrator evidence access requires a reason and audit permission", { skip: !enabled }, async () => {
@@ -187,6 +318,16 @@ test("support receive and transfer races use CAS while reply records first respo
   const supportNext = await userRequest(buyer, "GET", `/api/v1/support-cases?limit=1&cursor=${encodeURIComponent(supportPage.json().next_cursor)}`);
   assert.equal(supportNext.statusCode, 200, supportNext.body);
   assert.notEqual(supportNext.json().items[0].id, supportPage.json().items[0].id);
+});
+
+test("audited evidence pages retrieve all 507 private messages without truncation", { skip: !enabled }, async () => {
+  const created=await userRequest(buyer,"POST","/api/v1/conversations/orders",{order_id:orderId});assert.equal(created.statusCode,201,created.body);const id=created.json().id;
+  const base=Number((await migrationClient.query("SELECT coalesce(max(sequence_no),0)::text n FROM messages WHERE conversation_id=$1",[id])).rows[0].n);
+  await migrationClient.query("INSERT INTO messages(id,conversation_id,client_message_id,sequence_no,sender_user_id,sender_role,message_type,content,send_status,moderation_status) SELECT gen_random_uuid(),$1,'history-'||n,(n+$3)::bigint,$2,'USER','TEXT','隔离历史消息 '||n,'SENT','APPROVED' FROM generate_series(1,507) n",[id,buyer.id,base]);
+  const found=new Set();let cursor;let pages=0;
+  do {const response=await adminRequest(auditAdmin,"POST",`/admin-api/v1/conversations/${id}/evidence-view`,{reason:"隔离长会话分页取证",limit:100,...(cursor?{cursor}:{})});assert.equal(response.statusCode,201,response.body);assert.ok(response.json().messages.length<=100);response.json().messages.forEach(row=>{assert.ok(!found.has(row.id));found.add(row.id);});cursor=response.json().next_cursor;pages++;}while(cursor);
+  assert.equal(found.size,base+507);assert.ok(pages>=6);
+  const audit=await migrationClient.query("SELECT count(*)::int n FROM admin_operation_logs WHERE target_id=$1 AND reason='隔离长会话分页取证'",[id]);assert.equal(audit.rows[0].n,pages);
 });
 
 test("Inbox duplicate consumption creates one notification and one in-app delivery log", { skip: !enabled }, async () => {
@@ -355,3 +496,4 @@ test("first support sticker creates one persistent case, reaches assigned staff 
   assert.equal(blocked.statusCode, 409);
   assert.equal(blocked.json().code, "SUPPORT_CASE_CLOSED");
 });
+import { applyStageOneMigrations } from "./stage-one-migrations.mjs";

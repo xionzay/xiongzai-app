@@ -1,6 +1,6 @@
 # 熊崽电竞原生 App
 
-阶段 1–9 使用 React Native、TypeScript、Expo SDK 57 Development Build、Expo Router 和 TanStack Query，已覆盖认证、发现、交易、售后、消息、账户安全、陪玩经营和财务主链路。真实完成度和发布阻断见 `docs/prd-route-api-test-matrix.md` 与 `docs/pre-release-runbook.md`。
+使用 React Native、TypeScript、Expo SDK 57 Development Build、Expo Router 和 TanStack Query。阶段 1–9 历史链路与新增店铺/商品链路不等同于全产品真机验收。最新工程结果和阻断见 [2026-10 收尾报告](../../docs/frontend-final-2026-10-12/验收报告.md)、`docs/prd-route-api-test-matrix.md` 与 `docs/pre-release-runbook.md`。
 
 ## 本地配置
 
@@ -23,11 +23,13 @@ pnpm mobile:ios
 pnpm mobile:android
 ```
 
-首次生成原生工程也可以执行：
+只有原生目录不存在或已经另行完整备份时，才首次生成原生工程：
 
 ```bash
 pnpm --filter @xiongzai/mobile prebuild
 ```
+
+注意：Expo 非交互预构建可能自动清理被判定为格式异常的原生目录，即使没有传入 `--clean`。已有 `ios`/`android`、签名配置与构建产物必须先单独备份；本轮不再对原工作区执行预构建清理。
 
 启动已经安装好的 Development Build：
 
@@ -58,7 +60,7 @@ pnpm --filter @xiongzai/mobile exec expo config --type public
 - 资料更新同时提交用户 `version` 与资料 `version`；冲突后读取服务端最新资料，不覆盖其他设备修改。
 - 隐私开关以服务端版本为准，失败会回滚并重新读取。
 - Session 列表仅展示后端脱敏设备摘要；撤销当前 Session 会立即清理本地认证。
-- 头像可通过系统相册或相机进行 1:1 裁剪与压缩；服务端上传接口未开放前仅作本地预览，不生成 `file_id`。
-- 手机号换绑、数据下载任务和账号注销接口未开放，App 只展示明确说明，不伪造完成状态。
+- 头像可通过系统相册或相机裁剪与压缩；图片及声音名片使用真实上传策略、预签名 PUT、complete 和审核，已具备本地 MinIO 测试链路，但不代表生产存储/CDN 已接通。不生成假 `file_id`，本地 URI 不当作公开文件地址。
+- 手机号换绑、数据下载任务和账号注销在本轮产品范围内主动关闭，仅展示“暂未开放”；底层历史实现保留，但实际路由不加载这些任务接口。
 - 聊天当前使用真实 HTTP 持久化与受控前台轮询，尚无 WebSocket 实时网关。
 - 系统推送、Universal Link/App Link、真实支付/打款和生产签名未接入。

@@ -12,6 +12,9 @@ import { PaperCard, nativeShadow } from "@/components/native-page";
 import { NoticeBanner } from "@/components/notice-banner";
 import { PageHeader } from "@/components/page-header";
 import { PrimaryButton } from "@/components/primary-button";
+import { PolicyConsentCheckbox } from "@/components/policy-consent-checkbox";
+import { verificationRequestMessage } from "@/auth/auth-copy";
+import { runtimeFlags } from "@/config/runtime-flags";
 import { colors, radii, spacing, typography } from "@/theme/tokens";
 import xiongzaiLogo from "../../../assets/xiongzai-logo.png";
 import { resolveInternalReturnTo } from "@/auth/return-to";
@@ -57,7 +60,7 @@ export function LoginScreen() {
       await sendSms(parsed.data);
       setCountdown(60);
       setNoticeTone("success");
-      setNotice("验证码已发送，请查看短信");
+      setNotice(verificationRequestMessage(runtimeFlags.appEnvironment));
     } catch (error) {
       setNoticeTone("danger");
       setNotice(userFacingError(error));
@@ -118,12 +121,12 @@ export function LoginScreen() {
       </View>
       <View style={styles.agreementList}>
         <Text style={styles.agreementText}>请逐份阅读并在线确认当前版本：</Text>
-        {policies.isPending ? <Text style={styles.agreementText}>正在加载协议…</Text> : policies.isError || !policies.data?.length ? <Pressable onPress={() => void policies.refetch()}><Text style={styles.policyError}>协议加载失败，点击重试</Text></Pressable> : policies.data.map((policy) => { const checked = acceptedPolicyIds.includes(policy.id); return <View key={policy.id} style={styles.policyRow}><Pressable accessibilityRole="checkbox" accessibilityLabel={`同意${policy.title}V${policy.version_no}`} accessibilityState={{ checked }} onPress={() => setAcceptedPolicyIds((current) => checked ? current.filter((id) => id !== policy.id) : [...current, policy.id])} style={styles.agreement}><View style={[styles.checkbox, checked && styles.checkboxChecked]}>{checked ? <Text style={styles.check}>✓</Text> : null}</View></Pressable><Pressable accessibilityRole="link" onPress={() => router.push({ pathname: "/policies/[id]", params: { id: policy.id } })}><Text style={styles.policyLink}>《{policy.title}》V{policy.version_no}</Text></Pressable></View>; })}
+        {policies.isPending ? <Text style={styles.agreementText}>正在加载协议…</Text> : policies.isError || !policies.data?.length ? <Pressable accessibilityRole="button" accessibilityLabel="重试加载登录协议" onPress={() => void policies.refetch()} style={styles.policyLinkTarget}><Text style={styles.policyError}>协议加载失败，点击重试</Text></Pressable> : policies.data.map((policy) => { const checked = acceptedPolicyIds.includes(policy.id); return <View key={policy.id} style={styles.policyRow}><PolicyConsentCheckbox label={`同意${policy.title}V${policy.version_no}`} checked={checked} disabled={submitting} onPress={() => setAcceptedPolicyIds((current) => checked ? current.filter((id) => id !== policy.id) : [...current, policy.id])} /><Pressable accessibilityRole="link" accessibilityLabel={`查看${policy.title}V${policy.version_no}`} style={styles.policyLinkTarget} onPress={() => router.push({ pathname: "/policies/[id]", params: { id: policy.id } })}><Text style={styles.policyLink}>《{policy.title}》V{policy.version_no}</Text></Pressable></View>; })}
       </View>
       <PrimaryButton label="登录 / 注册" loading={submitting} disabled={policies.isPending || policies.isError || !policies.data?.length} onPress={() => void submit()} />
       </PaperCard>
       <Pressable accessibilityRole="button" accessibilityLabel="先逛逛，稍后登录" onPress={() => router.replace("/(buyer-tabs)")} style={styles.guest}><Text style={styles.guestText}>先逛逛，稍后登录</Text></Pressable>
-      <Text style={styles.security}>登录凭证仅保存在系统安全存储中</Text>
+      <Text style={styles.security}>登录凭证使用系统安全存储。开发模拟器不可用时仅暂存进程内存，重载后需重新登录。</Text>
     </AppScreen>
   );
 }
@@ -134,10 +137,10 @@ const styles = StyleSheet.create({
   brandBlock: { alignItems: "center", gap: 2, marginVertical: 8 },
   logo: { width: 176, height: 94 },
   slogan: { ...typography.caption, color: colors.brandDeep, fontWeight: "800" },
-  formCard: { gap: spacing.md, padding: spacing.lg },
-  tabs: { minHeight: 46, flexDirection: "row", padding: 4, borderRadius: radii.md, backgroundColor: colors.surfaceBlue },
+  formCard: { gap: spacing.md, padding: spacing.lg, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
+  tabs: { flexDirection: "row", padding: 4, backgroundColor: "transparent", borderRadius: 0, borderWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, height: undefined, minHeight: 48 },
   tab: { flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", borderRadius: radii.sm },
-  tabActive: { backgroundColor: colors.surfaceCard, ...nativeShadow },
+  tabActive: { ...nativeShadow, backgroundColor: "transparent", borderRadius: 0, borderBottomWidth: 2, borderBottomColor: colors.brandDeep, shadowOpacity: 0, elevation: 0 },
   tabText: { ...typography.body, color: colors.textSecondary, fontWeight: "800" },
   tabTextActive: { color: colors.brandDeep },
   phoneRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm },
@@ -148,12 +151,9 @@ const styles = StyleSheet.create({
   codeField: { flex: 1 },
   codeButton: { width: 122 },
   codeButtonWithError: { paddingBottom: 21 },
-  agreement: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
   agreementList: { gap: spacing.sm },
   policyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  checkbox: { width: 21, height: 21, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border, borderRadius: 6, backgroundColor: colors.surfaceCard },
-  checkboxChecked: { borderColor: colors.brand, backgroundColor: colors.brand },
-  check: { color: colors.white, fontWeight: "900" },
+  policyLinkTarget: { flex: 1, minWidth: 48, minHeight: 48, justifyContent: "center", paddingVertical: spacing.xs },
   agreementText: { ...typography.caption, flex: 1, color: colors.textSecondary },
   policyLink: { ...typography.caption, color: colors.brand, fontWeight: "700" },
   policyError: { ...typography.caption, color: colors.danger, fontWeight: "700" },

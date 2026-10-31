@@ -1,10 +1,11 @@
 "use client";
 
 /* eslint-disable jsx-a11y/media-has-caption -- User-submitted recording evidence has no supplied caption track. */
+import { ConnectedAfterSale } from "./ConnectedAfterSale";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fulfillmentEvidenceError, isFulfillmentOrder } from "../packages/contracts/src/commerce";
 
-export type FulfillmentFacts = { id: string; version: number; rule_version?: string; fulfillment_seconds?: number | null; fulfillment_due_at?: string | null; auto_confirm_at?: string | null; receipt_extension_used?: boolean; last_reminded_at?: string | null; evidence_review_pending?: boolean; after_sale_status: string; paid_amount_cent: string; available_actions?: string[]; seller_available_actions?: string[]; fulfillment_evidence?: { file_id: string; kind: string }[] };
+export type FulfillmentFacts = { after_sale_cases?: Array<{id:string;state:string;version:number}>; id: string; version: number; rule_version?: string; fulfillment_seconds?: number | null; fulfillment_due_at?: string | null; auto_confirm_at?: string | null; receipt_extension_used?: boolean; last_reminded_at?: string | null; evidence_review_pending?: boolean; after_sale_status: string; paid_amount_cent: string; available_actions?: string[]; seller_available_actions?: string[]; fulfillment_evidence?: { file_id: string; kind: string }[] };
 type Request = <T>(path: string, init?: RequestInit) => Promise<T>;
 type FileFact = { id: string; file_type: string; mime_type: string; upload_status: string; moderation_status: string; visibility: string; bound_order_id?: string | null };
 type Policy = { file_type: string; mime_types: string[]; maximum_bytes: number };
@@ -12,6 +13,7 @@ const time = (value?: string | null) => value ? new Date(value).toLocaleString("
 
 export function FulfillmentOrderPanel({ order, viewerRole: role, request, onUpdated }: { order: FulfillmentFacts; viewerRole: "buyer" | "seller"; request: Request; onUpdated: () => void | Promise<void> }) {
   const [files, setFiles] = useState<FileFact[]>([]), [selected, setSelected] = useState<string[]>([]), [busy, setBusy] = useState(false), [error, setError] = useState(""), [notice, setNotice] = useState(""), [confirm, setConfirm] = useState<string | null>(null);
+  const [selectedCase,setSelectedCase] = useState<string|null>(null);
   const lock = useRef(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [now,setNow]=useState(()=>Date.now());
@@ -94,6 +96,8 @@ export function FulfillmentOrderPanel({ order, viewerRole: role, request, onUpda
   };
   return <section className="paper-panel order-facts fulfillment-panel">
     <h3>新订单履约与凭证</h3><p>完成时限：付款后 {order.fulfillment_seconds! / 3600} 小时（开始服务和数量不重置）</p><p>完成截止：{time(order.fulfillment_due_at)}</p><p>自动收货截止：{time(order.auto_confirm_at)} · 由服务端定时任务执行</p>{remaining!==null && <p>{frozen?"冻结中，恢复后期限以服务端为准":remaining>0? "剩余 "+Math.floor(remaining/3600)+" 小时 "+Math.floor(remaining%3600/60)+" 分":"期限已到，等待服务端处理，页面不会自行完成订单"}</p>}<p>延长收货：{order.receipt_extension_used ? "已使用一次 24 小时" : "尚未使用"}</p><p>上次催服务：{time(order.last_reminded_at)} · 冷却 24 小时</p>
+    {order.after_sale_cases?.map(row=><button type="button" key={row.id} onClick={()=>setSelectedCase(row.id)}>查看售后案件 {row.id.slice(-8)}</button>)}
+    {selectedCase && <ConnectedAfterSale key={selectedCase} request={request} caseId={selectedCase} paidCent={order.paid_amount_cent} onUpdated={()=>{void Promise.resolve().then(onUpdated).catch(()=>setNotice("案件操作已成功，订单刷新失败，请重新读取。"));}} onSupport={()=>setNotice("请通过订单页面的联系平台客服入口，携带当前订单及案件编号申请协助。")} />}
     {frozen && <p role="status">售后或证据核查期间，完成、收货与结算暂停；恢复后的期限以服务端为准。</p>}
     {error && <p role="alert">{error}<button disabled={busy} onClick={() => void reload()}>重新加载</button></p>}{notice && <p role="status">{notice}</p>}
     {order.fulfillment_evidence?.map(item => <Evidence key={item.file_id} orderId={order.id} fileId={item.file_id} kind={item.kind} request={request} />)}

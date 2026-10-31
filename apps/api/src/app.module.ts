@@ -14,6 +14,8 @@ import { AdminSellerProductController, CompanionDiscoveryController, FavoriteCon
 import { SellerProductService } from "./seller-product.service.js";
 import { DevelopmentSmsProvider, type SmsProvider } from "./sms-provider.js";
 import { MockPaymentProvider, PaymentProviderRouter, type PaymentProvider } from "./payment-provider.js";
+import { DrizzleMockTransferStore } from "./mock-transfer-store.js";
+import { FinancialRecoveryController, FinancialRecoveryService } from "./financial-recovery.js";
 import { BuyerOrderController, PaymentCallbackController, PaymentController, SellerOrderController } from "./order-payment.controllers.js";
 import { OrderPaymentService } from "./order-payment.service.js";
 import { API_CONFIG, API_LOGGER, DATABASE_CLIENT, PAYMENT_PROVIDER_ROUTER, SMS_PROVIDER } from "./tokens.js";
@@ -21,6 +23,7 @@ import { AdminConversationEvidenceController, AdminNotificationDeliveryControlle
 import { ChatSupportNotificationService } from "./chat-support-notification.service.js";
 import { AdminComplaintController, AdminRefundController, AdminReviewController, PublicReviewController, PublicSellerReviewController, RefundCallbackController, SellerRefundController, UserComplaintController, UserRefundController, UserReviewController } from "./after-sale.controllers.js";
 import { AfterSaleService } from "./after-sale.service.js";
+import { UserAfterSaleCaseController, AdminAfterSaleCaseController } from "./after-sale-cases.controllers.js";
 import { AdminFinanceController, AdminWithdrawalController, PayoutCallbackController, SellerFinanceController, SellerPayoutAccountController, SellerWithdrawalController } from "./finance.controllers.js";
 import { FinanceService } from "./finance.service.js";
 import { MockPayoutProvider, type PayoutProvider } from "./payout-provider.js";
@@ -37,6 +40,8 @@ import { AdminPolicyController } from "./policy-governance.controller.js";
 import { PolicyGovernanceService } from "./policy-governance.service.js";
 import { AdminAccountCancellationController, AdminUserLifecycleMonitorController, UserLifecycleController } from "./user-lifecycle.controllers.js";
 import { UserLifecycleService } from "./user-lifecycle.service.js";
+import { AdminAnnouncementController, AdminFeedbackController, PublicAnnouncementController, UserFeedbackController } from "./community.controllers.js";
+import { CommunityService } from "./community.service.js";
 
 export interface ApiDependencies {
   config: ApiConfig;
@@ -64,16 +69,20 @@ export class AppModule implements NestModule {
     return {
       module: AppModule,
       controllers: [
+        FinancialRecoveryController,
+        UserFeedbackController, AdminFeedbackController, PublicAnnouncementController, AdminAnnouncementController,
         HealthController, UserAuthController, UserMeController, UserLifecycleController, PublicUserController, UserPolicyController, AdminIdentityVerificationController,
         UserFileController, MyFileController, SellerController, CompanionDiscoveryController, ServiceDiscoveryController, FavoriteController, PublicFileController, AdminSellerProductController,
         BuyerOrderController, SellerOrderController, PaymentController, PaymentCallbackController,
         UserConversationController, UserSupportCaseController, UserNotificationController, AdminSupportCaseController, AdminConversationEvidenceController, AdminNotificationDeliveryController,
         UserRefundController, SellerRefundController, AdminRefundController, RefundCallbackController,
+        UserAfterSaleCaseController, AdminAfterSaleCaseController,
         UserComplaintController, AdminComplaintController, UserReviewController, PublicReviewController, PublicSellerReviewController, AdminReviewController,
         SellerFinanceController, SellerPayoutAccountController, SellerWithdrawalController, AdminFinanceController, AdminWithdrawalController, PayoutCallbackController,
         AdminFileController, AdminAuthController, AdminRbacController, AdminUserGovernanceController, AdminCatalogController, AdminOrderGovernanceController, AdminPaymentGovernanceController, AdminPlatformGovernanceController, AdminTodoController, AdminSystemController, AdminPolicyController, AdminAccountCancellationController, AdminUserLifecycleMonitorController,
       ],
       providers: [
+        FinancialRecoveryService,
         { provide: API_CONFIG, useValue: dependencies.config },
         { provide: DATABASE_CLIENT, useFactory: () => dependencies.databaseClient ?? createDatabaseClient({
           connectionString: dependencies.config.databaseUrl,
@@ -92,21 +101,26 @@ export class AppModule implements NestModule {
         },
         {
           provide: PAYMENT_PROVIDER_ROUTER,
-          useFactory: () => {
-            if (dependencies.paymentProviders) return new PaymentProviderRouter(dependencies.paymentProviders);
-            if (dependencies.paymentProvider) return new PaymentProviderRouter([dependencies.paymentProvider]);
+          inject: [DATABASE_CLIENT],
+          useFactory: (database:DatabaseClient) => {
+            const store=new DrizzleMockTransferStore(database,dependencies.config.authHmacKey);
+            const bind=(provider:PaymentProvider)=>provider instanceof MockPaymentProvider?provider.bindTransferStore(store):provider;
+            if (dependencies.paymentProviders) return new PaymentProviderRouter(dependencies.paymentProviders.map(bind));
+            if (dependencies.paymentProvider) return new PaymentProviderRouter([bind(dependencies.paymentProvider)]);
             if (dependencies.config.paymentProviderMode === "mock") return new PaymentProviderRouter([
-              new MockPaymentProvider(dependencies.config.paymentWebhookSecret, "WECHAT_APP"),
-              new MockPaymentProvider(dependencies.config.paymentWebhookSecret, "ALIPAY_APP"),
+              bind(new MockPaymentProvider(dependencies.config.paymentWebhookSecret, "WECHAT_APP")),
+              bind(new MockPaymentProvider(dependencies.config.paymentWebhookSecret, "ALIPAY_APP")),
             ]);
             throw new Error("An injected payment provider is required.");
           },
         },
         {
           provide: PAYOUT_PROVIDER,
-          useFactory: () => {
-            if (dependencies.payoutProvider) return dependencies.payoutProvider;
-            if (dependencies.config.payoutProviderMode === "mock") return new MockPayoutProvider(dependencies.config.payoutWebhookSecret ?? dependencies.config.paymentWebhookSecret);
+          inject: [DATABASE_CLIENT],
+          useFactory: (database:DatabaseClient) => {
+            const store=new DrizzleMockTransferStore(database,dependencies.config.authHmacKey);
+            if (dependencies.payoutProvider) return dependencies.payoutProvider instanceof MockPayoutProvider?dependencies.payoutProvider.bindTransferStore(store):dependencies.payoutProvider;
+            if (dependencies.config.payoutProviderMode === "mock") return new MockPayoutProvider(dependencies.config.payoutWebhookSecret ?? dependencies.config.paymentWebhookSecret).bindTransferStore(store);
             throw new Error("An injected payout provider is required.");
           },
         },
@@ -116,6 +130,7 @@ export class AppModule implements NestModule {
             if (dependencies.objectStorageProvider) return dependencies.objectStorageProvider;
             if (dependencies.config.fileStorageProvider === "minio") return new MinioStorageProvider({
               endpoint: dependencies.config.fileStorageEndpoint!, region: dependencies.config.fileStorageRegion,
+              clientEndpoint: dependencies.config.fileStorageClientEndpoint,
               accessKeyId: dependencies.config.fileStorageAccessKeyId!, secretAccessKey: dependencies.config.fileStorageSecretAccessKey!,
             });
             if (dependencies.config.fileStorageProvider === "aliyun-oss") return new AliyunOssStorageProvider({
@@ -139,6 +154,7 @@ export class AppModule implements NestModule {
         AdminGovernanceService,
         PolicyGovernanceService,
         UserLifecycleService,
+        CommunityService,
         FileLifecycleService,
         FileStorageService,
         { provide: APP_GUARD, useClass: AuthenticationGuard },

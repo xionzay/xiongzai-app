@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 import test from "node:test";
+import { createHash } from "node:crypto";
 
 const source = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
@@ -38,7 +39,7 @@ test("keeps the top-right administrator identity inside its account control", as
 test("keeps all admin modules and routes their data through the shared admin API", async () => {
   const [page, support, sellerReview, serviceReview, api] = await Promise.all([source("../app/admin/page.tsx"), source("../app/admin/support-workspace.tsx"), source("../app/admin/seller-review-drawer.tsx"), source("../app/admin/service-review-drawer.tsx"), source("../app/admin/admin-api.ts")]);
   const adminSource = `${page}\n${support}\n${sellerReview}\n${serviceReview}`;
-  const modules = ["数据总览", "用户管理", "手机号换绑记录", "数据导出任务", "账号注销", "实名认证审核", "陪玩审核", "陪玩管理", "服务审核", "服务管理", "订单管理", "支付管理", "退款管理", "投诉管理", "客服中心", "站内通知记录", "评价管理", "财务数据", "提现管理", "文件管理", "协议与隐私管理", "平台配置", "操作日志"];
+  const modules = ["数据总览", "用户管理", "手机号换绑记录", "数据导出任务", "账号注销", "实名认证审核", "陪玩审核", "陪玩管理", "商品审核", "商品管理", "订单管理", "支付管理", "退款管理", "投诉管理", "客服中心", "站内通知记录", "评价管理", "财务数据", "提现管理", "文件管理", "协议与隐私管理", "平台配置", "操作日志"];
   for (const name of modules) assert.match(page, new RegExp(name), `missing admin module ${name}`);
   for (const endpoint of ["/auth/session", "/users?", "/phone-change-requests?", "/data-export-jobs?", "/account-cancellations?", "/identity-verifications?", "/seller-applications", "/product-reviews", "/catalog/sellers", "/catalog/products", "/orders?", "/payments?", "/refunds", "/complaints", "/support-cases?", "/notification-deliveries?", "/reviews?", "/finance/ledger-transactions", "/finance/reconciliation-runs", "/withdrawals", "/policies", "/governance/configs", "/governance/risk-events", "/governance/security-logs", "/governance/operation-logs", "/todos", "/system/health", "/governance/dashboard/trends"])
     assert.ok(adminSource.includes(endpoint), `missing protected API ${endpoint}`);
@@ -92,10 +93,12 @@ test("hides navigation and management actions using session permissions", async 
 
 test("uses the real todo API for navigation and notifications without fixed counts", async () => {
   const page = await source("../app/admin/page.tsx");
+  const navigation = await source("../app/admin/admin-navigation.tsx");
   assert.match(page, /adminApiRequest<TodoResponse>\("\/todos"/);
-  assert.match(page, /todoCountByModule\.get\(item\.id\)/);
+  assert.match(page, /counts=\{todoCountByModule\}/);
+  assert.match(navigation, /counts\.get\(item\.id\)/);
   assert.match(page, /notificationCount > 0/);
-  assert.match(page, /todos \? todoCountByModule\.get\("files"\) \?\? 0 : null/);
+  assert.match(page, /todos\?\.module_counts \? todoCountByModule\.get\("files"\) \?\? 0 : null/);
   assert.doesNotMatch(page, /系统运行正常|99\.98%|少于 8 分钟|count:\s*\d+/);
   assert.doesNotMatch(page, /CartoonDatePicker|className=\{styles\.dateControl\}|selectedDate|className=\{styles\.customRange\}/);
 });
@@ -177,12 +180,16 @@ test("protects details from sensitive fields and keeps file previews in memory",
   assert.match(files, /permissions\.includes\("file\.read"\)/);
   assert.match(files, /permissions\.includes\("file\.review"\)/);
   assert.match(files, /permissions\.includes\("admin_log\.read"\)/);
-  assert.match(files, /adminApiBlob\(`\/files\/\$\{encodeURIComponent\(file\.id\)\}\/preview`\)/);
+  assert.match(files, /const path=`\/files\/\$\{encodeURIComponent\(file\.id\)\}\/preview`/);
+  assert.match(files, /adminApiBlob\(path,file\.mime_type === "video\/mp4" \? \{headers:\{Range:"bytes=0-0"\}\} : \{\}\)/);
+  assert.match(files, /adminFilePreviewUrl\(file\.id\)/);
+  assert.match(files, /<video controls crossOrigin="use-credentials"/);
+  assert.match(files, /adminApiRequest<FileRow>\(`\/files\/\$\{encodeURIComponent\(file\.id\)\}\/access`\)/);
   assert.match(files, /URL\.createObjectURL\(blob\)/);
   assert.match(files, /URL\.revokeObjectURL/);
   assert.match(files, /缺少 file\.review 权限，未请求文件字节/);
   assert.match(files, /referrerPolicy="no-referrer"/);
-  assert.doesNotMatch(files, /\/files\/\$\{encodeURIComponent\(file\.id\)\}\/access|presigned|signed_url|localStorage|sessionStorage|console\.|object_key|secret_access/i);
+  assert.doesNotMatch(files, /presigned|signed_url|localStorage|sessionStorage|console\.|object_key|secret_access/i);
   assert.match(api, /AdminApiError/);
   assert.match(api, /export async function adminApiBlob/);
   assert.match(css, /\.filePreview/);
@@ -334,4 +341,25 @@ test("retains the existing admin visual assets", async () => {
   assert.match(css, /\.modalBackdrop/);
   assert.match(css, /\.detailDrawer/);
   await Promise.all(["home", "mine", "shield", "service", "order", "wallet", "favorite", "withdraw", "setting", "message"].map((name) => access(new URL(`../public/assets/admin-icons/icon-${name}.png`, import.meta.url))));
+});
+
+test("admin branding uses the exact app icon approved in the IP design chat without replacing other clients' logos", async () => {
+  const page = await source("../app/admin/page.tsx");
+  assert.equal((page.match(/src="\/assets\/xiongzai-app-icon-approved\.png"/gu) ?? []).length, 2);
+  assert.doesNotMatch(page, /src="\/assets\/xiongzai-logo\.png"/u);
+  const asset = await readFile(new URL("../public/assets/xiongzai-app-icon-approved.png", import.meta.url));
+  assert.equal(createHash("sha256").update(asset).digest("hex"), "74340e5216d09c3486dac59e34c9e63d0b1946d27eb462466ed44c6c0692767c");
+  assert.equal(asset.readUInt32BE(16), 1254); assert.equal(asset.readUInt32BE(20), 1254);
+  // The protected route SSR intentionally renders only session-loading, not a logged-in sidebar.
+  const html = await (await renderAdmin()).text();
+  assert.match(html, /正在读取真实数据/u);
+  const [{ default: ts }, vm, React, renderer, jsx] = await Promise.all([import("typescript"), import("node:vm"), import("react"), import("react-dom/server"), import("react/jsx-runtime")]);
+  const ast = ts.createSourceFile("page.tsx", page, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const declaration = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "AdminAsset");
+  const context = { exports: {}, require: () => jsx };
+  vm.runInNewContext(ts.transpileModule(`export ${declaration.getText(ast)}`, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText, context);
+  const brand = renderer.renderToStaticMarkup(React.createElement(context.exports.AdminAsset, { src: "/assets/xiongzai-app-icon-approved.png", alt: "熊崽电竞" }));
+  assert.match(brand, /src="\/assets\/xiongzai-app-icon-approved\.png"/u);
+  assert.match(brand, /alt="熊崽电竞" width="1254" height="1254"/u);
+  await access(new URL("../public/assets/xiongzai-logo.png", import.meta.url));
 });

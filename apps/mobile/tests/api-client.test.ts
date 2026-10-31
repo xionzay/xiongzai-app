@@ -13,6 +13,13 @@ function setup(fetchImpl: typeof fetch) {
   return { client, vault, secure };
 }
 
+test('评价图片使用已配置 API 来源且不拼接凭据，拒绝任意路径',()=>{
+  const {client}=setup(async()=>{throw Error('must not fetch');});
+  const path='/api/v1/files/review-images/00000000-0000-4000-8000-000000000001/00000000-0000-4000-8000-000000000002/content';
+  assert.equal(client.reviewContentUrl(path),'https://api.example.test'+path);
+  for(const invalid of ['https://untrusted.invalid/'+path,path+'?token=secret','/api/v1/me'])assert.throws(()=>client.reviewContentUrl(invalid));
+});
+
 test("短信登录成功后 Token 按安全边界分别保存", async () => {
   const responseBody = tokenResponse();
   const { client, vault, secure } = setup(async () => jsonResponse(responseBody));

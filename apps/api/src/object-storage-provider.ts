@@ -68,6 +68,8 @@ export interface ObjectStorageProvider {
 
 export interface S3CompatibleStorageConfig {
   endpoint: string;
+  /** Optional local-device endpoint; select before signing, never rewrite a signed URL. */
+  clientEndpoint?: string;
   region: string;
   accessKeyId: string;
   secretAccessKey: string;
@@ -82,7 +84,7 @@ export class S3CompatibleStorageProvider implements ObjectStorageProvider {
     const expiresAt = new Date(Date.now() + input.expiresInSeconds * 1_000);
     return {
       method: "PUT",
-      url: this.presign("PUT", input, input.expiresInSeconds, headers),
+      url: this.presign("PUT", input, input.expiresInSeconds, headers, {}, this.config.clientEndpoint),
       headers,
       expiresAt,
     };
@@ -184,7 +186,7 @@ export class S3CompatibleStorageProvider implements ObjectStorageProvider {
   }
 
   async createDownloadUrl(input: ObjectLocation & { expiresInSeconds: number }): Promise<{ url: string; expiresAt: Date }> {
-    return { url: this.presign("GET", input, input.expiresInSeconds), expiresAt: new Date(Date.now() + input.expiresInSeconds * 1_000) };
+    return { url: this.presign("GET", input, input.expiresInSeconds, {}, { "response-cache-control": "no-store, private" }, this.config.clientEndpoint), expiresAt: new Date(Date.now() + input.expiresInSeconds * 1_000) };
   }
 
   async copyObject(input: { source: ObjectLocation; destination: ObjectLocation }): Promise<void> {
@@ -254,13 +256,13 @@ export class S3CompatibleStorageProvider implements ObjectStorageProvider {
     };
   }
 
-  private presign(method: "GET" | "HEAD" | "PUT" | "DELETE", location: ObjectLocation, expiresInSeconds: number, headers: Record<string, string> = {}, requestQuery: Record<string, string> = {}): string {
+  private presign(method: "GET" | "HEAD" | "PUT" | "DELETE", location: ObjectLocation, expiresInSeconds: number, headers: Record<string, string> = {}, requestQuery: Record<string, string> = {}, endpoint = this.config.endpoint): string {
     const expires = Math.min(Math.max(Math.trunc(expiresInSeconds), 1), 604_800);
     const now = this.config.now?.() ?? new Date();
     const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/gu, "");
     const date = amzDate.slice(0, 8);
     const credentialScope = `${date}/${this.config.region}/s3/aws4_request`;
-    const url = objectUrl(this.config.endpoint, location.bucket, location.objectKey);
+    const url = objectUrl(endpoint, location.bucket, location.objectKey);
     const canonicalHeaders = { host: url.host, ...normalizeHeaders(headers) };
     const signedHeaders = Object.keys(canonicalHeaders).sort().join(";");
     const query: Record<string, string> = {
@@ -376,7 +378,8 @@ function normalizeHeaders(headers: Record<string, string>): Record<string, strin
 }
 
 function canonicalQueryString(query: Record<string, string>): string {
-  return Object.entries(query).map(([key, value]) => [rfc3986(key), rfc3986(value)] as const).sort(([left], [right]) => left.localeCompare(right)).map(([key, value]) => `${key}=${value}`).join("&");
+  // SigV4 requires byte ordering of encoded ASCII keys, not locale collation.
+  return Object.entries(query).map(([key, value]) => [rfc3986(key), rfc3986(value)] as const).sort(([left], [right]) => left < right ? -1 : left > right ? 1 : 0).map(([key, value]) => `${key}=${value}`).join("&");
 }
 
 function rfc3986(value: string): string { return encodeURIComponent(value).replace(/[!'()*]/gu, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`); }

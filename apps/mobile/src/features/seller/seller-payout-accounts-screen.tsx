@@ -62,7 +62,7 @@ export function SellerPayoutAccountsScreen() {
 
 const styles = StyleSheet.create({
   content: { gap: spacing.md }, state: { minHeight: 240, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow }, heading: { ...typography.sectionTitle, color: colors.text },
-  card: { gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: radii.lg, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  card: { gap: spacing.md, padding: spacing.lg, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   row: { flexDirection: "row", justifyContent: "space-between" }, title: { ...typography.cardTitle, color: colors.text },
   status: { ...typography.caption, color: colors.brand, fontWeight: "900" }, mask: { ...typography.sectionTitle, color: colors.text },
   switches: { flexDirection: "row", gap: spacing.sm }, choice: { flex: 1, minHeight: 48, padding: spacing.md, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: radii.md, backgroundColor: "rgba(255,253,248,0.96)" },

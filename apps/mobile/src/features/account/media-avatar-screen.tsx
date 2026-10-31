@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { useEffect, useRef, useState } from "react";
 import { Image, Linking, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -214,7 +215,7 @@ export function MediaAvatarScreen() {
         <View style={styles.preview}>
           <Image source={{ uri: asset.uri }} style={styles.image} accessibilityLabel="待上传头像本地预览" />
           <Text style={styles.title}>新头像本地预览</Text>
-          <Text style={styles.meta}>{asset.width} × {asset.height}{asset.fileSize ? ` · ${Math.ceil(asset.fileSize / 1024)} KB` : ""}</Text>
+          <Text style={styles.meta}>{asset.width} <JellyIcon kind="close" label="关闭" />{asset.height}{asset.fileSize ? ` · ${Math.ceil(asset.fileSize / 1024)} KB` : ""}</Text>
           <Text style={styles.stage}>{avatarStageCopy(stage)}</Text>
           {file ? <Text style={styles.meta}>服务端状态：{file.upload_status} / {file.moderation_status}</Text> : null}
         </View>

@@ -1,0 +1,419 @@
+{
+  "schemaVersion": 1,
+  "revision": "v2-motion-amplified",
+  "kind": "2d-original-art-motion",
+  "background": "#FFFFFF",
+  "transparent": false,
+  "businessUiModified": false,
+  "nativePlaybackTested": false,
+  "assets": [
+    {
+      "id": "01-loading",
+      "label": "短时加载",
+      "scope": "核心；真实短请求",
+      "playback": "loop",
+      "durationMs": 3000,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/01-loading.webp",
+      "gif": "assets/01-loading.gif",
+      "poster": "posters/01-loading.png",
+      "endPoster": "end/01-loading.png",
+      "actions": [
+        "1.6x upper-body breathing; feet fixed",
+        "approved closed-eye artwork crossfade unchanged",
+        "12% larger independent blue arc rotates once, floats +/-2.4px, pulses +/-2.5%; bear does not rotate"
+      ],
+      "pageLabels": [
+        "短时加载"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 72,
+          "durationMs": 3000,
+          "loopCount": 0,
+          "bytes": 1013600,
+          "sha256": "e1b1a555c1f2d89beedc820ea9a2db74be8cc5a5da03fe085dbdf83b7bb248e6"
+        },
+        "gif": {
+          "encodedFrames": 72,
+          "durationMs": 3000,
+          "loopCount": 0,
+          "bytes": 3280629,
+          "sha256": "399873e43aac481729f5eb1bd185f71907e4986ce5e8ecb98c618afe8b509144"
+        }
+      }
+    },
+    {
+      "id": "02-error",
+      "label": "失败",
+      "scope": "核心；真实失败",
+      "playback": "once",
+      "durationMs": 2500,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/02-error.webp",
+      "gif": "assets/02-error.gif",
+      "poster": "posters/02-error.png",
+      "endPoster": "end/02-error.png",
+      "actions": [
+        "1.6x raised-paw scratch and head tilt",
+        "exclamation icon separately floats and gently tilts",
+        "last 0.6 seconds are completely still"
+      ],
+      "pageLabels": [
+        "加载失败",
+        "支付失败",
+        "陪玩申请未通过"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 40,
+          "durationMs": 2500,
+          "loopCount": 1,
+          "bytes": 532046,
+          "sha256": "648c37e2bc860bac7fd58da193023b82f4767f334dbdadf87a5942b5ed3f27b1"
+        },
+        "gif": {
+          "encodedFrames": 41,
+          "durationMs": 2500,
+          "loopCount": null,
+          "bytes": 1700257,
+          "sha256": "96c6bfa69fa8d4b20d1c1602cee45c9bb9fdb17bb90118b87d049108bd881d87"
+        }
+      }
+    },
+    {
+      "id": "03-success",
+      "label": "普通成功",
+      "scope": "核心；已确认普通成功",
+      "playback": "once",
+      "durationMs": 2500,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/03-success.webp",
+      "gif": "assets/03-success.gif",
+      "poster": "posters/03-success.png",
+      "endPoster": "end/03-success.png",
+      "actions": [
+        "1.6x raised-paw celebration lift and head acknowledgement",
+        "checkmark and its supporting hand rise 1.7x; stars independently float/tilt",
+        "no added jump; last 0.6 seconds are still"
+      ],
+      "pageLabels": [
+        "支付成功",
+        "陪玩申请已通过"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 34,
+          "durationMs": 2500,
+          "loopCount": 1,
+          "bytes": 478740,
+          "sha256": "2bea953832b2435f46b0f02602db4eda8d531f15a2e1ed9df9991020fd9e5cab"
+        },
+        "gif": {
+          "encodedFrames": 35,
+          "durationMs": 2500,
+          "loopCount": null,
+          "bytes": 1627343,
+          "sha256": "369ece4131cd0e44043497aab912e212cb05653c135fbd22490f798c544fa530"
+        }
+      }
+    },
+    {
+      "id": "04-empty",
+      "label": "通用空内容",
+      "scope": "核心；空搜索明确复用，无专用搜索姿势",
+      "playback": "once",
+      "durationMs": 3000,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/04-empty.webp",
+      "gif": "assets/04-empty.gif",
+      "poster": "posters/04-empty.png",
+      "endPoster": "end/04-empty.png",
+      "actions": [
+        "1.6x head dip toward box then lift",
+        "approved closed-eye artwork crossfade unchanged",
+        "box and seated feet remain stable; last 0.6 seconds are still"
+      ],
+      "pageLabels": [
+        "空搜索",
+        "空买家订单",
+        "空卖家订单",
+        "空消息/系统通知",
+        "客服暂无记录",
+        "空收藏",
+        "空收益明细",
+        "空提现记录",
+        "空服务",
+        "空服务/陪玩评价"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 43,
+          "durationMs": 3000,
+          "loopCount": 1,
+          "bytes": 534348,
+          "sha256": "fba3977a9f2bb7f975cf5b4a2b04b8e119b26afd1e5c76b8e45e7d86e13a4e20"
+        },
+        "gif": {
+          "encodedFrames": 44,
+          "durationMs": 3000,
+          "loopCount": null,
+          "bytes": 2232234,
+          "sha256": "1e07706847a790605cb35132e453da44e7ef7353521aeb0ddda69c3fc0a620e6"
+        }
+      }
+    },
+    {
+      "id": "05-offline",
+      "label": "拿手机断网",
+      "scope": "核心；真实断网",
+      "playback": "once",
+      "durationMs": 2500,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/05-offline.webp",
+      "gif": "assets/05-offline.gif",
+      "poster": "posters/05-offline.png",
+      "endPoster": "end/05-offline.png",
+      "actions": [
+        "1.6x head dip and pointing gesture; phone protected from head deformation",
+        "disconnected-WiFi icon separately floats and tilts",
+        "no blink; last 0.6 seconds are still"
+      ],
+      "pageLabels": [
+        "断网"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 38,
+          "durationMs": 2500,
+          "loopCount": 1,
+          "bytes": 568804,
+          "sha256": "9283f7f38be64c9d432dda491695eb51a8ccfe46e4913e456ea553d97d05e5d3"
+        },
+        "gif": {
+          "encodedFrames": 39,
+          "durationMs": 2500,
+          "loopCount": null,
+          "bytes": 1844993,
+          "sha256": "e2fc1ab895f73841bf2f03e90ebec113d4a181424f4c1640be4b85c456d3dadc"
+        }
+      }
+    },
+    {
+      "id": "06-waiting",
+      "label": "安静沙漏等待",
+      "scope": "核心；支付超时和长期资金等待使用静态 poster",
+      "playback": "loop",
+      "durationMs": 4000,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/06-waiting.webp",
+      "gif": "assets/06-waiting.gif",
+      "poster": "posters/06-waiting.png",
+      "endPoster": "end/06-waiting.png",
+      "actions": [
+        "1.6x slow upper-body breathing; seated feet stable",
+        "hourglass gently sways +/-2.4 degrees with small synchronized hand movement",
+        "hourglass does not flip; no blink added"
+      ],
+      "pageLabels": [
+        "客服排队",
+        "支付处理中",
+        "支付确认超时",
+        "陪玩申请审核中",
+        "退款/提现处理中"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 96,
+          "durationMs": 4000,
+          "loopCount": 0,
+          "bytes": 1441438,
+          "sha256": "07e307e1223782a781cacac8304dc275d2cf1a4eb91b763458744a7177793400"
+        },
+        "gif": {
+          "encodedFrames": 96,
+          "durationMs": 4000,
+          "loopCount": 0,
+          "bytes": 5549371,
+          "sha256": "f210c21f494cea5c8693873748240f666efd7f1cd2f273a98e61e8fdb12d4749"
+        }
+      }
+    },
+    {
+      "id": "07-welcome",
+      "label": "欢迎",
+      "scope": "非核心；无自动系统状态绑定",
+      "playback": "once",
+      "durationMs": 3000,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/07-welcome.webp",
+      "gif": "assets/07-welcome.gif",
+      "poster": "posters/07-welcome.png",
+      "endPoster": "end/07-welcome.png",
+      "actions": [
+        "1.65x raised-paw localized greeting once",
+        "1.6x head acknowledgement; no blink added",
+        "last 0.6 seconds are completely still"
+      ],
+      "pageLabels": [],
+      "formats": {
+        "webp": {
+          "encodedFrames": 42,
+          "durationMs": 3000,
+          "loopCount": 1,
+          "bytes": 531264,
+          "sha256": "560fd70988932f3bc78f2ca09f99d9fe84bcbd402b92cef7e765c30677e6b0a5"
+        },
+        "gif": {
+          "encodedFrames": 44,
+          "durationMs": 3000,
+          "loopCount": null,
+          "bytes": 2199141,
+          "sha256": "6504ad3b5603b9777f1f23d905e31b629decfe69fcae087a1dc76e05f18fac44"
+        }
+      }
+    },
+    {
+      "id": "08-encourage",
+      "label": "鼓励",
+      "scope": "非系统反馈；无自动系统状态绑定",
+      "playback": "once",
+      "durationMs": 2500,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/08-encourage.webp",
+      "gif": "assets/08-encourage.gif",
+      "poster": "posters/08-encourage.png",
+      "endPoster": "end/08-encourage.png",
+      "actions": [
+        "1.6x two-fist lift and head acknowledgement",
+        "no global image bounce",
+        "last 0.6 seconds are completely still"
+      ],
+      "pageLabels": [],
+      "formats": {
+        "webp": {
+          "encodedFrames": 33,
+          "durationMs": 2500,
+          "loopCount": 1,
+          "bytes": 435906,
+          "sha256": "2cb382f78b391b103f747552ac236b4091e0d897654ef485c5722440a6400d7e"
+        },
+        "gif": {
+          "encodedFrames": 33,
+          "durationMs": 2500,
+          "loopCount": null,
+          "bytes": 1623281,
+          "sha256": "4ae27e3bc9665271a2078db91bd98c6d1169489b8c975f5fab725c3c66006e69"
+        }
+      }
+    },
+    {
+      "id": "09-neutral",
+      "label": "中性结束/提示",
+      "scope": "核心；补资料、受限、取消关闭复用，没有这些场景的专用新姿势",
+      "playback": "once",
+      "durationMs": 2500,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/09-neutral.webp",
+      "gif": "assets/09-neutral.gif",
+      "poster": "posters/09-neutral.png",
+      "endPoster": "end/09-neutral.png",
+      "actions": [
+        "restrained 1.3x quiet nod",
+        "no blink added",
+        "no celebration or sad symbol; last 0.6 seconds are still"
+      ],
+      "pageLabels": [
+        "取消支付/订单关闭",
+        "陪玩申请补资料",
+        "陪玩资格暂停/封禁",
+        "游客登录拦截",
+        "权限/访问受限",
+        "服务不可购买",
+        "退款拒绝/关闭；提现失败/拒绝/关闭"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 29,
+          "durationMs": 2500,
+          "loopCount": 1,
+          "bytes": 392892,
+          "sha256": "ed6aa3c1471a8709d57e3feb686c4d5258d018bfac75be281684af10e7d67f43"
+        },
+        "gif": {
+          "encodedFrames": 30,
+          "durationMs": 2500,
+          "loopCount": null,
+          "bytes": 1632475,
+          "sha256": "913211880ddf6f3c9314a64825714ae331b538c732be9d060c2fcec591c21914"
+        }
+      }
+    },
+    {
+      "id": "10-confirm-calm",
+      "label": "平静确认",
+      "scope": "核心；仅服务端确认退款完成/提现到账",
+      "playback": "once",
+      "durationMs": 2500,
+      "width": 480,
+      "height": 480,
+      "transparent": false,
+      "background": "#FFFFFF",
+      "webp": "assets/10-confirm-calm.webp",
+      "gif": "assets/10-confirm-calm.gif",
+      "poster": "posters/10-confirm-calm.png",
+      "endPoster": "end/10-confirm-calm.png",
+      "actions": [
+        "restrained 1.3x quiet nod; no blink added",
+        "mint badge scales from 80% to 100%, gently rises 3.84px and settles",
+        "no stars or jumping; last 0.6 seconds are still"
+      ],
+      "pageLabels": [
+        "退款完成/提现到账"
+      ],
+      "formats": {
+        "webp": {
+          "encodedFrames": 30,
+          "durationMs": 2500,
+          "loopCount": 1,
+          "bytes": 409604,
+          "sha256": "e8d7a490354d4e04b423e6f69dfeb59602a50b7b9344d8274c788ed5467dd07e"
+        },
+        "gif": {
+          "encodedFrames": 30,
+          "durationMs": 2500,
+          "loopCount": null,
+          "bytes": 1631972,
+          "sha256": "19ddce317323a3ffe5cc7009d880153f3d3c380e93800c5b6d23824f055cd909"
+        }
+      }
+    }
+  ]
+}

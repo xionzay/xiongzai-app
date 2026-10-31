@@ -1,4 +1,36 @@
 export const payoutAccountTypes = ["WECHAT", "ALIPAY"] as const;
+export const financialTransferStatuses = ["READY","PROCESSING","UNKNOWN","MANUAL_REVIEW","SUCCEEDED","FAILED"] as const;
+export type FinancialTransferStatus = (typeof financialTransferStatuses)[number];
+/** Local Mock recovery view. UNKNOWN/MANUAL_REVIEW are not failed payments. */
+export interface FinancialTransferRecovery {
+  id: string;
+  kind: "REFUND" | "PAYOUT";
+  refund_id: string | null;
+  withdrawal_id: string | null;
+  channel: string;
+  status: FinancialTransferStatus;
+  amount_cent: string;
+  attempts: number;
+  max_attempts: number;
+  next_run_at: string;
+  last_error: string | null;
+  version: number;
+}
+export const sellerBusinessPeriods = ["TODAY", "YESTERDAY", "WEEK", "MONTH", "YEAR", "ALL"] as const;
+export type SellerBusinessPeriod = (typeof sellerBusinessPeriods)[number];
+export interface SellerBusinessStatistics {
+  period: SellerBusinessPeriod;
+  timezone: "Asia/Shanghai";
+  attribution: "ORDER_CREATED_AT";
+  scope: string;
+  start_at: string | null;
+  end_at_exclusive: string;
+  server_time: string;
+  created_order_count: string;
+  paid_order_count: string;
+  paid_amount_cent: string;
+  refunded_amount_cent: string;
+}
 export const payoutVerificationStatuses = ["PENDING", "VERIFIED", "REJECTED", "REVOKED"] as const;
 export const withdrawalStatuses = [
   "CREATED", "RISK_REVIEW", "APPROVED", "PAYOUT_PROCESSING",

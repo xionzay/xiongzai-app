@@ -7,11 +7,11 @@ const job = { id: "1", jobKey: "close:1", jobType: "close-order", targetType: "O
 
 test("scheduler completes a registered idempotent handler", async () => {
   const calls = [];
-  const repository = { claim: async () => [job], complete: async (id) => calls.push(["complete", id]), fail: async () => calls.push(["fail"]) };
+  const repository = { claim: async () => [job], complete: async (id, attempt) => { calls.push(["complete", id, attempt]); return true; }, fail: async () => calls.push(["fail"]) };
   const scheduler = new Scheduler(repository, new JsonLogger("test", () => {}), "scheduler-1", 10);
   scheduler.register("close-order", async (claimed) => calls.push(["handle", claimed.id]));
   assert.equal(await scheduler.runOnce(), 1);
-  assert.deepEqual(calls, [["handle", "1"], ["complete", "1"]]);
+  assert.deepEqual(calls, [["handle", "1"], ["complete", "1", 1]]);
 });
 
 test("scheduler records unknown handlers as retryable failures", async () => {
@@ -31,13 +31,23 @@ test("scheduler retry delay is deterministic, jittered and bounded", () => {
 
 test("scheduler logs only a safe failure category", async () => {
   const records = [];
-  const repository = { claim: async () => [job], complete: async () => {}, fail: async () => {} };
+  const repository = { claim: async () => [job], complete: async () => true, fail: async () => true };
   const scheduler = new Scheduler(repository, new JsonLogger("test", (record) => records.push(record)), "scheduler-1", 10);
   scheduler.register("close-order", async () => { throw Object.assign(new Error("sensitive endpoint and key must not be logged"), { category: "storage_temporary_failure", retryable: true }); });
   await scheduler.runOnce();
   const output = JSON.stringify(records);
   assert.match(output, /storage_temporary_failure/u);
   assert.doesNotMatch(output, /sensitive endpoint|object_key|presigned/iu);
+});
+
+test("lost scheduler claim is not reported as a completed job", async () => {
+  const records = [];
+  const repository = { claim: async () => [job], complete: async () => false, fail: async () => { throw new Error("must not retry lost claim"); } };
+  const scheduler = new Scheduler(repository, new JsonLogger("test", (record) => records.push(record)), "scheduler-1", 10);
+  scheduler.register(job.jobType, async () => {});
+  await scheduler.runOnce();
+  assert.match(JSON.stringify(records), /scheduled_job_claim_lost/u);
+  assert.doesNotMatch(JSON.stringify(records), /scheduled_job_completed/u);
 });
 
 test("scheduler protected environments reject loopback database configuration by key name", () => {

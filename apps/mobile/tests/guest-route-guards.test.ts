@@ -29,6 +29,22 @@ test("登录回跳只接受内部白名单并覆盖发布服务冷启动路径",
   assert.equal(resolveInternalReturnTo("//evil.example/phish"), "/(buyer-tabs)");
 });
 
+test("反馈登录后回到原页面或关联反馈，拒绝非 UUID、重复或额外回跳参数", () => {
+  const id = "01a172c1-9e61-71fc-bdfd-e72889d63d22";
+  for (const route of ["/feedback", `/feedback?id=${id}`]) {
+    assert.equal(isAllowedInternalRoute(route), true);
+    assert.equal(resolveInternalReturnTo(route), route);
+  }
+  for (const route of [
+    "/feedback?id=", "/feedback?id=unknown", "/feedback?id=https%3A%2F%2Fevil.example",
+    `/feedback?id=${id}&id=${id}`, `/feedback?id=${id}&next=home`,
+    "/feedback?next=home", `/feedback?id=${id}#other`, "//feedback", "/feedback/other"
+  ]) {
+    assert.equal(isAllowedInternalRoute(route), false, route);
+    assert.equal(resolveInternalReturnTo(route), "/(buyer-tabs)", route);
+  }
+});
+
 test("发布服务冷启动返回、权限失败和登录恢复均有安全出口", () => {
   assert.match(serviceCreateSource, /router\.canGoBack\(\)/u);
   assert.match(serviceCreateSource, /router\.replace\("\/\(seller-tabs\)\/services"\)/u);

@@ -1,6 +1,8 @@
+import { cursorColumns, cursorTimeValue } from "./cursor-time.js";
+import { productImageLimits } from "./product-image-limits.js";
 import { Inject, Injectable } from "@nestjs/common";
 import { OutboxService } from "@xiongzai/application";
-import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize } from "@xiongzai/contracts";
+import { AppError, decodeCursor, encodeCursor, errorCodes, normalizePageSize, sellerApplicationMissingFields, type ProductGame } from "@xiongzai/contracts";
 import {
   adminOperationLogs,
   favorites,
@@ -41,7 +43,7 @@ type SellerProfileInput = {
   acceptingOrders?: boolean;
 };
 
-type ProductInput = { title: string; description: string; serviceTimeDescription?: string | null; coverFileId?: string | null };
+type ProductInput = { title: string; description: string; serviceTimeDescription?: string | null; coverFileId?: string | null; game?: ProductGame; fulfillmentSeconds?: number; pricingMode?: "SINGLE" | "MULTI"; priceCent?: bigint };
 type SellerReviewAction = "START_REVIEW" | "REQUEST_SUPPLEMENT" | "APPROVE" | "REJECT";
 type ProductReviewAction = "APPROVE" | "REJECT" | "ADMIN_OFF_SALE" | "ADMIN_RESTORE" | "SOFT_DELETE";
 
@@ -57,7 +59,7 @@ export class SellerProductService {
 
   async getMySeller(userId: string) {
     const seller = await this.requireSellerByUser(userId);
-    const [latestApplication] = await this.database.db.select().from(sellerApplications)
+    const [latestApplication] = await this.database.db.select(cursorColumns(sellerApplications)).from(sellerApplications)
       .where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo)).limit(1);
     const latestSnapshot = latestApplication ? safeJson(latestApplication.snapshotJson) : null;
     const pendingProfileRevision = latestApplication && isProfileRevision(latestSnapshot) && ["DRAFT", "SUBMITTED", "UNDER_REVIEW", "NEEDS_SUPPLEMENT", "REJECTED"].includes(latestApplication.status)
@@ -124,7 +126,7 @@ export class SellerProductService {
       const trustedInput = { ...input, voiceDurationMs };
       const snapshot = sellerRevisionSnapshot(trustedInput, voiceAuthorizationPolicyVersionId ?? null);
       assertSellerSnapshotComplete(snapshot);
-      const [latest] = await tx.select().from(sellerApplications).where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo)).limit(1).for("update");
+      const [latest] = await tx.select(cursorColumns(sellerApplications)).from(sellerApplications).where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo)).limit(1).for("update");
       if (latest && isProfileRevision(safeJson(latest.snapshotJson)) && ["SUBMITTED", "UNDER_REVIEW"].includes(latest.status)) throw invalidState("已有资料变更正在审核，请等待审核结果后再提交新版本");
       if (latest && ["DRAFT", "NEEDS_SUPPLEMENT"].includes(latest.status) && isProfileRevision(safeJson(latest.snapshotJson))) {
         if (input.applicationVersion === undefined || latest.version !== input.applicationVersion) throw versionConflict();
@@ -145,7 +147,7 @@ export class SellerProductService {
     return this.database.db.transaction(async (tx) => {
       const seller = await this.lockSellerByUser(tx, userId);
       if (!["APPROVED", "SUSPENDED"].includes(seller.status)) throw invalidState("当前陪玩状态不能提交资料变更审核");
-      const [application] = await tx.select().from(sellerApplications).where(and(eq(sellerApplications.id, applicationId), eq(sellerApplications.sellerId, seller.id))).limit(1).for("update");
+      const [application] = await tx.select(cursorColumns(sellerApplications)).from(sellerApplications).where(and(eq(sellerApplications.id, applicationId), eq(sellerApplications.sellerId, seller.id))).limit(1).for("update");
       if (!application) throw notFound("SELLER_APPLICATION_NOT_FOUND", "资料变更申请不存在");
       const snapshot = safeJson(application.snapshotJson);
       if (!isProfileRevision(snapshot) || application.status !== "DRAFT") throw invalidState("当前申请不是可提交的资料变更草稿");
@@ -199,20 +201,20 @@ export class SellerProductService {
 
   async listMyApplications(userId: string) {
     const seller = await this.requireSellerByUser(userId);
-    const rows = await this.database.db.select().from(sellerApplications).where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo));
+    const rows = await this.database.db.select(cursorColumns(sellerApplications)).from(sellerApplications).where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo));
     return rows.map(applicationView);
   }
 
-  async listSellerApplications(input:{status?:typeof sellerApplications.$inferSelect.status;keyword?:string;cursor?:string;limit?:unknown;sort:"created_desc"|"created_asc"}) {
-    const limit=normalizePageSize(input.limit,20);const scope=discoveryScope("admin-seller-applications",input.status,input.keyword,input.sort);const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;assertCursorScope(cursor,scope);const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(sellerApplications.createdAt,new Date(cursor.sort_value)),and(eq(sellerApplications.createdAt,new Date(cursor.sort_value)),gt(sellerApplications.id,cursor.id))):or(lt(sellerApplications.createdAt,new Date(cursor.sort_value)),and(eq(sellerApplications.createdAt,new Date(cursor.sort_value)),lt(sellerApplications.id,cursor.id)))):undefined;
-    const rows = await this.database.db.select({ application: sellerApplications, seller: sellerProfiles }).from(sellerApplications)
+  async listSellerApplications(input:{status?:typeof sellerApplications.$inferSelect.status | "PENDING";keyword?:string;cursor?:string;limit?:unknown;sort:"created_desc"|"created_asc"}) {
+    const limit=normalizePageSize(input.limit,20);const scope=discoveryScope("admin-seller-applications",input.status,input.keyword,input.sort);const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;assertCursorScope(cursor,scope);const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(sellerApplications.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(sellerApplications.createdAt,cursorTimeValue(cursor.sort_value)),gt(sellerApplications.id,cursor.id))):or(lt(sellerApplications.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(sellerApplications.createdAt,cursorTimeValue(cursor.sort_value)),lt(sellerApplications.id,cursor.id)))):undefined;
+    const rows = await this.database.db.select({ application: cursorColumns(sellerApplications), seller: cursorColumns(sellerProfiles) }).from(sellerApplications)
       .innerJoin(sellerProfiles, eq(sellerApplications.sellerId, sellerProfiles.id))
-      .where(and(input.status?eq(sellerApplications.status,input.status):undefined,input.keyword?or(ilike(sellerProfiles.sellerNickname,likePattern(input.keyword)),sql<boolean>`${sellerApplications.id}::text ILIKE ${likePattern(input.keyword)}`):undefined,cursorCondition)).orderBy(ascending?asc(sellerApplications.createdAt):desc(sellerApplications.createdAt),ascending?asc(sellerApplications.id):desc(sellerApplications.id)).limit(limit+1);
+      .where(and(input.status==="PENDING"?inArray(sellerApplications.status,["SUBMITTED","UNDER_REVIEW"]):input.status?eq(sellerApplications.status,input.status):undefined,input.keyword?or(ilike(sellerProfiles.sellerNickname,likePattern(input.keyword)),sql<boolean>`${sellerApplications.id}::text ILIKE ${likePattern(input.keyword)}`):undefined,cursorCondition)).orderBy(ascending?asc(sellerApplications.createdAt):desc(sellerApplications.createdAt),ascending?asc(sellerApplications.id):desc(sellerApplications.id)).limit(limit+1);
     return cursorPage(rows,limit,(row)=>row.application.createdAt.toISOString(),this.config.cursorSigningSecret,({application,seller})=>({...applicationView(application),seller:sellerView(seller),snapshot:safeJson(application.snapshotJson)}),scope);
   }
 
   async getAdminSellerApplication(applicationId:string) {
-    const [row] = await this.database.db.select({application:sellerApplications,seller:sellerProfiles}).from(sellerApplications).innerJoin(sellerProfiles,eq(sellerApplications.sellerId,sellerProfiles.id)).where(eq(sellerApplications.id,applicationId)).limit(1);
+    const [row] = await this.database.db.select({application:cursorColumns(sellerApplications),seller:cursorColumns(sellerProfiles)}).from(sellerApplications).innerJoin(sellerProfiles,eq(sellerApplications.sellerId,sellerProfiles.id)).where(eq(sellerApplications.id,applicationId)).limit(1);
     if(!row) throw notFound("SELLER_APPLICATION_NOT_FOUND","入驻申请不存在");
     const snapshot=safeJson(row.application.snapshotJson);const snapshotVoicePolicy=typeof snapshot.voice_authorization_policy_version_id==="string"?snapshot.voice_authorization_policy_version_id:null;
     const policyIds = [row.application.onboardingPolicyVersionId, snapshotVoicePolicy ?? (row.seller.voiceFileId ? row.seller.voiceAuthorizationPolicyVersionId : null)].filter((value): value is string => Boolean(value));
@@ -228,16 +230,16 @@ export class SellerProductService {
     };
   }
 
-  async getAdminSeller(sellerId:string){const [seller]=await this.database.db.select().from(sellerProfiles).where(eq(sellerProfiles.id,sellerId)).limit(1);if(!seller)throw notFound("SELLER_NOT_FOUND","陪玩资料不存在");const [applications,logs,availability]=await Promise.all([this.database.db.select().from(sellerApplications).where(eq(sellerApplications.sellerId,sellerId)).orderBy(desc(sellerApplications.versionNo)).limit(100),this.database.db.select({id:sellerReviewLogs.id,application_id:sellerReviewLogs.applicationId,action:sellerReviewLogs.action,old_status:sellerReviewLogs.oldStatus,new_status:sellerReviewLogs.newStatus,admin_id:sellerReviewLogs.adminId,reason:sellerReviewLogs.reason,request_id:sellerReviewLogs.requestId,created_at:sellerReviewLogs.createdAt}).from(sellerReviewLogs).where(eq(sellerReviewLogs.sellerId,sellerId)).orderBy(desc(sellerReviewLogs.createdAt)).limit(100),this.database.db.select().from(sellerAvailabilitySlots).where(eq(sellerAvailabilitySlots.sellerId,sellerId)).orderBy(desc(sellerAvailabilitySlots.startsAt)).limit(100)]);return {...sellerView(seller),current_public_profile:sellerSnapshot(seller),applications:applications.map((row)=>({...applicationView(row),snapshot:safeJson(row.snapshotJson)})),availability_slots:availability.map(slotView),review_logs:logs};}
+  async getAdminSeller(sellerId:string){const [seller]=await this.database.db.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(eq(sellerProfiles.id,sellerId)).limit(1);if(!seller)throw notFound("SELLER_NOT_FOUND","陪玩资料不存在");const [applications,logs,availability]=await Promise.all([this.database.db.select(cursorColumns(sellerApplications)).from(sellerApplications).where(eq(sellerApplications.sellerId,sellerId)).orderBy(desc(sellerApplications.versionNo)).limit(100),this.database.db.select({id:sellerReviewLogs.id,application_id:sellerReviewLogs.applicationId,action:sellerReviewLogs.action,old_status:sellerReviewLogs.oldStatus,new_status:sellerReviewLogs.newStatus,admin_id:sellerReviewLogs.adminId,reason:sellerReviewLogs.reason,request_id:sellerReviewLogs.requestId,created_at:sellerReviewLogs.createdAt}).from(sellerReviewLogs).where(eq(sellerReviewLogs.sellerId,sellerId)).orderBy(desc(sellerReviewLogs.createdAt)).limit(100),this.database.db.select().from(sellerAvailabilitySlots).where(eq(sellerAvailabilitySlots.sellerId,sellerId)).orderBy(desc(sellerAvailabilitySlots.startsAt)).limit(100)]);return {...sellerView(seller),current_public_profile:sellerSnapshot(seller),applications:applications.map((row)=>({...applicationView(row),snapshot:safeJson(row.snapshotJson)})),availability_slots:availability.map(slotView),review_logs:logs};}
 
   async reviewSeller(adminId: string, applicationId: string, input: { action: SellerReviewAction; version: number; reason?: string; requiredFields?: string[] }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
-      const [application] = await tx.select().from(sellerApplications).where(eq(sellerApplications.id, applicationId)).limit(1).for("update");
+      const [application] = await tx.select(cursorColumns(sellerApplications)).from(sellerApplications).where(eq(sellerApplications.id, applicationId)).limit(1).for("update");
       if (!application) throw notFound("SELLER_APPLICATION_NOT_FOUND", "入驻申请不存在");
       if (application.version !== input.version) throw versionConflict();
       const transition = sellerReviewTransition(application.status, input.action);
       if ((input.action === "REJECT" || input.action === "REQUEST_SUPPLEMENT") && !input.reason) throw validation("reason", "必须填写审核原因");
-      const [seller] = await tx.select().from(sellerProfiles).where(eq(sellerProfiles.id, application.sellerId)).limit(1).for("update");
+      const [seller] = await tx.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(eq(sellerProfiles.id, application.sellerId)).limit(1).for("update");
       if (!seller) throw notFound("SELLER_NOT_FOUND", "陪玩资料不存在");
       const snapshot=safeJson(application.snapshotJson);const profileRevision=isProfileRevision(snapshot);
       const now = new Date();
@@ -265,11 +267,11 @@ export class SellerProductService {
 
   async changeSellerStatus(adminId: string, sellerId: string, input: { action: "SUSPEND" | "RESTORE" | "BAN"; version: number; reason: string }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
-      const [seller] = await tx.select().from(sellerProfiles).where(eq(sellerProfiles.id, sellerId)).limit(1).for("update");
+      const [seller] = await tx.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(eq(sellerProfiles.id, sellerId)).limit(1).for("update");
       if (!seller) throw notFound("SELLER_NOT_FOUND", "陪玩资料不存在");
       if (seller.version !== input.version) throw versionConflict();
       const next = sellerStatusTransition(seller.status, input.action);
-      const [latest] = await tx.select().from(sellerApplications).where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo)).limit(1);
+      const [latest] = await tx.select(cursorColumns(sellerApplications)).from(sellerApplications).where(eq(sellerApplications.sellerId, seller.id)).orderBy(desc(sellerApplications.versionNo)).limit(1);
       if (!latest) throw invalidState("陪玩没有可关联的审核申请");
       const [updated] = await tx.update(sellerProfiles).set({ status: next, acceptingOrders: input.action === "RESTORE" ? seller.acceptingOrders : false, suspendedReason: input.action === "RESTORE" ? null : input.reason, version: sql`${sellerProfiles.version} + 1`, updatedAt: new Date() })
         .where(and(eq(sellerProfiles.id, sellerId), eq(sellerProfiles.version, input.version))).returning();
@@ -282,11 +284,16 @@ export class SellerProductService {
   }
 
   async createProduct(userId: string, input: ProductInput) {
-    const seller = await this.requireApprovedSeller(userId);
-    await this.validateOwnedFiles(userId, input.coverFileId ? [input.coverFileId] : [], "PRODUCT_IMAGE");
     return this.database.db.transaction(async (tx) => {
+      const seller = await this.lockApprovedSeller(tx, userId);
+      this.validateProductTerms(input);
+      if (input.game) await this.identity.requireVerifiedAdult(tx, userId);
+      await this.validateOwnedFiles(userId, input.coverFileId ? [input.coverFileId] : [], "PRODUCT_IMAGE", tx);
       const id = uuidv7();
-      const [row] = await tx.insert(products).values({ id, sellerId: seller.id, ...productInsert(input) }).returning();
+      const pricingMode = input.pricingMode ?? (input.game ? "SINGLE" : "MULTI");
+      const [row] = await tx.insert(products).values({ id, sellerId: seller.id, ...productInsert(input), pricingMode, minPriceCent: input.priceCent ?? 0n }).returning();
+      if (pricingMode === "SINGLE" && input.priceCent) await tx.insert(productSkus).values({ id: uuidv7(), productId: id, skuName: "默认单价", priceCent: input.priceCent });
+      if (input.game && input.coverFileId) await tx.insert(productImages).values({ id: uuidv7(), productId: id, fileId: input.coverFileId, isCover: true });
       await this.syncProductCoverUsage(tx, id, row!.coverFileId);
       return productView(row!, seller);
     });
@@ -298,17 +305,36 @@ export class SellerProductService {
     if (!["DRAFT", "REVIEW_REJECTED", "OFF_SALE"].includes(product.status)) throw invalidState("当前服务状态不允许编辑");
     await this.validateOwnedFiles(userId, input.coverFileId ? [input.coverFileId] : [], "PRODUCT_IMAGE");
     return this.database.db.transaction(async (tx) => {
-      const [updated] = await tx.update(products).set({ ...productInsert(input), updatedAt: new Date(), version: sql`${products.version} + 1` })
-        .where(and(eq(products.id, productId), eq(products.version, input.version), ne(products.status, "DELETED"))).returning();
+      await this.lockEditableProduct(tx, userId, productId, input.version);
+      this.validateProductTerms({ ...input, game: (input.game ?? product.game) as ProductGame | undefined, fulfillmentSeconds: input.fulfillmentSeconds ?? product.fulfillmentSeconds ?? undefined }, false);
+      await this.validateOwnedFiles(userId, input.coverFileId ? [input.coverFileId] : [], "PRODUCT_IMAGE", tx);
+      const [updated] = await tx.update(products).set({ ...productInsert(input), ...(input.priceCent !== undefined ? { minPriceCent: input.priceCent } : {}), updatedAt: new Date(), version: sql`${products.version} + 1` })
+        .where(and(eq(products.id, productId), eq(products.version, input.version), eq(products.status, product.status))).returning();
       if (!updated) throw versionConflict();
-      await this.syncProductCoverUsage(tx, productId, updated.coverFileId);
+      if (input.priceCent !== undefined) {
+        if (updated.pricingMode !== "SINGLE") throw validation("price_cent", "多规格商品请分别更新规格价格");
+        const rows = await tx.select().from(productSkus).where(and(eq(productSkus.productId, productId), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt)));
+        if (rows.length !== 1) throw invalidState("默认单价必须对应唯一规格");
+        await tx.update(productSkus).set({ priceCent: input.priceCent, version: sql`${productSkus.version} + 1`, updatedAt: new Date() }).where(and(eq(productSkus.id, rows[0]!.id), eq(productSkus.status, rows[0]!.status), eq(productSkus.version, rows[0]!.version)));
+        updated.minPriceCent = input.priceCent;
+      }
+      if (updated.game && input.coverFileId !== undefined) {
+        const existingImages = await tx.select().from(productImages).where(and(eq(productImages.productId,productId),isNull(productImages.deletedAt))).orderBy(productImages.sortOrder);
+        const gallery = existingImages.filter(item=>item.imageKind==="GALLERY" && item.fileId!==updated.coverFileId);
+        const details = existingImages.filter(item=>item.imageKind==="DETAIL" && item.fileId!==updated.coverFileId);
+        const nextImages = [...(updated.coverFileId ? [{fileId:updated.coverFileId,imageKind:"GALLERY" as const,isCover:true}] : []),...gallery.map(item=>({fileId:item.fileId,imageKind:"GALLERY" as const,isCover:false})),...details.map(item=>({fileId:item.fileId,imageKind:"DETAIL" as const,isCover:false}))];
+        if (nextImages.length>30) throw validation("images", "商品图片超过本地上限，请用图片接口替换首图");
+        await tx.update(productImages).set({deletedAt:new Date()}).where(and(eq(productImages.productId,productId),isNull(productImages.deletedAt)));
+        if (nextImages.length) await tx.insert(productImages).values(nextImages.map((item,sortOrder)=>({id:uuidv7(),productId,...item,sortOrder})));
+        await this.syncProductFileUsages(tx,productId,nextImages);
+      } else await this.syncProductCoverUsage(tx, productId, updated.coverFileId);
       return productView(updated, seller);
     });
   }
 
   async listMyProducts(userId: string) {
     const seller = await this.requireSellerByUser(userId);
-    const rows = await this.database.db.select().from(products).where(eq(products.sellerId, seller.id)).orderBy(desc(products.updatedAt));
+    const rows = await this.database.db.select(cursorColumns(products)).from(products).where(eq(products.sellerId, seller.id)).orderBy(desc(products.updatedAt));
     return rows.map((row) => productView(row, seller));
   }
 
@@ -318,40 +344,55 @@ export class SellerProductService {
     return this.productDetail(product, seller, true);
   }
 
-  async addSku(userId: string, productId: string, input: { skuName: string; description?: string | null; priceCent: bigint; durationMinutes: number; sortOrder: number }) {
-    const seller = await this.requireApprovedSeller(userId);
-    const product = await this.requireOwnedProduct(seller.id, productId);
-    this.ensureProductEditable(product.status);
-    const [sku] = await this.database.db.insert(productSkus).values({ id: uuidv7(), productId, ...input }).returning();
-    await this.recalculateMinPrice(productId);
-    return skuView(sku!);
+  async addSku(userId: string, productId: string, input: { skuName: string; description?: string | null; priceCent: bigint; durationMinutes?: number; sortOrder: number }) {
+    return this.database.db.transaction(async tx => {
+      const product = await this.lockEditableProduct(tx, userId, productId);
+      if (!product.game && input.durationMinutes === undefined) throw validation("duration_minutes", "旧预约商品必须提供服务时长");
+      const [sku] = await tx.insert(productSkus).values({ id: uuidv7(), productId, ...input }).returning();
+      await this.recalculateMinPrice(product, tx, "MULTI");
+      return skuView(sku!);
+    });
   }
 
   async updateSku(userId: string, productId: string, skuId: string, input: { skuName?: string; description?: string | null; priceCent?: bigint; durationMinutes?: number; status?: "ACTIVE" | "INACTIVE" | "DELETED"; sortOrder?: number; version: number }) {
-    const seller = await this.requireApprovedSeller(userId);
-    const product = await this.requireOwnedProduct(seller.id, productId);
-    this.ensureProductEditable(product.status);
-    const [updated] = await this.database.db.update(productSkus).set({
+    return this.database.db.transaction(async tx => {
+    const product = await this.lockEditableProduct(tx, userId, productId);
+    const [existing] = await tx.select().from(productSkus).where(and(eq(productSkus.id, skuId), eq(productSkus.productId, productId))).limit(1).for("update");
+    if (!existing) throw notFound("SKU_NOT_FOUND", "规格不存在");
+    const [updated] = await tx.update(productSkus).set({
       ...(input.skuName !== undefined ? { skuName: input.skuName } : {}), ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.priceCent !== undefined ? { priceCent: input.priceCent } : {}), ...(input.durationMinutes !== undefined ? { durationMinutes: input.durationMinutes } : {}),
       ...(input.status !== undefined ? { status: input.status, deletedAt: input.status === "DELETED" ? new Date() : null } : {}), ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
       version: sql`${productSkus.version} + 1`, updatedAt: new Date(),
-    }).where(and(eq(productSkus.id, skuId), eq(productSkus.productId, productId), eq(productSkus.version, input.version))).returning();
+    }).where(and(eq(productSkus.id, skuId), eq(productSkus.productId, productId), eq(productSkus.status, existing.status), eq(productSkus.version, input.version))).returning();
     if (!updated) throw versionConflict();
-    await this.recalculateMinPrice(productId);
+    await this.recalculateMinPrice(product, tx);
     return skuView(updated);
+    });
   }
 
-  async replaceImages(userId: string, productId: string, input: { version: number; images: Array<{ fileId: string; sortOrder: number; isCover: boolean }> }) {
+  async replaceImages(userId: string, productId: string, input: { version: number; images: Array<{ fileId: string; sortOrder: number; isCover: boolean; imageKind?: "GALLERY" | "DETAIL" }> }) {
     const seller = await this.requireApprovedSeller(userId);
     const product = await this.requireOwnedProduct(seller.id, productId);
     this.ensureProductEditable(product.status);
     await this.validateOwnedFiles(userId, input.images.map((item) => item.fileId), "PRODUCT_IMAGE");
     return this.database.db.transaction(async (tx) => {
+      await this.lockEditableProduct(tx, userId, productId, input.version);
+      const limits = await productImageLimits(tx);
+      if (input.images.length > limits.maximumCount) throw validation("images", `商品图和详情图合计最多 ${limits.maximumCount} 张`);
+      if (input.images.length) {
+        const bound = await tx.select({ size: files.sizeBytes }).from(files).where(inArray(files.id, input.images.map(item => item.fileId)));
+        if (bound.some(file => file.size > BigInt(limits.maximumBytes))) throw validation("images", "图片超过当前商品图片大小限制，请重新上传符合要求的图片");
+      }
+      await this.validateOwnedFiles(userId, input.images.map(item => item.fileId), "PRODUCT_IMAGE", tx);
+      if (product.game) {
+        const gallery = input.images.filter(item => item.imageKind !== "DETAIL").sort((a,b) => a.sortOrder-b.sortOrder);
+        if (gallery.length && !gallery[0]!.isCover) throw validation("images", "第一张商品图必须为封面");
+      }
       await tx.update(productImages).set({ deletedAt: new Date() }).where(and(eq(productImages.productId, productId), isNull(productImages.deletedAt)));
-      const rows = input.images.length ? await tx.insert(productImages).values(input.images.map((item) => ({ id: uuidv7(), productId, fileId: item.fileId, sortOrder: item.sortOrder, isCover: item.isCover }))).returning() : [];
+      const rows = input.images.length ? await tx.insert(productImages).values(input.images.map((item) => ({ id: uuidv7(), productId, fileId: item.fileId, sortOrder: item.sortOrder, isCover: item.isCover, imageKind: item.imageKind ?? "GALLERY" }))).returning() : [];
       const cover = input.images.find((item) => item.isCover);
-      const changed = await tx.update(products).set({ coverFileId: cover?.fileId ?? null, version: sql`${products.version} + 1`, updatedAt: new Date() }).where(and(eq(products.id, productId), eq(products.version, input.version))).returning({ id: products.id });
+      const changed = await tx.update(products).set({ coverFileId: cover?.fileId ?? null, version: sql`${products.version} + 1`, updatedAt: new Date() }).where(and(eq(products.id, productId), eq(products.status, product.status), eq(products.version, input.version))).returning({ id: products.id });
       if (!changed[0]) throw versionConflict();
       await this.syncProductFileUsages(tx, productId, input.images);
       return rows.map(imageView);
@@ -361,13 +402,21 @@ export class SellerProductService {
   async submitProduct(userId: string, productId: string, expectedVersion: number, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
       const seller = await this.lockApprovedSeller(tx, userId);
-      const [product] = await tx.select().from(products).where(and(eq(products.id, productId), eq(products.sellerId, seller.id))).limit(1).for("update");
+      const [product] = await tx.select(cursorColumns(products)).from(products).where(and(eq(products.id, productId), eq(products.sellerId, seller.id))).limit(1).for("update");
       if (!product) throw notFound("PRODUCT_NOT_FOUND", "服务不存在");
       if (!["DRAFT", "REVIEW_REJECTED", "OFF_SALE"].includes(product.status)) throw invalidState("当前服务状态不能提交审核");
       if (product.version !== expectedVersion) throw versionConflict();
       const skus = await tx.select().from(productSkus).where(and(eq(productSkus.productId, productId), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt))).orderBy(asc(productSkus.sortOrder));
       if (!skus.length) throw validation("skus", "至少需要一个启用的服务规格");
       const images = await tx.select().from(productImages).where(and(eq(productImages.productId, productId), isNull(productImages.deletedAt))).orderBy(asc(productImages.sortOrder));
+      if (product.game) {
+        await this.identity.requireVerifiedAdult(tx, userId);
+        this.validateProductTerms({ game: product.game as ProductGame, fulfillmentSeconds: product.fulfillmentSeconds ?? undefined, title: product.title, description: product.description }, false);
+        if (product.pricingMode === "SINGLE" && skus.length !== 1) throw validation("skus", "单价商品必须有唯一有效规格");
+        const gallery = images.filter(item => item.imageKind === "GALLERY");
+        if (!gallery.length || !gallery[0]!.isCover || gallery[0]!.fileId !== product.coverFileId) throw validation("images", "商品必须有图片且首图为封面");
+        await this.validateOwnedFiles(userId, images.map(item => item.fileId), "PRODUCT_IMAGE", tx);
+      }
       const [lastVersion] = await tx.select({ versionNo: productVersions.versionNo }).from(productVersions)
         .where(eq(productVersions.productId, productId)).orderBy(desc(productVersions.versionNo)).limit(1);
       const nextVersion = (lastVersion?.versionNo ?? 0) + 1;
@@ -402,8 +451,12 @@ export class SellerProductService {
     const product = await this.requireOwnedProduct(seller.id, productId);
     if (["PENDING_REVIEW", "ON_SALE", "DELETED"].includes(product.status)) throw invalidState("请先下架服务，再执行删除");
     const [updated] = await this.database.db.transaction(async (tx) => {
+      await this.lockApprovedSeller(tx,userId);
+      const [locked] = await tx.select(cursorColumns(products)).from(products).where(and(eq(products.id,productId),eq(products.sellerId,seller.id))).limit(1).for("update");
+      if (!locked || ["PENDING_REVIEW","ON_SALE","DELETED"].includes(locked.status)) throw invalidState("请先下架服务，再执行删除");
+      if (locked.version !== expectedVersion || locked.status !== product.status) throw versionConflict();
       const changed = await tx.update(products).set({ status: "DELETED", deletedAt: new Date(), version: sql`${products.version} + 1`, updatedAt: new Date() })
-        .where(and(eq(products.id, productId), eq(products.version, expectedVersion), ne(products.status, "DELETED"))).returning();
+        .where(and(eq(products.id, productId), eq(products.version, expectedVersion), eq(products.status,product.status))).returning();
       if (!changed[0]) throw versionConflict();
       await tx.insert(productReviewLogs).values({ id: uuidv7(), productId, action: "DELETE", oldStatus: product.status, newStatus: "DELETED", operatorUserId: userId, requestId: metadata.requestId });
       return changed;
@@ -411,20 +464,20 @@ export class SellerProductService {
     return productView(updated!, seller);
   }
 
-  async listProductReviews(input:{status?:typeof products.$inferSelect.status;keyword?:string;cursor?:string;limit?:unknown;sort:"created_desc"|"created_asc"}) {
-    const limit = normalizePageSize(input.limit, 20);const scope=discoveryScope("admin-product-reviews",input.status,input.keyword,input.sort);const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;assertCursorScope(cursor,scope);const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(products.createdAt,new Date(cursor.sort_value)),and(eq(products.createdAt,new Date(cursor.sort_value)),gt(products.id,cursor.id))):or(lt(products.createdAt,new Date(cursor.sort_value)),and(eq(products.createdAt,new Date(cursor.sort_value)),lt(products.id,cursor.id)))):undefined;
-    const rows = await this.database.db.select({ product: products, seller: sellerProfiles }).from(products)
+  async listProductReviews(input:{game?:ProductGame;status?:typeof products.$inferSelect.status;keyword?:string;cursor?:string;limit?:unknown;sort:"created_desc"|"created_asc"}) {
+    const limit = normalizePageSize(input.limit, 20);const scope=discoveryScope("admin-product-reviews",input.status,input.keyword,input.sort,input.game);const cursor=input.cursor?decodeCursor(input.cursor,this.config.cursorSigningSecret):undefined;assertCursorScope(cursor,scope);const ascending=input.sort==="created_asc";const cursorCondition=cursor?(ascending?or(gt(products.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(products.createdAt,cursorTimeValue(cursor.sort_value)),gt(products.id,cursor.id))):or(lt(products.createdAt,cursorTimeValue(cursor.sort_value)),and(eq(products.createdAt,cursorTimeValue(cursor.sort_value)),lt(products.id,cursor.id)))):undefined;
+    const rows = await this.database.db.select({ product: cursorColumns(products), seller: cursorColumns(sellerProfiles) }).from(products)
       .innerJoin(sellerProfiles, eq(products.sellerId, sellerProfiles.id))
-      .where(and(input.status?eq(products.status,input.status):undefined,input.keyword?or(ilike(products.title,likePattern(input.keyword)),ilike(sellerProfiles.sellerNickname,likePattern(input.keyword)),sql<boolean>`${products.id}::text ILIKE ${likePattern(input.keyword)}`):undefined,cursorCondition))
+      .where(and(input.game?eq(products.game,input.game):undefined,input.status?eq(products.status,input.status):undefined,input.keyword?or(ilike(products.title,likePattern(input.keyword)),ilike(sellerProfiles.sellerNickname,likePattern(input.keyword)),sql<boolean>`${products.id}::text ILIKE ${likePattern(input.keyword)}`):undefined,cursorCondition))
       .orderBy(ascending?asc(products.createdAt):desc(products.createdAt),ascending?asc(products.id):desc(products.id)).limit(limit+1);
     return cursorPage(rows,limit,(row)=>row.product.createdAt.toISOString(),this.config.cursorSigningSecret,({product,seller})=>productView(product,seller),scope);
   }
 
-  async getAdminProduct(productId:string){const [row]=await this.database.db.select({product:products,seller:sellerProfiles}).from(products).innerJoin(sellerProfiles,eq(products.sellerId,sellerProfiles.id)).where(eq(products.id,productId)).limit(1);if(!row)throw notFound("PRODUCT_NOT_FOUND","服务不存在");const [detail,logs]=await Promise.all([this.productDetail(row.product,row.seller,true),this.database.db.select({id:productReviewLogs.id,action:productReviewLogs.action,old_status:productReviewLogs.oldStatus,new_status:productReviewLogs.newStatus,admin_id:productReviewLogs.adminId,operator_user_id:productReviewLogs.operatorUserId,reason:productReviewLogs.reason,created_at:productReviewLogs.createdAt}).from(productReviewLogs).where(eq(productReviewLogs.productId,productId)).orderBy(desc(productReviewLogs.createdAt)).limit(100)]);return {...detail,review_logs:logs};}
+  async getAdminProduct(productId:string){const [row]=await this.database.db.select({product:cursorColumns(products),seller:cursorColumns(sellerProfiles)}).from(products).innerJoin(sellerProfiles,eq(products.sellerId,sellerProfiles.id)).where(eq(products.id,productId)).limit(1);if(!row)throw notFound("PRODUCT_NOT_FOUND","服务不存在");const [detail,logs]=await Promise.all([this.productDetail(row.product,row.seller,true),this.database.db.select({id:productReviewLogs.id,action:productReviewLogs.action,old_status:productReviewLogs.oldStatus,new_status:productReviewLogs.newStatus,admin_id:productReviewLogs.adminId,operator_user_id:productReviewLogs.operatorUserId,reason:productReviewLogs.reason,created_at:productReviewLogs.createdAt}).from(productReviewLogs).where(eq(productReviewLogs.productId,productId)).orderBy(desc(productReviewLogs.createdAt)).limit(100)]);return {...detail,review_logs:logs};}
 
   async reviewProduct(adminId: string, productId: string, input: { action: ProductReviewAction; version: number; reason?: string }, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
-      const [product] = await tx.select().from(products).where(eq(products.id, productId)).limit(1).for("update");
+      const [product] = await tx.select(cursorColumns(products)).from(products).where(eq(products.id, productId)).limit(1).for("update");
       if (!product) throw notFound("PRODUCT_NOT_FOUND", "服务不存在");
       if (product.version !== input.version) throw versionConflict();
       const allowed=input.action==="ADMIN_OFF_SALE"?["ON_SALE","OFF_SALE","REVIEW_REJECTED"].includes(product.status):input.action==="ADMIN_RESTORE"?product.status==="ADMIN_OFF_SALE":input.action==="SOFT_DELETE"?["DRAFT","REVIEW_REJECTED","OFF_SALE","ADMIN_OFF_SALE"].includes(product.status):product.status==="PENDING_REVIEW";
@@ -432,13 +485,23 @@ export class SellerProductService {
       if (input.action !== "APPROVE" && !input.reason) throw validation("reason", "必须填写审核或治理原因");
       const next = input.action === "APPROVE" || input.action === "ADMIN_RESTORE" ? "ON_SALE" : input.action === "REJECT" ? "REVIEW_REJECTED" : input.action==="SOFT_DELETE"?"DELETED":"ADMIN_OFF_SALE";
       const [version] = await tx.select().from(productVersions).where(and(eq(productVersions.productId, productId), eq(productVersions.versionNo, product.currentVersionNo))).limit(1);
+      if (next === "ON_SALE" && product.game) {
+        if (!version) throw invalidState("商品没有已提交的审核版本");
+        const skus = await tx.select().from(productSkus).where(and(eq(productSkus.productId,productId),eq(productSkus.status,"ACTIVE"),isNull(productSkus.deletedAt)));
+        const images = await tx.select().from(productImages).where(and(eq(productImages.productId,productId),isNull(productImages.deletedAt))).orderBy(productImages.sortOrder);
+        if (!skus.length || product.pricingMode==="SINGLE" && skus.length!==1 || !images.find(item=>item.isCover && item.fileId===product.coverFileId)) throw invalidState("商品报价或封面不完整，不能上架");
+        const [owner] = await tx.select({userId:sellerProfiles.userId,status:sellerProfiles.status}).from(sellerProfiles).where(eq(sellerProfiles.id,product.sellerId)).limit(1);
+        if (!owner || owner.status!=="APPROVED") throw invalidState("店铺未通过审核");
+        await this.identity.requireVerifiedAdult(tx, owner.userId);
+        await this.validateOwnedFiles(owner.userId,images.map(item=>item.fileId),"PRODUCT_IMAGE",tx);
+      }
       const [updated] = await tx.update(products).set({ status: next, rejectionReason: ["APPROVE","ADMIN_RESTORE"].includes(input.action) ? null : input.reason, approvedAt: input.action === "APPROVE" ? new Date() : product.approvedAt,deletedAt:input.action==="SOFT_DELETE"?new Date():input.action==="ADMIN_RESTORE"?null:product.deletedAt, version: sql`${products.version} + 1`, updatedAt: new Date() })
         .where(and(eq(products.id, productId), eq(products.version, input.version), eq(products.status, product.status))).returning();
       if (!updated) throw versionConflict();
       await tx.insert(productReviewLogs).values({ id: uuidv7(), productId, productVersionId: version?.id, action: input.action==="SOFT_DELETE"?"DELETE":input.action==="ADMIN_RESTORE"?"SELLER_RESTORE":input.action, oldStatus: product.status, newStatus: next, adminId, reason: input.reason, requestId: metadata.requestId });
       await this.audit(tx, adminId, `PRODUCT_REVIEW_${input.action}`, "PRODUCT", productId, input.reason ?? "审核通过", product, updated, metadata);
       await this.outbox.enqueue(tx, { aggregateType: "PRODUCT", aggregateId: productId, eventType: `Product${pascal(input.action)}`, payload: { product_id: productId, status: next }, traceId: metadata.traceId });
-      const [seller] = await tx.select().from(sellerProfiles).where(eq(sellerProfiles.id, product.sellerId)).limit(1);
+      const [seller] = await tx.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(eq(sellerProfiles.id, product.sellerId)).limit(1);
       return productView(updated, seller!);
     });
   }
@@ -503,28 +566,35 @@ export class SellerProductService {
       : input.sort === "sales"
         ? [desc(sellerProfiles.completedOrderCount), desc(sellerProfiles.id)]
         : [desc(sellerProfiles.approvedAt), desc(sellerProfiles.id)];
-    const rows = await this.database.db.select().from(sellerProfiles).where(and(
+    const rows = await this.database.db.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(and(
       eq(sellerProfiles.status, "APPROVED"),
       input.acceptingOrders === undefined ? undefined : eq(sellerProfiles.acceptingOrders, input.acceptingOrders),
       keyword ? or(ilike(sellerProfiles.sellerNickname, likePattern(keyword)), ilike(sellerProfiles.introduction, likePattern(keyword)), ilike(sellerProfiles.gameRank, likePattern(keyword)), ilike(sellerProfiles.preferredMode, likePattern(keyword))) : undefined,
       cursorCondition,
     )).orderBy(...ordering).limit(limit + 1);
-    return cursorPage(rows, limit, (row) => input.sort === "rating" ? row.ratingAvg : input.sort === "sales" ? String(row.completedOrderCount) : (row.approvedAt ?? row.createdAt).toISOString(), this.config.cursorSigningSecret, sellerView, scope);
+    const page = cursorPage(rows, limit, (row) => input.sort === "rating" ? row.ratingAvg : input.sort === "sales" ? String(row.completedOrderCount) : (row.approvedAt ?? row.createdAt).toISOString(), this.config.cursorSigningSecret, sellerView, scope);
+    const summaries = page.items.length ? await this.database.db.select({
+      sellerId: products.sellerId,
+      count: sql<number>`count(*)::integer`,
+      games: sql<ProductGame[]>`coalesce(array_agg(distinct ${products.game}) filter (where ${products.game} is not null), '{}')`
+    }).from(products).where(and(inArray(products.sellerId, page.items.map(item => item.id)), eq(products.status, "ON_SALE"), isNull(products.deletedAt))).groupBy(products.sellerId) : [];
+    const bySeller = new Map(summaries.map(summary => [summary.sellerId, summary]));
+    return { ...page, items: page.items.map(item => ({ ...item, main_games: bySeller.get(item.id)?.games ?? [], public_product_count: bySeller.get(item.id)?.count ?? 0 })) };
   }
 
   async getCompanion(sellerId: string) {
-    const [seller] = await this.database.db.select().from(sellerProfiles).where(and(eq(sellerProfiles.id, sellerId), eq(sellerProfiles.status, "APPROVED"))).limit(1);
+    const [seller] = await this.database.db.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(and(eq(sellerProfiles.id, sellerId), eq(sellerProfiles.status, "APPROVED"))).limit(1);
     if (!seller) throw notFound("SELLER_NOT_FOUND", "陪玩主页不存在");
-    const services = await this.database.db.select().from(products).where(and(eq(products.sellerId, sellerId), eq(products.status, "ON_SALE"), isNull(products.deletedAt))).orderBy(desc(products.approvedAt));
+    const services = await this.database.db.select(cursorColumns(products)).from(products).where(and(eq(products.sellerId, sellerId), eq(products.status, "ON_SALE"), isNull(products.deletedAt))).orderBy(desc(products.approvedAt));
     const skus = services.length ? await this.database.db.select().from(productSkus).where(and(inArray(productSkus.productId, services.map(p => p.id)), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt))).orderBy(asc(productSkus.sortOrder)) : [];
-    return { ...publicSellerView(seller), services: services.map((product) => ({ ...productView(product), seller: publicSellerView(seller), skus: skus.filter(sku => sku.productId === product.id).map(skuView) })) };
+    return { ...publicSellerView(seller), main_games: [...new Set(services.map(product=>product.game).filter(Boolean))], services: services.map((product) => ({ ...productView(product), seller: publicSellerView(seller), skus: skus.filter(sku => sku.productId === product.id).map(skuView) })) };
   }
 
-  async listProducts(input: { cursor?: string; limit?: unknown; sellerId?: string; keyword?: string; minPriceCent?: bigint; maxPriceCent?: bigint; sort: "comprehensive" | "sales" | "price_asc" | "price_desc" }) {
+  async listProducts(input: { cursor?: string; limit?: unknown; sellerId?: string; game?: ProductGame; keyword?: string; minPriceCent?: bigint; maxPriceCent?: bigint; sort: "comprehensive" | "sales" | "price_asc" | "price_desc" }) {
     const limit = normalizePageSize(input.limit, 20);
     const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     const keyword = input.keyword?.trim();
-    const scope = discoveryScope("services", input.sort, keyword, input.sellerId, input.minPriceCent, input.maxPriceCent);
+    const scope = discoveryScope("services", input.sort, keyword, input.game, input.sellerId, input.minPriceCent, input.maxPriceCent);
     assertCursorScope(cursor, scope);
     const cursorCondition = !cursor ? undefined : input.sort === "sales"
       ? sql<boolean>`(${products.soldCount} < ${Number(cursor.sort_value)} OR (${products.soldCount} = ${Number(cursor.sort_value)} AND ${products.id} < ${cursor.id}))`
@@ -540,9 +610,10 @@ export class SellerProductService {
         : input.sort === "price_desc"
           ? [desc(products.minPriceCent), desc(products.id)]
           : [desc(products.approvedAt), desc(products.id)];
-    const rows = await this.database.db.select({ product: products, seller: sellerProfiles }).from(products).innerJoin(sellerProfiles, eq(products.sellerId, sellerProfiles.id)).where(and(
+    const rows = await this.database.db.select({ product: cursorColumns(products), seller: cursorColumns(sellerProfiles) }).from(products).innerJoin(sellerProfiles, eq(products.sellerId, sellerProfiles.id)).where(and(
       eq(products.status, "ON_SALE"), isNull(products.deletedAt), eq(sellerProfiles.status, "APPROVED"),
       input.sellerId ? eq(products.sellerId, input.sellerId) : undefined,
+      input.game ? eq(products.game, input.game) : undefined,
       keyword ? or(ilike(products.title, likePattern(keyword)), ilike(products.description, likePattern(keyword)), ilike(sellerProfiles.sellerNickname, likePattern(keyword))) : undefined,
       input.minPriceCent !== undefined ? gte(products.minPriceCent, input.minPriceCent) : undefined,
       input.maxPriceCent !== undefined ? lte(products.minPriceCent, input.maxPriceCent) : undefined,
@@ -552,7 +623,7 @@ export class SellerProductService {
   }
 
   async getProduct(productId: string) {
-    const [row] = await this.database.db.select({ product: products, seller: sellerProfiles }).from(products).innerJoin(sellerProfiles, eq(products.sellerId, sellerProfiles.id))
+    const [row] = await this.database.db.select({ product: cursorColumns(products), seller: cursorColumns(sellerProfiles) }).from(products).innerJoin(sellerProfiles, eq(products.sellerId, sellerProfiles.id))
       .where(eq(products.id, productId)).limit(1);
     if (!row || row.product.deletedAt || row.product.status === "DELETED") throw notFound("PRODUCT_NOT_FOUND", "服务不存在或已删除");
     if (["DRAFT", "PENDING_REVIEW", "REVIEW_REJECTED"].includes(row.product.status)) throw conflict("PRODUCT_UNDER_REVIEW", "服务正在准备或审核中");
@@ -583,7 +654,7 @@ export class SellerProductService {
     const rows = await this.database.db.select().from(favorites).where(and(
       eq(favorites.userId, userId),
       input.target_type ? eq(favorites.targetType, input.target_type) : undefined,
-      cursor ? or(lt(favorites.createdAt, new Date(cursor.sort_value)), and(eq(favorites.createdAt, new Date(cursor.sort_value)), lt(favorites.id, cursor.id))) : undefined,
+      cursor ? or(lt(favorites.createdAt, cursorTimeValue(cursor.sort_value)), and(eq(favorites.createdAt, cursorTimeValue(cursor.sort_value)), lt(favorites.id, cursor.id))) : undefined,
     )).orderBy(desc(favorites.createdAt), desc(favorites.id)).limit(limit + 1);
     return cursorPage(rows, limit, (row) => row.createdAt.toISOString(), this.config.cursorSigningSecret, favoriteView, scope);
   }
@@ -604,7 +675,7 @@ export class SellerProductService {
   }
 
   private async requireSellerByUser(userId: string) {
-    const [seller] = await this.database.db.select().from(sellerProfiles).where(eq(sellerProfiles.userId, userId)).limit(1);
+    const [seller] = await this.database.db.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(eq(sellerProfiles.userId, userId)).limit(1);
     if (!seller) throw notFound("SELLER_NOT_FOUND", "尚未创建陪玩资料");
     return seller;
   }
@@ -616,7 +687,7 @@ export class SellerProductService {
   }
 
   private async lockSellerByUser(tx: DatabaseTransaction, userId: string) {
-    const [seller] = await tx.select().from(sellerProfiles).where(eq(sellerProfiles.userId, userId)).limit(1).for("update");
+    const [seller] = await tx.select(cursorColumns(sellerProfiles)).from(sellerProfiles).where(eq(sellerProfiles.userId, userId)).limit(1).for("update");
     if (!seller) throw notFound("SELLER_NOT_FOUND", "尚未创建陪玩资料");
     return seller;
   }
@@ -628,7 +699,7 @@ export class SellerProductService {
   }
 
   private async requireOwnedProduct(sellerId: string, productId: string) {
-    const [product] = await this.database.db.select().from(products).where(and(eq(products.id, productId), eq(products.sellerId, sellerId))).limit(1);
+    const [product] = await this.database.db.select(cursorColumns(products)).from(products).where(and(eq(products.id, productId), eq(products.sellerId, sellerId))).limit(1);
     if (!product) throw notFound("PRODUCT_NOT_FOUND", "服务不存在");
     return product;
   }
@@ -644,7 +715,7 @@ export class SellerProductService {
       input.voiceFileId ? { fileId: input.voiceFileId, fileType: "VOICE_SAMPLE" as const, visibility: "SIGNED" as const } : null,
     ].filter((item): item is NonNullable<typeof item> => item !== null);
     if (candidates.length) {
-      const rows = await tx.select().from(files).where(and(inArray(files.id, candidates.map((candidate) => candidate.fileId)), eq(files.ownerUserId, userId), isNull(files.deletedAt)));
+      const rows = await tx.select(cursorColumns(files)).from(files).where(and(inArray(files.id, candidates.map((candidate) => candidate.fileId)), eq(files.ownerUserId, userId), isNull(files.deletedAt)));
       if (rows.length !== candidates.length || candidates.some((candidate) => !rows.some((row) => row.id === candidate.fileId && row.fileType === candidate.fileType && row.visibility === candidate.visibility && row.uploadStatus === "VERIFIED" && row.moderationStatus === "APPROVED"))) {
         throw validation("file_id", "文件不存在、无权使用或尚未通过上传与内容审核");
       }
@@ -676,9 +747,9 @@ export class SellerProductService {
     return authorization.id;
   }
 
-  private async validateOwnedFiles(userId: string, fileIds: string[], expectedType?: "SELLER_AVATAR" | "SELLER_COVER" | "VOICE_SAMPLE" | "PRODUCT_IMAGE") {
+  private async validateOwnedFiles(userId: string, fileIds: string[], expectedType?: "SELLER_AVATAR" | "SELLER_COVER" | "VOICE_SAMPLE" | "PRODUCT_IMAGE", tx?: DatabaseTransaction) {
     const ids = [...new Set(fileIds.filter(Boolean))]; if (!ids.length) return;
-    const rows = await this.database.db.select().from(files).where(and(inArray(files.id, ids), eq(files.ownerUserId, userId), isNull(files.deletedAt)));
+    const rows = await (tx ?? this.database.db).select(cursorColumns(files)).from(files).where(and(inArray(files.id, ids), eq(files.ownerUserId, userId), isNull(files.deletedAt))).for("share");
     const expectedVisibility = expectedType === "VOICE_SAMPLE" ? "SIGNED" : "PUBLIC";
     if (rows.length !== ids.length || rows.some((row) => row.uploadStatus !== "VERIFIED" || row.moderationStatus !== "APPROVED" || row.visibility !== expectedVisibility || (expectedType && row.fileType !== expectedType))) {
       throw validation("file_id", "文件不存在、无权使用或尚未通过上传与内容审核");
@@ -715,10 +786,27 @@ export class SellerProductService {
     if (fileId) await tx.insert(fileUsages).values({ id: uuidv7(), fileId, usageType: "COVER", targetType: "PRODUCT", targetId: productId });
   }
 
-  private async recalculateMinPrice(productId: string) {
-    const [row] = await this.database.db.select({ value: sql<bigint>`coalesce(min(${productSkus.priceCent}), 0)::bigint` }).from(productSkus)
-      .where(and(eq(productSkus.productId, productId), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt)));
-    await this.database.db.update(products).set({ minPriceCent: row?.value ?? 0n, version: sql`${products.version} + 1`, updatedAt: new Date() }).where(eq(products.id, productId));
+  private async recalculateMinPrice(product: typeof products.$inferSelect, tx: DatabaseTransaction, pricingMode?: "MULTI") {
+    const [row] = await tx.select({ value: sql<bigint>`coalesce(min(${productSkus.priceCent}), 0)::bigint` }).from(productSkus)
+      .where(and(eq(productSkus.productId, product.id), eq(productSkus.status, "ACTIVE"), isNull(productSkus.deletedAt)));
+    const changed = await tx.update(products).set({ minPriceCent: row?.value ?? 0n, ...(pricingMode ? { pricingMode } : {}), version: sql`${products.version} + 1`, updatedAt: new Date() }).where(and(eq(products.id, product.id), eq(products.status, product.status), eq(products.version, product.version))).returning({ id: products.id });
+    if (!changed.length) throw versionConflict();
+  }
+
+  private async lockEditableProduct(tx: DatabaseTransaction, userId: string, productId: string, version?: number) {
+    const seller = await this.lockApprovedSeller(tx, userId);
+    const [product] = await tx.select(cursorColumns(products)).from(products).where(and(eq(products.id, productId), eq(products.sellerId, seller.id))).limit(1).for("update");
+    if (!product) throw notFound("PRODUCT_NOT_FOUND", "商品不存在");
+    this.ensureProductEditable(product.status);
+    if (version !== undefined && version !== product.version) throw versionConflict();
+    return product;
+  }
+
+  private validateProductTerms(input: ProductInput, creating = true) {
+    if (input.game) {
+      if (!input.fulfillmentSeconds || input.fulfillmentSeconds < 1 || input.fulfillmentSeconds > 604800) throw validation("fulfillment_seconds", "完成期限必须为正整数秒且不超过7天");
+      if (creating && (input.pricingMode ?? "SINGLE") === "SINGLE" && (!input.priceCent || input.priceCent <= 0n)) throw validation("price_cent", "单价商品必须提供整数分价格");
+    } else if (input.fulfillmentSeconds !== undefined || input.pricingMode === "SINGLE" || input.priceCent !== undefined) throw validation("game", "新商品必须明确选择游戏");
   }
 
   private async assertNoOpenSlotOverlap(sellerId: string, startsAt: Date, endsAt: Date, excludeId?: string) {
@@ -743,11 +831,10 @@ function sellerInsert(input: SellerProfileInput) {
   };
 }
 function assertSellerApplicationComplete(row: typeof sellerProfiles.$inferSelect) {
-  const required: Array<[string, unknown]> = [["seller_avatar_file_id", row.sellerAvatarFileId], ["introduction", row.introduction], ["preferred_mode", row.preferredMode]];
-  const missing = required.filter(([, value]) => value === null || value === undefined || value === "");
-  if (missing.length) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "陪玩申请资料不完整", statusCode: 400, fieldErrors: missing.map(([field]) => ({ field, code: "REQUIRED", message: "申请提交前必须完成此项资料" })) });
+  const missing = sellerApplicationMissingFields({ seller_avatar_file_id: row.sellerAvatarFileId, introduction: row.introduction, preferred_mode: row.preferredMode });
+  if (missing.length) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "陪玩申请资料不完整", statusCode: 400, fieldErrors: missing.map((field) => ({ field, code: "REQUIRED", message: "申请提交前必须完成此项资料" })) });
 }
-function productInsert(input: ProductInput) { return { title: input.title, description: input.description, serviceTimeDescription: input.serviceTimeDescription, coverFileId: input.coverFileId }; }
+function productInsert(input: ProductInput) { return { title: input.title, description: input.description, serviceTimeDescription: input.serviceTimeDescription, coverFileId: input.coverFileId, ...(input.game !== undefined ? { game: input.game } : {}), ...(input.fulfillmentSeconds !== undefined ? { fulfillmentSeconds: input.fulfillmentSeconds } : {}), ...(input.pricingMode !== undefined ? { pricingMode: input.pricingMode } : {}) }; }
 function sellerSnapshot(row: typeof sellerProfiles.$inferSelect) { return safeJson({ seller_nickname: row.sellerNickname, seller_avatar_file_id: row.sellerAvatarFileId, cover_file_id: row.coverFileId, introduction: row.introduction, game_rank: row.gameRank, kd: row.kd, preferred_mode: row.preferredMode, play_style: row.playStyle, game_experience: row.gameExperience, voice_file_id: row.voiceFileId, voice_duration_ms: row.voiceDurationMs }); }
 function sellerRevisionSnapshot(input: SellerProfileInput, voiceAuthorizationPolicyVersionId:string|null){return safeJson({revision_kind:"PROFILE_UPDATE",seller_nickname:input.sellerNickname,seller_avatar_file_id:input.sellerAvatarFileId??null,cover_file_id:input.coverFileId??null,introduction:input.introduction??null,game_rank:input.gameRank??null,kd:input.kd??null,preferred_mode:input.preferredMode??null,play_style:input.playStyle??null,game_experience:input.gameExperience??null,voice_file_id:input.voiceFileId??null,voice_duration_ms:input.voiceDurationMs??null,voice_authorization_policy_version_id:voiceAuthorizationPolicyVersionId});}
 function snapshotKind(snapshot:Record<string,unknown>|null){return snapshot?.revision_kind==="PROFILE_UPDATE"?"PROFILE_UPDATE":"INITIAL_ONBOARDING";}
@@ -763,9 +850,9 @@ function safeJson(value: unknown): Record<string, unknown> { return JSON.parse(J
 function sellerView(row: typeof sellerProfiles.$inferSelect) { return { id: row.id, user_id: row.userId, status: row.status, seller_nickname: row.sellerNickname, seller_avatar_file_id: row.sellerAvatarFileId, cover_file_id: row.coverFileId, introduction: row.introduction, game_rank: row.gameRank, kd: row.kd, preferred_mode: row.preferredMode, play_style: row.playStyle, game_experience: row.gameExperience, voice_file_id: row.voiceFileId, voice_duration_ms: row.voiceDurationMs, voice_authorization_policy_version_id: row.voiceAuthorizationPolicyVersionId, accepting_orders: row.acceptingOrders, rating_avg: row.ratingAvg, review_count: row.reviewCount, completed_order_count: row.completedOrderCount, favorite_count: row.favoriteCount, approved_at: row.approvedAt, suspended_reason: row.suspendedReason, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt }; }
 function applicationView(row: typeof sellerApplications.$inferSelect) { return { id: row.id, seller_id: row.sellerId, version_no: row.versionNo, onboarding_policy_version_id: row.onboardingPolicyVersionId, status: row.status, submitted_at: row.submittedAt, reviewed_at: row.reviewedAt, rejection_reason: row.rejectionReason, required_fields: row.requiredFieldsJson, version: row.version, created_at: row.createdAt }; }
 function policyReferenceView(row: typeof policyVersions.$inferSelect) { return { id: row.id, policy_type: row.policyType, title: row.title, version_no: row.versionNo, status: row.status, effective_at: row.effectiveAt }; }
-function productView(row: typeof products.$inferSelect, seller?: typeof sellerProfiles.$inferSelect) { return { id: row.id, seller_id: row.sellerId, title: row.title, description: row.description, service_time_description: row.serviceTimeDescription, cover_file_id: row.coverFileId, status: row.status, rejection_reason: row.rejectionReason, rating_avg: row.ratingAvg, review_count: row.reviewCount, sold_count: row.soldCount, min_price_cent: row.minPriceCent, current_version_no: row.currentVersionNo, submitted_at: row.submittedAt, approved_at: row.approvedAt, deleted_at:row.deletedAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt, ...(seller ? { seller: sellerView(seller) } : {}) }; }
+function productView(row: typeof products.$inferSelect, seller?: typeof sellerProfiles.$inferSelect) { return { id: row.id, seller_id: row.sellerId, title: row.title, game: row.game, fulfillment_seconds: row.fulfillmentSeconds, pricing_mode: row.pricingMode, description: row.description, service_time_description: row.serviceTimeDescription, cover_file_id: row.coverFileId, status: row.status, rejection_reason: row.rejectionReason, rating_avg: row.ratingAvg, review_count: row.reviewCount, sold_count: row.soldCount, min_price_cent: row.minPriceCent, current_version_no: row.currentVersionNo, submitted_at: row.submittedAt, approved_at: row.approvedAt, deleted_at:row.deletedAt, version: row.version, created_at: row.createdAt, updated_at: row.updatedAt, ...(seller ? { seller: sellerView(seller) } : {}) }; }
 function skuView(row: typeof productSkus.$inferSelect) { return { id: row.id, product_id: row.productId, sku_name: row.skuName, description: row.description, price_cent: row.priceCent, duration_minutes: row.durationMinutes, status: row.status, sort_order: row.sortOrder, version: row.version }; }
-function imageView(row: typeof productImages.$inferSelect) { return { id: row.id, product_id: row.productId, file_id: row.fileId, sort_order: row.sortOrder, is_cover: row.isCover }; }
+function imageView(row: typeof productImages.$inferSelect) { return { id: row.id, product_id: row.productId, file_id: row.fileId, sort_order: row.sortOrder, is_cover: row.isCover, image_kind: row.imageKind }; }
 function slotView(row: typeof sellerAvailabilitySlots.$inferSelect) { return { id: row.id, starts_at: row.startsAt, ends_at: row.endsAt, status: row.status, version: row.version }; }
 function minPrice(rows: Array<typeof productSkus.$inferSelect>) { return rows.reduce((min, row) => row.priceCent < min ? row.priceCent : min, rows[0]!.priceCent); }
 function cursorPage<T, V>(rows: T[], limit: number, sortValue: (row: T) => string, secret: string, view: (row: T) => V, scope?: string) { const hasMore = rows.length > limit; const pageRows = rows.slice(0, limit); const last = pageRows.at(-1) as (T & { id?: string; product?: { id: string }; application?: { id:string } }) | undefined; const id = last && (last.id ?? last.product?.id ?? last.application?.id); return { items: pageRows.map(view), next_cursor: hasMore && last && id ? encodeCursor({ sort_value: sortValue(last), id, ...(scope ? { scope } : {}) }, secret) : null }; }
@@ -784,5 +871,7 @@ function validation(field: string, message: string) { return new AppError({ code
 
 function publicSellerView(row: typeof sellerProfiles.$inferSelect) {
   const { voice_authorization_policy_version_id, suspended_reason, ...publicFields } = sellerView(row);
+  // Intentionally omit internal policy bindings and governance reasons publicly.
+  void voice_authorization_policy_version_id; void suspended_reason;
   return publicFields;
 }

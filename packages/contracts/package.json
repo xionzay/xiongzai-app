@@ -4,9 +4,30 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./after-sale-client": {
+      "types": "./dist/after-sale-client.d.ts",
+      "import": "./dist/after-sale-client.js",
+      "default": "./dist/after-sale-client.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./bear-stickers": {
+      "types": "./dist/bear-stickers.d.ts",
+      "import": "./dist/bear-stickers.js",
+      "default": "./dist/bear-stickers.js"
+    },
+    "./community": {
+      "types": "./dist/community.d.ts",
+      "import": "./dist/community.js",
+      "default": "./dist/community.js"
+    },
+    "./commerce": {
+      "types": "./dist/commerce.d.ts",
+      "import": "./dist/commerce.js",
+      "default": "./dist/commerce.js"
     }
   },
   "scripts": {

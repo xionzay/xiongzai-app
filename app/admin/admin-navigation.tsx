@@ -7,7 +7,7 @@ export const ADMIN_NAV_GROUPS = [
   { id: "workbench", label: "工作台", modules: ["dashboard"] },
   { id: "people", label: "用户与陪玩", modules: ["users", "identityReview", "sellerReview", "sellers", "phoneChanges", "accountCancellations", "dataExports"] },
   { id: "trade", label: "商品与交易", modules: ["serviceReview", "services", "orders", "payments", "refunds"] },
-  { id: "content", label: "客服与内容", modules: ["support", "complaints", "reviews", "files", "notifications"] },
+  { id: "content", label: "客服与内容", modules: ["support", "feedback", "announcements", "complaints", "reviews", "files", "notifications"] },
   { id: "finance", label: "财务与资金", modules: ["finance", "withdrawals"] },
   { id: "system", label: "系统与安全", modules: ["policies", "config", "logs"] },
 ] as const;

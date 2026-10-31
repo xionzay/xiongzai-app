@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.brandDeep, fontSize: 12, lineHeight: 16, fontWeight: "800", letterSpacing: 1.2 },
   title: { marginTop: 8, color: colors.text, fontSize: 20, lineHeight: 26, fontWeight: "900" },
   meta: { marginTop: 8, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  card: { padding: 18 },
+  card: { padding: 18, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   body: { color: colors.text, fontSize: 12, lineHeight: 23 },
   footer: { color: colors.textSecondary, fontSize: 12, lineHeight: 16, textAlign: "center" }
 });

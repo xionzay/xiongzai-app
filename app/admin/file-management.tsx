@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./admin.module.css";
 import { AdminApiError, adminApiBlob, adminApiRequest, adminFilePreviewUrl } from "./admin-api";
 import { useSafeUrlChoice } from "./url-state";
+import { commerceValueLabels } from "./commerce-display";
 
 type FileRow = {
   id: string; owner_user_id: string | null; file_type: string; mime_type: string; size_bytes: string | number;
@@ -28,7 +29,7 @@ function ControlledPreviewImage({ src, width, height }: { src: string; width: nu
 const uploadOptions = ["", "PENDING", "UPLOADED", "VERIFIED", "FAILED", "DELETED"];
 const moderationOptions = ["", "PENDING", "APPROVED", "REJECTED", "FLAGGED"];
 const labels: Record<string, string> = { PENDING:"待处理", UPLOADED:"已上传", VERIFIED:"已校验", FAILED:"校验失败", DELETED:"已删除", APPROVED:"已通过", REJECTED:"已驳回", FLAGGED:"已标记", PUBLIC:"公开", PRIVATE:"私有", SIGNED:"签名访问" };
-const fileTypeLabels: Record<string, string> = { USER_AVATAR:"用户头像", SELLER_AVATAR:"陪玩头像", SELLER_COVER:"陪玩主页封面", AVATAR:"用户头像", COVER:"用户封面", PRODUCT_IMAGE:"服务图片", VOICE_SAMPLE:"声音名片", COMPLAINT_EVIDENCE:"投诉证据", REFUND_EVIDENCE:"退款证据", CHAT_EVIDENCE:"聊天证据", ADMIN_EVIDENCE:"管理员证据", IDENTITY_EVIDENCE:"实名认证材料", PAYMENT_PAYLOAD:"支付载荷文件", ORDER_FULFILLMENT_IMAGE:"订单完成截图", ORDER_FULFILLMENT_VIDEO:"订单连续录屏" };
+const fileTypeLabels: Record<string, string> = { USER_AVATAR:"用户头像", SELLER_AVATAR:"陪玩头像", SELLER_COVER:"陪玩主页封面", AVATAR:"用户头像", COVER:"用户封面", PRODUCT_IMAGE:"商品图片", ANNOUNCEMENT_IMAGE:"公告封面", CHAT_IMAGE:"聊天图片", CHAT_VOICE:"聊天语音", VOICE_SAMPLE:"声音名片", COMPLAINT_EVIDENCE:"投诉证据", REFUND_EVIDENCE:"退款证据", CHAT_EVIDENCE:"聊天证据", ADMIN_EVIDENCE:"管理员证据", IDENTITY_EVIDENCE:"实名认证材料", PAYMENT_PAYLOAD:"支付载荷文件", ORDER_FULFILLMENT_IMAGE:"订单完成截图", ORDER_FULFILLMENT_VIDEO:"订单连续录屏" };
 
 export function FileManagementModule({ permissions, pendingCount, sort, setSort, onOpenLogs, onSessionExpired }: { permissions: string[]; pendingCount: number | null; sort: "created_desc" | "created_asc"; setSort: (value: string) => void; onOpenLogs: () => void; onSessionExpired: () => void }) {
   const canRead = permissions.includes("file.read");
@@ -58,6 +59,7 @@ export function FileManagementModule({ permissions, pendingCount, sort, setSort,
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
+  const [uploadPurpose,setUploadPurpose]=useState("ADMIN_EVIDENCE");
   const [uploadFile,setUploadFile]=useState<File|null>(null);const [uploadBusy,setUploadBusy]=useState(false);const [uploadError,setUploadError]=useState("");
 
   const handleError = useCallback((cause: unknown, fallback: string) => {
@@ -134,13 +136,13 @@ export function FileManagementModule({ permissions, pendingCount, sort, setSort,
   const imagePreviewable = Boolean(selected?.mime_type.startsWith("image/"));
   const audioPreviewable = Boolean(selected?.mime_type.startsWith("audio/"));
   const pdfPreviewable = selected?.mime_type === "application/pdf";
-  const uploadEvidence=async()=>{if(!uploadFile||uploadBusy)return;setUploadBusy(true);setUploadError("");try{const hash=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",await uploadFile.arrayBuffer()))).map((value)=>value.toString(16).padStart(2,"0")).join("");const ticket=await adminApiRequest<UploadTicket>("/files/uploads",{method:"POST",body:JSON.stringify({file_type:"ADMIN_EVIDENCE",mime_type:uploadFile.type,size_bytes:uploadFile.size,sha256:hash})});const uploaded=await fetch(ticket.upload.url,{method:ticket.upload.method,headers:ticket.upload.headers,body:uploadFile});if(!uploaded.ok)throw new Error("本地 MinIO 上传失败");await adminApiRequest(`/files/${encodeURIComponent(ticket.file.id)}/complete`,{method:"POST"});setNotice("管理员证据文件已完成本地上传、格式与 SHA-256 校验，正在等待人工审核。");setUploadFile(null);await load();}catch(cause){setUploadError(handleError(cause,"证据上传失败"));}finally{setUploadBusy(false);}};
+  const uploadEvidence=async()=>{if(!uploadFile||uploadBusy)return;setUploadBusy(true);setUploadError("");try{const hash=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",await uploadFile.arrayBuffer()))).map((value)=>value.toString(16).padStart(2,"0")).join("");const ticket=await adminApiRequest<UploadTicket>("/files/uploads",{method:"POST",body:JSON.stringify({file_type:uploadPurpose,mime_type:uploadFile.type,size_bytes:uploadFile.size,sha256:hash})});const uploaded=await fetch(ticket.upload.url,{method:ticket.upload.method,headers:ticket.upload.headers,body:uploadFile});if(!uploaded.ok)throw new Error("本地 MinIO 上传失败");await adminApiRequest(`/files/${encodeURIComponent(ticket.file.id)}/complete`,{method:"POST"});setNotice("文件已完成本地上传、格式与 SHA-256 校验，正在等待人工审核；上传不等于审核通过。");setUploadFile(null);await load();}catch(cause){setUploadError(handleError(cause,"证据上传失败"));}finally{setUploadBusy(false);}};
   const reviewable = selected?.upload_status === "VERIFIED" && selected.moderation_status === "PENDING";
   if (!canRead) return <><Header count={null}/><State title="无权查看文件" note="当前管理员缺少 file.read 权限。请由授权管理员在 RBAC 中授予最小必要权限。"/></>;
   return <>
     <Header count={pendingCount}/>
     <div className={styles.fileToolbar}>
-      {canManage?<><label>上传平台证据<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event)=>setUploadFile(event.target.files?.[0]??null)}/></label><button type="button" disabled={!uploadFile||uploadBusy} onClick={()=>void uploadEvidence()}>{uploadBusy?"校验并上传中…":"上传管理员证据文件"}</button></>:null}
+      {canManage?<><label>上传用途<select aria-label="上传用途" disabled={uploadBusy} value={uploadPurpose} onChange={event=>{setUploadPurpose(event.target.value);setUploadFile(null)}}><option value="ADMIN_EVIDENCE">管理员证据</option><option value="ANNOUNCEMENT_IMAGE">公告封面（图片，最大10MiB）</option></select></label><label>选择上传文件<input type="file" accept={uploadPurpose==="ANNOUNCEMENT_IMAGE"?"image/jpeg,image/png,image/webp":"image/jpeg,image/png,image/webp,application/pdf"} onChange={(event)=>setUploadFile(event.target.files?.[0]??null)}/></label><button type="button" disabled={!uploadFile||uploadBusy} onClick={()=>void uploadEvidence()}>{uploadBusy?"校验并上传中…":uploadPurpose==="ANNOUNCEMENT_IMAGE"?"上传公告封面":"上传管理员证据文件"}</button></>:null}
       <label>上传状态<select value={uploadStatus} onChange={(event) => setUploadStatus(event.target.value)}>{uploadOptions.map((value) => <option value={value} key={value}>{value ? labels[value] ?? value : "全部"}</option>)}</select></label>
       <label>审核状态<select value={moderationStatus} onChange={(event) => setModerationStatus(event.target.value)}>{moderationOptions.map((value) => <option value={value} key={value}>{value ? labels[value] ?? value : "全部"}</option>)}</select></label>
       <label>服务端排序<select value={sort} onChange={(event) => setSort(event.target.value)}><option value="created_desc">最新优先</option><option value="created_asc">最早优先</option></select></label>
@@ -168,5 +170,5 @@ function short(value: string | null) { return value ? value.length > 14 ? `${val
 function formatBytes(value: string | number) { const size = Number(value); if (!Number.isFinite(size)) return String(value); if (size < 1024) return `${size} B`; if (size < 1024 ** 2) return `${(size / 1024).toFixed(1)} KiB`; return `${(size / 1024 ** 2).toFixed(2)} MiB`; }
 function formatTime(value: string) { const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString("zh-CN", { hour12:false }); }
 function mediaInfo(file: FileRow) { if (file.width && file.height) return `${file.width} × ${file.height}`; if (file.duration_ms != null) return `${(file.duration_ms / 1000).toFixed(1)} 秒`; return "—"; }
-function fileTypeLabel(value: string) { return fileTypeLabels[value] ?? "其他业务文件"; }
+function fileTypeLabel(value: string) { return fileTypeLabels[value] ?? commerceValueLabels[value] ?? "其他业务文件"; }
 function fileAuditLabel(action: string) { return ({ FILE_ADMIN_UPLOAD_REQUESTED:"上传凭证已创建", FILE_ADMIN_UPLOAD_VERIFIED:"格式与哈希校验完成", FILE_APPROVED:"审核通过", FILE_REJECTED:"审核驳回", FILE_FLAGGED_ABNORMAL:"标记异常" } as Record<string,string>)[action] ?? action; }

@@ -1,9 +1,11 @@
 import type { OrderApiView, SellerOrderAction } from "@/types/api";
+import { isFulfillmentOrder } from "@xiongzai/contracts/commerce";
 
 export const sellerOrderLabels = {
   PENDING_PAYMENT: "待付款",
   PENDING_ACCEPT: "新订单 / 待接单",
   ACCEPTED: "已接单 / 待开始",
+  PENDING_SERVICE: "待服务",
   IN_SERVICE: "服务中",
   PENDING_BUYER_CONFIRM: "待买家确认",
   COMPLETED: "已完成",
@@ -15,6 +17,7 @@ export const sellerOrderLabels = {
 export function sellerOrderStatusLabel(order: OrderApiView): string {
   if (order.payment_status === "REFUNDED") return "已退款";
   if (order.after_sale_status === "IN_PROGRESS") return "售后中";
+  if (isFulfillmentOrder(order) && order.status === "PENDING_BUYER_CONFIRM") return "待收货";
   return sellerOrderLabels[order.status];
 }
 
@@ -23,7 +26,7 @@ export function sellerActions(order: OrderApiView): SellerOrderAction[] {
 }
 
 export function scheduledStartReached(order: Pick<OrderApiView, "service_starts_at">, now = Date.now()): boolean {
-  return new Date(order.service_starts_at).getTime() <= now;
+  return order.service_starts_at != null && new Date(order.service_starts_at).getTime() <= now;
 }
 
 export function sellerActionError(code: string): string {
@@ -35,4 +38,3 @@ export function sellerActionError(code: string): string {
   };
   return copy[code] ?? "操作未完成，请刷新订单状态后重试。";
 }
-

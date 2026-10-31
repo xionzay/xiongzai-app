@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   hero: { padding: 17, borderWidth: 1, borderColor: "rgba(39,143,232,0.13)", borderRadius: 18, backgroundColor: "rgba(220,238,255,0.95)", ...nativeShadow },
   heroTitle: { color: colors.text, fontSize: 15, lineHeight: 20, fontWeight: "900" },
   heroText: { marginTop: 6, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  card: { gap: 13, padding: 15, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  card: { gap: 13, padding: 15, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   top: { flexDirection: "row", alignItems: "flex-start", gap: 11 },
   deviceIcon: { width: 48, height: 48, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#EAF6FF" },
   deviceMark: { color: colors.brandDeep, fontSize: 15, fontWeight: "900" },

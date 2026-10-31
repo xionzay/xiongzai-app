@@ -95,7 +95,7 @@ export const reservationStatusEnum = pgEnum("reservation_status", ["HELD", "CONF
 
 export const conversationTypeEnum = pgEnum("conversation_type", ["CONSULTATION", "ORDER", "SUPPORT"]);
 export const conversationMemberRoleEnum = pgEnum("conversation_member_role", ["BUYER", "SELLER", "USER", "ADMIN", "SYSTEM"]);
-export const messageTypeEnum = pgEnum("message_type", ["TEXT", "SYSTEM", "STICKER"]);
+export const messageTypeEnum = pgEnum("message_type", ["TEXT", "SYSTEM", "STICKER", "IMAGE", "VOICE"]);
 export const messageSendStatusEnum = pgEnum("message_send_status", ["SENT", "FAILED", "DELETED"]);
 export const contentModerationStatusEnum = pgEnum("content_moderation_status", [
   "PENDING",
@@ -133,13 +133,18 @@ export const relatedObjectTypeEnum = pgEnum("related_object_type", [
   "CONVERSATION",
   "SUPPORT_CASE",
   "PLATFORM",
+  "FEEDBACK",
+  "ANNOUNCEMENT",
 ]);
-export const notificationCategoryEnum = pgEnum("notification_category", ["ORDER", "ACCOUNT", "PLATFORM"]);
+export const notificationCategoryEnum = pgEnum("notification_category", ["ORDER", "ACCOUNT", "PLATFORM", "FEEDBACK"]);
+export const feedbackStatusEnum = pgEnum("feedback_status", ["SUBMITTED", "PROCESSING", "REPLIED"]);
+export const announcementStatusEnum = pgEnum("announcement_status", ["DRAFT", "PUBLISHED", "RETIRED"]);
 export const notificationReadStatusEnum = pgEnum("notification_read_status", ["UNREAD", "READ"]);
 export const deliveryChannelEnum = pgEnum("delivery_channel", ["IN_APP", "SMS", "PUSH"]);
 export const deliveryStatusEnum = pgEnum("delivery_status", ["PENDING", "SENT", "FAILED", "SKIPPED"]);
 
 export const orderStatusEnum = pgEnum("order_status", [
+  "PENDING_SERVICE",
   "PENDING_PAYMENT",
   "PENDING_ACCEPT",
   "ACCEPTED",
@@ -194,6 +199,7 @@ export const ledgerAccountTypeEnum = pgEnum("ledger_account_type", [
   "SELLER_PENDING",
   "SELLER_AVAILABLE",
   "SELLER_WITHDRAWAL_LOCKED",
+  "SELLER_AFTER_SALE_HELD",
   "SELLER_WITHDRAWN",
   "SELLER_LIABILITY",
   "REFUND_CLEARING",
@@ -237,6 +243,10 @@ export const reconciliationRunStatusEnum = pgEnum("reconciliation_run_status", [
 export const reconciliationItemStatusEnum = pgEnum("reconciliation_item_status", ["OPEN", "RESOLVED", "IGNORED"]);
 
 export const fileTypeEnum = pgEnum("file_type", [
+  "REVIEW_IMAGE",
+  "CHAT_IMAGE", "CHAT_VOICE",
+  "ORDER_FULFILLMENT_IMAGE",
+  "ORDER_FULFILLMENT_VIDEO",
   "USER_AVATAR",
   "SELLER_AVATAR",
   "SELLER_COVER",
@@ -246,6 +256,7 @@ export const fileTypeEnum = pgEnum("file_type", [
   "COMPLAINT_EVIDENCE",
   "ADMIN_EVIDENCE",
   "DATA_EXPORT",
+  "ANNOUNCEMENT_IMAGE",
 ]);
 export const fileUploadStatusEnum = pgEnum("file_upload_status", ["PENDING", "UPLOADED", "VERIFIED", "FAILED", "DELETED"]);
 export const fileVisibilityEnum = pgEnum("file_visibility", ["PUBLIC", "PRIVATE", "SIGNED"]);

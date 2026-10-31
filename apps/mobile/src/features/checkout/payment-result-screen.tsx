@@ -1,3 +1,7 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { StateBear } from '@/components/state-bear';
+import { runtimeFlags } from '@/config/runtime-flags';
+import { isFulfillmentOrder } from '@xiongzai/contracts/commerce';
 import { useEffect, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -14,23 +18,15 @@ import { colors } from "@/theme/tokens";
 import { formatCent } from "@/utils/money";
 import { MessageActionIcon, ShieldIcon } from "@/components/tab-icons";
 
-const copy: Record<PaymentOutcome, { mark: string; title: string; message: string; tone: "success" | "danger" | "processing" }> = {
-  success: { mark: "✓", title: "支付成功", message: "陪玩已收到新订单提醒，请等待接单", tone: "success" },
-  failed: { mark: "!", title: "支付失败", message: "服务端未确认支付成功，可以重新发起支付", tone: "danger" },
-  cancelled: { mark: "×", title: "已取消支付", message: "本次支付尚未完成，可继续查询支付结果", tone: "danger" },
-  closed: { mark: "—", title: "订单已关闭", message: "预约已释放，本次订单无法继续支付", tone: "danger" },
-  processing: { mark: "…", title: "支付确认中", message: "暂未获取最终结果，请勿重复付款", tone: "processing" }
+const copy: Record<PaymentOutcome, { bear: 'success' | 'error' | 'neutral' | 'waiting'; title: string; message: string }> = {
+  success: { bear: 'success', title: "支付成功", message: "陪玩已收到新订单提醒，请等待接单" },
+  failed: { bear: 'error', title: "支付失败", message: "服务端未确认支付成功，可以重新发起支付" },
+  cancelled: { bear: 'neutral', title: "已取消支付", message: "本次支付尚未完成，可继续查询支付结果" },
+  closed: { bear: 'neutral', title: "订单已关闭", message: "本次订单无法继续支付" },
+  processing: { bear: 'waiting', title: "支付确认中", message: "暂未获取最终结果，请勿重复付款" }
 };
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function PaymentResultScreen() {
   const { id = "", orderId = "" } = useLocalSearchParams<{ id: string; orderId: string }>();
@@ -86,10 +82,11 @@ export function PaymentResultScreen() {
     <SafeAreaView style={styles.safe} edges={["top", "left", "right", "bottom"]}>
       <ResultBackdrop />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {runtimeFlags.enableMockPayment ? <View style={styles.environment}><Text style={styles.testTag}>TEST</Text><Text style={styles.environmentText}>测试支付结果，不会真实扣款</Text></View> : null}
         <View style={styles.hero} accessibilityRole="summary" accessibilityLabel={current.title}>
-          <View style={[styles.mark, current.tone === "success" ? styles.markSuccess : current.tone === "danger" ? styles.markDanger : styles.markProcessing]}><Text style={[styles.markText, current.tone === "success" ? styles.markTextSuccess : current.tone === "danger" ? styles.markTextDanger : styles.markTextProcessing]}>{current.mark}</Text></View>
+          <StateBear kind={current.bear} size={outcome === 'cancelled' || outcome === 'closed' ? 160 : 176} />
           <Text style={styles.title}>{current.title}</Text>
-          <Text style={styles.message}>{current.message}</Text>
+          <Text style={styles.message}>{outcome === 'success' && isFulfillmentOrder(currentOrder) ? '订单已付款，请在订单中查看完成期限与履约进度。' : current.message}</Text>
           <Text style={styles.amount}>{formatCent(currentOrder.payable_amount_cent)}</Text>
         </View>
 
@@ -111,7 +108,7 @@ export function PaymentResultScreen() {
         ) : (
           <View style={styles.recovery}>
             <ShieldIcon size={40} />
-            <View style={styles.recoveryCopy}><Text style={styles.recoveryTitle}>{outcome === "closed" ? "服务没有被扣款" : "请以订单中的支付状态为准"}</Text><Text style={styles.recoveryNote}>{outcome === "closed" ? "本次支付已结束，可以重新选择服务下单" : "平台只认服务端支付结果，不会依据返回页面重复扣款"}</Text></View>
+            <View style={styles.recoveryCopy}><Text style={styles.recoveryTitle}>请以订单中的支付状态为准</Text><Text style={styles.recoveryNote}>{outcome === "closed" ? "订单已关闭，付款与退款情况以服务端记录为准" : "平台只认服务端支付结果，不会依据返回页面重复扣款"}</Text></View>
           </View>
         )}
 
@@ -124,18 +121,19 @@ export function PaymentResultScreen() {
   );
 }
 
-function ResultBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ResultBackdrop() { return <BrandBackdrop />; }
 
 function InfoRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) { return <View style={[styles.infoRow, last && styles.infoRowLast]}><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue} numberOfLines={3}>{value}</Text></View>; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingHorizontal: 12, paddingBottom: 30 },
-  hero: { alignItems: "center", paddingTop: 54, paddingHorizontal: 10, paddingBottom: 28 },
+  environment: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 8, paddingVertical: 12 }, testTag: { paddingVertical: 4, paddingHorizontal: 7, borderRadius: 6, color: colors.brandDeep, backgroundColor: colors.accentSoft, fontSize: 10, fontWeight: '800' }, environmentText: { color: colors.textSecondary, fontSize: 12, lineHeight: 19 },
+  hero: { alignItems: "center", marginVertical: 12, paddingVertical: 20, paddingHorizontal: 16, backgroundColor: '#FFFFFF', borderRadius: 10 },
   mark: { width: 74, height: 74, alignItems: "center", justifyContent: "center", borderWidth: 7, borderRadius: 24, transform: [{ rotate: "-4deg" }], ...softShadow },
   markSuccess: { borderColor: "#EAFFB1", backgroundColor: "#BFE225" },
   markDanger: { borderColor: "#FFD8C7", backgroundColor: "#FFF0E8" },

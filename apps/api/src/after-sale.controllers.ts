@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Headers, Param, Post, Query, Req } from "@nestjs/common";
-import { AppError, complaintStatuses, errorCodes, paymentChannels, refundStatuses, reviewStatuses, type PaymentChannel } from "@xiongzai/contracts";
+import { AppError, complaintStatuses, errorCodes, paymentChannels, refundStatuses, reviewStatuses, reviewImageLimits, type PaymentChannel } from "@xiongzai/contracts";
 import { requestContext } from "@xiongzai/observability";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -21,7 +21,7 @@ const callbackChannel = z.enum([...paymentChannels, "mock"]);
 const complaintCreate = z.object({ target_type: z.enum(["USER", "SELLER", "PRODUCT", "ORDER"]), target_id: uuid, complaint_type: z.string().trim().min(2).max(64), description: z.string().trim().min(5).max(3000), file_ids: z.array(uuid).max(6).default([]) });
 const evidenceCreate = z.object({ version: z.number().int().nonnegative(), file_id: uuid, description: z.string().trim().max(500).optional() });
 const complaintAction = z.object({ version: z.number().int().nonnegative(), action: z.enum(["ACCEPT", "START_PROCESSING", "REQUEST_EVIDENCE", "COMPLETE", "CLOSE"]), reason: z.string().trim().min(2).max(1000), result: z.string().trim().max(3000).optional() });
-const reviewCreate = z.object({ order_id: uuid, rating: z.number().int().min(1).max(5), content: z.string().trim().max(1000).optional(), anonymous: z.boolean().default(false) });
+const reviewCreate = z.object({ order_id: uuid, rating: z.number().int().min(1).max(5), content: z.string().trim().max(1000).optional(), anonymous: z.boolean().default(false), image_file_ids: z.array(uuid).max(reviewImageLimits.maximumCount).default([]) }).strict();
 const reviewList = z.object({ cursor: z.string().optional(), limit: z.coerce.number().int().min(1).max(100).optional() });
 const reviewModeration = z.object({ action: z.enum(["HIDE", "RESTORE", "SOFT_DELETE"]), version: z.number().int().nonnegative(), reason: z.string().trim().min(2).max(1000) });
 
@@ -78,7 +78,7 @@ export class AdminComplaintController {
 @Controller("api/v1/reviews")
 export class UserReviewController {
   constructor(private readonly service: AfterSaleService) {}
-  @Post() create(@Req() request: UserRequest, @Body(new ZodValidationPipe(reviewCreate)) body: z.infer<typeof reviewCreate>) { return this.service.createReview(principal(request), { orderId: body.order_id, rating: body.rating, content: body.content, anonymous: body.anonymous }, metadata(request)); }
+  @Post() create(@Req() request: UserRequest, @Headers("idempotency-key") key: string | undefined, @Body(new ZodValidationPipe(reviewCreate)) body: z.infer<typeof reviewCreate>) { return this.service.createReview(principal(request), { orderId: body.order_id, rating: body.rating, content: body.content, anonymous: body.anonymous, imageFileIds: body.image_file_ids }, metadata(request), key === undefined ? undefined : idempotencyKey(key)); }
   @Get("me") mine(@Req() request: UserRequest, @Query(new ZodValidationPipe(userList)) query: z.infer<typeof userList>) { return this.service.listMyReviews(principal(request), query); }
   @Get(":reviewId") detail(@Req() request: UserRequest, @Param("reviewId", new ZodValidationPipe(uuid)) reviewId: string) { return this.service.getMyReview(principal(request), reviewId); }
 }

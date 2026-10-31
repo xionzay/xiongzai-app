@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { useCallback, useEffect, useState } from "react";
 import { AppState, Linking, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -65,7 +66,7 @@ export function PermissionsScreen() {
       onRefresh={() => void refresh()}
     >
       <View style={styles.hero}>
-        <Text style={styles.heroMark}>✓</Text>
+        <Text style={styles.heroMark}><JellyIcon kind="check" label="已选" /></Text>
         <View style={styles.heroCopy}>
           <Text style={styles.heroTitle}>按需授权，随时可关闭</Text>
           <Text style={styles.heroText}>拒绝权限不会影响订单、聊天和账户浏览。</Text>
@@ -73,9 +74,9 @@ export function PermissionsScreen() {
       </View>
 
       <PaperCard>
-        <NativeRow label="照片" note="选择头像、服务封面和售后凭证" value={permissionCopy(library)} />
+        <NativeRow label="照片" note="选择头像、服务封面、售后凭证和聊天图片" value={permissionCopy(library)} />
         <NativeRow label="相机" note="拍摄头像、封面和现场凭证" value={permissionCopy(camera)} />
-        <NativeRow label="麦克风" note="录制 10–30 秒声音名片" value={permissionCopy(microphone)} />
+        <NativeRow label="麦克风" note="录制 10–30 秒声音名片或 1–60 秒聊天语音" value={permissionCopy(microphone)} />
         <NativeRow label="通知" note="仅使用站内通知" value="系统推送尚未接入" last />
       </PaperCard>
 
@@ -84,7 +85,7 @@ export function PermissionsScreen() {
 
       <View style={styles.explanation}>
         <Text style={styles.explanationTitle}>文件和隐私安全</Text>
-        <Text style={styles.explanationText}>照片、相机和麦克风只在选择图片、拍摄头像或录制声音名片时使用。本地路径不会作为服务端文件地址，只有服务端校验后的真实 file_id 可以绑定。</Text>
+        <Text style={styles.explanationText}>照片、相机和麦克风只在您选择图片、拍摄头像或主动录制声音名片、聊天语音时使用，不用于实时通话。本地路径不会作为服务端文件地址，只有服务端校验后的真实 file_id 可以绑定，聊天媒体还需审核通过后才能发送。</Text>
       </View>
     </NativePage>
   );

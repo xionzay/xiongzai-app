@@ -17,7 +17,7 @@ function harness(reduced=false,fine=true){
  const exports={};
  vm.runInNewContext(compiled,{exports,document,window,matchMedia:q=>q.includes('reduced')?motion:pointer,
   requestAnimationFrame:fn=>{frames.set(++next,fn);return next},cancelAnimationFrame:id=>frames.delete(id),
-  IntersectionObserver:class{constructor(cb){observer=this;this.cb=cb}observe(){}disconnect(){this.disconnected=true}},
+  IntersectionObserver:class{constructor(cb){observer={cb,disconnected:false}}observe(){}disconnect(){observer.disconnected=true}},
   require:n=>n==='react'?{useRef:()=>({current:layer}),useEffect:fn=>{dispose=fn()}}:n==='react/jsx-runtime'?{jsx:()=>null,jsxs:()=>null}:{default:{}}
  });
  exports.default();

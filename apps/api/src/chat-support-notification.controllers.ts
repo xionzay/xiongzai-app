@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query, Req } from "@nestjs/common";
-import { AppError, errorCodes, notificationCategories, supportCaseStatuses, supportPriorities } from "@xiongzai/contracts";
+import { AppError, errorCodes, notificationCategoriesWithFeedback, supportCaseStatuses, supportPriorities } from "@xiongzai/contracts";
 import { requestContext } from "@xiongzai/observability";
 import type { FastifyRequest } from "fastify";
 import { z } from "zod";
@@ -14,7 +14,7 @@ const sellerConsultationSchema = z.object({ seller_id: uuid });
 const consultationSchema = z.object({ product_id: uuid });
 const orderConversationSchema = z.object({ order_id: uuid });
 const textMessageSchema = z.object({ client_message_id: z.string().trim().min(8).max(128), message_type: z.literal("TEXT").optional(), content: z.string().trim().min(1).max(500) }).strict();
-const messageSchema = z.union([textMessageSchema, z.object({ client_message_id: z.string().trim().min(8).max(128), message_type: z.literal("STICKER"), sticker_id: z.string().min(1).max(64) }).strict()]);
+const messageSchema = z.union([textMessageSchema, z.object({ client_message_id: z.string().trim().min(8).max(128), message_type: z.literal("STICKER"), sticker_id: z.string().min(1).max(64) }).strict(), z.object({ client_message_id: z.string().trim().min(8).max(128), message_type: z.enum(["IMAGE", "VOICE"]), file_id: uuid }).strict()]);
 const readSchema = z.object({ last_read_sequence_no: z.string().regex(/^\d+$/u).transform(BigInt) });
 const supportRelatedTypes = ["ORDER", "PAYMENT", "REFUND", "COMPLAINT", "WITHDRAWAL"] as const;
 const supportCreateSchema = z.object({ topic: z.string().trim().min(2).max(120), priority: z.enum(supportPriorities).default("NORMAL"), queue_key: z.string().trim().min(2).max(64).default("general"), related_type: z.enum(supportRelatedTypes).optional(), related_id: uuid.optional(), source_page: z.string().trim().max(128).optional(), initial_message: z.string().trim().min(1).max(500).optional(), initial_sticker_id: z.string().min(1).max(64).optional(), client_message_id: z.string().trim().min(8).max(128).optional() }).refine(value => Boolean(value.initial_message) !== Boolean(value.initial_sticker_id), { message: "首条消息必须为文字或表情之一" }).refine(value => !value.initial_sticker_id || Boolean(value.client_message_id), { message: "表情消息需要 client_message_id" }).refine((value) => (value.related_type === undefined) === (value.related_id === undefined), { message: "关联业务类型和编号必须同时填写", path: ["related_id"] });
@@ -23,9 +23,10 @@ const versionSchema = z.object({ version: z.number().int().nonnegative() });
 const transferSchema = versionReasonSchema.extend({ queue_key: z.string().trim().min(2).max(64) });
 const adminListSchema = z.object({ status: z.enum(supportCaseStatuses).optional(), queue_key: z.string().trim().min(1).max(64).optional(),keyword:z.string().trim().min(1).max(100).optional(),cursor:z.string().trim().min(1).max(4096).optional(),limit: z.coerce.number().int().min(1).max(100).optional(),sort:z.enum(["created_desc","created_asc"]).default("created_desc") });
 const adminConversationListSchema=z.object({keyword:z.string().trim().min(1).max(100).optional(),cursor:z.string().trim().min(1).max(4096).optional(),limit:z.coerce.number().int().min(1).max(100).default(20),sort:z.enum(["created_desc","created_asc"]).default("created_desc")});
-const evidenceSchema = z.object({ reason: z.string().trim().min(4).max(1000) });
-const notificationListSchema = listSchema.extend({ category: z.enum(notificationCategories).optional() });
-const adminNotificationListSchema = z.object({ category: z.enum(notificationCategories).optional(), status: z.enum(["PENDING", "SENT", "FAILED"]).optional(), keyword: z.string().trim().min(1).max(100).optional(), cursor: z.string().trim().min(1).max(4096).optional(), limit: z.coerce.number().int().min(1).max(100).default(20), sort: z.enum(["created_desc", "created_asc"]).default("created_desc") });
+const evidenceSchema = z.object({ reason: z.string().trim().min(4).max(1000), cursor: z.string().max(2048).optional(), limit: z.number().int().min(1).max(100).optional() });
+const notificationCapabilities = z.object({ include_feedback: z.enum(["true", "false"]).transform(value => value === "true").optional() });
+const notificationListSchema = listSchema.extend({ ...notificationCapabilities.shape, category: z.enum(notificationCategoriesWithFeedback).optional() });
+const adminNotificationListSchema = z.object({ category: z.enum(notificationCategoriesWithFeedback).optional(), status: z.enum(["PENDING", "SENT", "FAILED"]).optional(), keyword: z.string().trim().min(1).max(100).optional(), cursor: z.string().trim().min(1).max(4096).optional(), limit: z.coerce.number().int().min(1).max(100).default(20), sort: z.enum(["created_desc", "created_asc"]).default("created_desc") });
 
 @Controller("api/v1/conversations")
 export class UserConversationController {
@@ -37,7 +38,7 @@ export class UserConversationController {
   @Get("unread-count") unread(@Req() request: UserRequest) { return this.service.getConversationUnreadCount(principal(request)); }
   @Get(":conversationId") detail(@Req() request: UserRequest, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string) { return this.service.getUserConversation(principal(request), conversationId); }
   @Get(":conversationId/messages") messages(@Req() request: UserRequest, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string, @Query(new ZodValidationPipe(listSchema)) query: z.infer<typeof listSchema>) { return this.service.listUserMessages(principal(request), conversationId, query); }
-  @Post(":conversationId/messages") send(@Req() request: UserRequest, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string, @Body(new ZodValidationPipe(messageSchema)) body: z.infer<typeof messageSchema>) { return this.service.sendUserMessage(principal(request), conversationId, body.message_type === "STICKER" ? { clientMessageId: body.client_message_id, messageType: "STICKER", stickerId: body.sticker_id } : { clientMessageId: body.client_message_id, content: body.content }, metadata(request)); }
+  @Post(":conversationId/messages") send(@Req() request: UserRequest, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string, @Body(new ZodValidationPipe(messageSchema)) body: z.infer<typeof messageSchema>) { return this.service.sendUserMessage(principal(request), conversationId, body.message_type === "STICKER" ? { clientMessageId: body.client_message_id, messageType: "STICKER", stickerId: body.sticker_id } : "file_id" in body ? { clientMessageId: body.client_message_id, messageType: body.message_type, fileId: body.file_id } : { clientMessageId: body.client_message_id, content: body.content }, metadata(request)); }
   @Post(":conversationId/read") read(@Req() request: UserRequest, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string, @Body(new ZodValidationPipe(readSchema)) body: z.infer<typeof readSchema>) { return this.service.markUserRead(principal(request), conversationId, body.last_read_sequence_no); }
 }
 
@@ -54,10 +55,10 @@ export class UserSupportCaseController {
 export class UserNotificationController {
   constructor(private readonly service: ChatSupportNotificationService) {}
   @Get() list(@Req() request: UserRequest, @Query(new ZodValidationPipe(notificationListSchema)) query: z.infer<typeof notificationListSchema>) { return this.service.listNotifications(principal(request), query); }
-  @Get("unread-count") unread(@Req() request: UserRequest) { return this.service.getNotificationUnreadCount(principal(request)); }
+  @Get("unread-count") unread(@Req() request: UserRequest, @Query(new ZodValidationPipe(notificationCapabilities)) query: z.infer<typeof notificationCapabilities>) { return this.service.getNotificationUnreadCount(principal(request), query.include_feedback); }
   @Get(":notificationId") detail(@Req() request: UserRequest, @Param("notificationId", new ZodValidationPipe(uuid)) notificationId: string) { return this.service.getNotification(principal(request), notificationId); }
   @Post(":notificationId/read") read(@Req() request: UserRequest, @Param("notificationId", new ZodValidationPipe(uuid)) notificationId: string) { return this.service.markNotificationRead(principal(request), notificationId); }
-  @Post("read-all") readAll(@Req() request: UserRequest) { return this.service.markAllNotificationsRead(principal(request)); }
+  @Post("read-all") readAll(@Req() request: UserRequest, @Query(new ZodValidationPipe(notificationCapabilities)) query: z.infer<typeof notificationCapabilities>) { return this.service.markAllNotificationsRead(principal(request), query.include_feedback); }
 }
 
 @Controller("admin-api/v1/support-cases")
@@ -78,7 +79,7 @@ export class AdminSupportCaseController {
 export class AdminConversationEvidenceController {
   constructor(private readonly service: ChatSupportNotificationService) {}
   @Get() @RequirePermissions("conversation.evidence.read") list(@Query(new ZodValidationPipe(adminConversationListSchema)) query:z.infer<typeof adminConversationListSchema>) { return this.service.listOrderConversations(query); }
-  @Post(":conversationId/evidence-view") @RequirePermissions("conversation.evidence.read") view(@Req() request: UserRequest, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string, @Body(new ZodValidationPipe(evidenceSchema)) body: z.infer<typeof evidenceSchema>) { return this.service.auditOrderConversationView(principal(request), conversationId, body.reason, metadata(request)); }
+  @Post(":conversationId/evidence-view") @RequirePermissions("conversation.evidence.read") view(@Req() request: UserRequest, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string, @Body(new ZodValidationPipe(evidenceSchema)) body: z.infer<typeof evidenceSchema>) { return this.service.auditOrderConversationView(principal(request), conversationId, body.reason, metadata(request), body); }
 }
 
 @Controller("admin-api/v1/notification-deliveries")

@@ -1,3 +1,4 @@
+import { JellyIcon } from "../../components/jelly-icon";
 import { useEffect, useRef, useState } from "react";
 import { Image, Linking, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -19,6 +20,7 @@ type ImageUploadSlotProps = {
   aspect?: [number, number];
   requireApproval?: boolean;
   readyLabel?: string;
+  selectionOnly?: boolean;
   onReady(file: FileApiView): Promise<void>;
 };
 
@@ -31,7 +33,7 @@ export function ImageUploadSlot(props: ImageUploadSlotProps) {
   return <ImageUploadSlotReady key={`${props.fileType}:${props.currentFileId ?? "none"}`} {...props} recoverableItems={recoverable.data.items} refetchRecoverable={() => recoverable.refetch()} />;
 }
 
-function ImageUploadSlotReady({ fileType, label, currentFileId, expectedVisibility, aspect, requireApproval = true, readyLabel = "使用这张图片", onReady, recoverableItems, refetchRecoverable }: ImageUploadSlotProps & {
+function ImageUploadSlotReady({ fileType, label, currentFileId, expectedVisibility, aspect, requireApproval = true, readyLabel = "使用这张图片", selectionOnly = false, onReady, recoverableItems, refetchRecoverable }: ImageUploadSlotProps & {
   recoverableItems: RecoverableFileApiView[];
   refetchRecoverable(): Promise<unknown>;
 }) {
@@ -140,7 +142,7 @@ function ImageUploadSlotReady({ fileType, label, currentFileId, expectedVisibili
       setStage("binding"); setMessage(null);
       await onReady(file);
       if (!mounted.current) return;
-      setStage("bound"); setMessage(`${label}已绑定到当前业务记录。`);
+      setStage("bound"); setMessage(selectionOnly ? `${label}已选，业务提交成功后才会绑定。` : `${label}已绑定到当前业务记录。`);
     } catch (error) { if (mounted.current) { setStage("failed"); setMessage(imageUploadErrorMessage(error)); } }
   };
 
@@ -162,8 +164,8 @@ function ImageUploadSlotReady({ fileType, label, currentFileId, expectedVisibili
     <Text style={styles.title}>{label}</Text>
     {currentFileId && expectedVisibility === "PUBLIC" ? <FileImage fileId={currentFileId} style={styles.currentImage} label={`当前${label}`} /> : null}
     {asset ? <Image source={{ uri: asset.uri }} style={styles.preview} accessibilityLabel={`${label}本地预览`} /> : null}
-    <Text style={styles.stage}>{imageStageCopy(stage, label)}</Text>
-    {asset ? <Text style={styles.meta}>{asset.width} × {asset.height}{asset.fileSize ? ` · ${Math.ceil(asset.fileSize / 1024)} KB` : ""}</Text> : null}
+    <Text style={styles.stage}>{selectionOnly && stage === "bound" ? `${label}已选，尚未提交绑定` : selectionOnly && stage === "binding" ? `正在选择${label}` : imageStageCopy(stage, label)}</Text>
+    {asset ? <Text style={styles.meta}>{asset.width} <JellyIcon kind="close" label="关闭" />{asset.height}{asset.fileSize ? ` · ${Math.ceil(asset.fileSize / 1024)} KB` : ""}</Text> : null}
     {file ? <Text style={styles.meta}>服务端状态：{file.upload_status} / {file.moderation_status} / {file.visibility}</Text> : null}
     {message ? <NoticeBanner tone={stage === "bound" || stage === "approved" ? "success" : stage === "pending_review" || stage === "cancelled" ? "info" : "danger"} message={message} /> : null}
     {canChoose ? <PrimaryButton tone="plain" label={asset ? `重新选择${label}` : `从相册选择${label}`} disabled={policies.isPending} onPress={() => void choose()} /> : null}

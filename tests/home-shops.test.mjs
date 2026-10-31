@@ -108,6 +108,11 @@ test("a whole native row opens the exact seller, keeps its original avatar and e
 const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 const ast = ts.createSourceFile("page.tsx", page, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const home = ast.statements.find(node => ts.isFunctionDeclaration(node) && node.name?.text === "HomeScreen");
+const { HomeAnnouncementCarousel } = await compileModule("../app/HomeAnnouncementCarousel.tsx", {
+  react: React,
+  "react/jsx-runtime": await import("react/jsx-runtime"),
+  "./ui/CartoonIcon": { CartoonIcon: () => null },
+});
 function homeHarness(preview = false) {
   const states = [], refs = [], effects = [];
   let stateIndex, refIndex, effectIndex;
@@ -115,15 +120,15 @@ function homeHarness(preview = false) {
   const fakeReact = { ...React };
   const source = ts.transpileModule(home.getText(ast), { compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 } }).outputText;
   const HomeScreen = vm.runInNewContext(`${source}\nHomeScreen;`, {
-    React: fakeReact, ...model, ...productModel,
-    useState: initial => { const i = stateIndex++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = value; }]; },
+    setTimeout, React: fakeReact, ...model, ...productModel,
+    useState: initial => { const i = stateIndex++; if (!(i in states)) states[i] = initial; return [states[i], value => { states[i] = typeof value === "function" ? value(states[i]) : value; }]; },
     useRef: initial => { const i = refIndex++; return refs[i] ??= { current: initial }; },
     useLayoutEffect: (fn, deps) => { const i = effectIndex++; if (!effects[i] || deps.some((dep, index) => dep !== effects[i].deps[index])) effects[i] = { fn, deps, pending: true }; },
     useSyncExternalStore: () => preview, useHomeModeMotion: noop,
     subscribeLocalPreview: noop, getLocalPreview: noop, getServerPreview: noop,
     previewCompanions: [shop], previewServices: [{ sellerId: shop.id, id: 'local-product', gameCategory: '和平精英', priceCent: '3000' }],
     publicGames: decisions.publicGames, PRODUCT_GAMES: decisions.PRODUCT_GAMES,
-    StatusBar: noop, CartoonIcon: noop, HomeAnnouncementCarousel: noop,
+    HomeAnnouncementCarousel, HomeFeedFooter: noop, StatusBar: noop, CartoonIcon: noop, PublicAnnouncements: noop, apiRequest: noop,
     HomeShortcuts: noop, HomeHotSale: noop, LoadingState: noop, RequestErrorBear: noop,
     ContextStateScreen: noop, SectionTitle: noop, CompanionCard: noop, SortBar: noop,
     GameFilter: noop, HomeProductGameFilter: noop, HomeProductCard: noop, ServiceCard: noop, BuyerNav: noop, homeAnnouncements: [],
@@ -165,17 +170,29 @@ test("complete preview has no fake more entry or sample-count message inside the
   assert.equal(section.props.onAction, undefined);
   assert.doesNotMatch(renderToStaticMarkup(tree), /样例店铺|已展示全部/);
 });
-test("the full shop list keeps loading and retry feedback without falsely claiming it is complete", () => {
+test("pagination exposes the remaining cursor and blocks concurrent loads", async () => {
   const harness = homeHarness();
-  const props = { companionItems: [shop], hasMoreShops: true, moreShopsError: "网络失败" };
+  let calls = 0;
+  const props = { companionItems: [shop], hasMoreShops: true, onMoreShops: async () => { calls++; throw new Error("网络失败"); } };
   let tree = harness.render(props);
-  [...elements(tree)].find(el => el.type === "button" && el.props.children === "店铺").props.onClick();
-  tree = harness.render(props);
-  const retry = [...elements(tree)].find(el => el.props.className === "home-shop-load-more");
-  assert.equal(retry.props.children, "重试加载更多");
-  assert.doesNotMatch(renderToStaticMarkup(tree), /已加载全部店铺/);
+  const footer = [...elements(tree)].find(el => el.props.onLoadMore);
+  assert.equal(footer.props.hasMore, true);
+  await assert.rejects(footer.props.onLoadMore(), /网络失败/);
+  assert.equal(calls, 1);
   tree = harness.render({ ...props, loadingMoreShops: true });
-  assert.equal([...elements(tree)].find(el => el.props.className === "home-shop-load-more").props.disabled, true);
+  assert.equal([...elements(tree)].find(el => el.props.onLoadMore).props.blocked, true);
+});
+test("loaded rows reveal in batches before requesting another cursor", async () => {
+  const harness = homeHarness(); let calls = 0;
+  const props = { companionItems: Array.from({length: 9}, (_, id) => ({...shop, id})), onMoreShops: async () => { calls++; } };
+  let tree = harness.render(props);
+  const shops = tree => [...elements(tree)].filter(el => el.props.companion);
+  assert.equal(shops(tree).length, 6);
+  await [...elements(tree)].find(el => el.props.onLoadMore).props.onLoadMore();
+  tree = harness.render(props);
+  assert.equal(shops(tree).length, 9);
+  assert.equal(calls, 0);
+  assert.equal([...elements(tree)].find(el => el.props.onLoadMore).props.hasMore, false);
 });
 test("product filtering distinguishes an empty game from an in-flight request or failure", () => {
   const harness = homeHarness();

@@ -18,6 +18,7 @@ import {
 } from "drizzle-orm/pg-core";
 import {
   accountCancellationStatusEnum,
+  announcementStatusEnum,
   adminStatusEnum,
   afterSaleStatusEnum,
   availabilitySlotStatusEnum,
@@ -31,6 +32,7 @@ import {
   deliveryStatusEnum,
   deviceTypeEnum,
   favoriteTargetTypeEnum,
+  feedbackStatusEnum,
   fileTypeEnum,
   fileUploadStatusEnum,
   fileUsageTypeEnum,
@@ -192,6 +194,8 @@ export const files = pgTable(
     index("files_sha256_idx").on(table.sha256),
     index("files_admin_queue_created_id_idx").on(table.uploadStatus, table.moderationStatus, table.createdAt, table.id).where(sql`${table.deletedAt} IS NULL`),
     check("files_size_positive", sql`${table.sizeBytes} > 0`),
+    check("files_chat_metadata_valid", sql`${table.fileType}::text NOT IN ('CHAT_IMAGE','CHAT_VOICE') OR (${table.visibility} = 'PRIVATE' AND (${table.fileType}::text = 'CHAT_IMAGE' AND ${table.mimeType} IN ('image/jpeg','image/png','image/webp') OR ${table.fileType}::text = 'CHAT_VOICE' AND ${table.mimeType} IN ('audio/aac','audio/mp4','audio/mpeg') AND (${table.uploadStatus} <> 'VERIFIED' OR (${table.durationMs} IS NOT NULL AND ${table.durationMs} BETWEEN 1000 AND 60000))))`),
+    check("files_fulfillment_metadata_valid", sql`${table.fileType}::text NOT IN ('ORDER_FULFILLMENT_IMAGE','ORDER_FULFILLMENT_VIDEO') OR (${table.visibility} = 'PRIVATE' AND (${table.fileType}::text = 'ORDER_FULFILLMENT_IMAGE' AND ${table.mimeType} IN ('image/jpeg','image/png','image/webp') OR ${table.fileType}::text = 'ORDER_FULFILLMENT_VIDEO' AND ${table.mimeType} = 'video/mp4' AND (${table.uploadStatus} <> 'VERIFIED' OR (${table.durationMs} IS NOT NULL AND ${table.durationMs} > 0))))`),
     check(
       "files_voice_metadata_valid",
       sql`${table.fileType} <> 'VOICE_SAMPLE' OR (${table.mimeType} IN ('audio/aac', 'audio/mp4', 'audio/mpeg') AND (${table.uploadStatus} <> 'VERIFIED' OR ${table.durationMs} BETWEEN 10000 AND 30000))`,
@@ -563,6 +567,9 @@ export const products = pgTable(
   {
     id: uuid("id").primaryKey(),
     sellerId: uuid("seller_id").notNull().references(() => sellerProfiles.id, { onDelete: "restrict" }),
+    game: varchar("game", { length: 32 }),
+    fulfillmentSeconds: integer("fulfillment_seconds"),
+    pricingMode: varchar("pricing_mode", { length: 16 }).default("MULTI").notNull(),
     title: varchar("title", { length: 120 }).notNull(),
     description: text("description").notNull(),
     serviceTimeDescription: varchar("service_time_description", { length: 200 }),
@@ -589,6 +596,9 @@ export const products = pgTable(
     index("products_rating_idx").on(table.ratingAvg),
     check("products_min_price_nonnegative", sql`${table.minPriceCent} >= 0`),
     check("products_rating_valid", sql`${table.ratingAvg} >= 0 AND ${table.ratingAvg} <= 5`),
+    check("products_game_valid", sql`${table.game} IS NULL OR ${table.game} IN ('PEACE_ELITE','DELTA_FORCE','HONOR_OF_KINGS','VALORANT')`),
+    check("products_fulfillment_valid", sql`(${table.game} IS NULL AND ${table.fulfillmentSeconds} IS NULL) OR (${table.game} IS NOT NULL AND ${table.fulfillmentSeconds} IS NOT NULL AND ${table.fulfillmentSeconds} BETWEEN 1 AND 604800)`),
+    check("products_pricing_mode_valid", sql`${table.pricingMode} IN ('SINGLE','MULTI')`),
   ],
 );
 
@@ -632,7 +642,7 @@ export const productSkus = pgTable(
     skuName: varchar("sku_name", { length: 100 }).notNull(),
     description: varchar("description", { length: 500 }),
     priceCent: money("price_cent").notNull(),
-    durationMinutes: integer("duration_minutes").notNull(),
+    durationMinutes: integer("duration_minutes"),
     status: skuStatusEnum("status").default("ACTIVE").notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -655,12 +665,14 @@ export const productImages = pgTable(
     fileId: uuid("file_id").notNull().references(() => files.id, { onDelete: "restrict" }),
     sortOrder: integer("sort_order").default(0).notNull(),
     isCover: boolean("is_cover").default(false).notNull(),
+    imageKind: varchar("image_kind", { length: 16 }).default("GALLERY").notNull(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (table) => [
     uniqueIndex("product_images_sort_uq").on(table.productId, table.sortOrder).where(sql`${table.deletedAt} IS NULL`),
     uniqueIndex("product_images_cover_uq").on(table.productId).where(sql`${table.isCover} = true AND ${table.deletedAt} IS NULL`),
+    check("product_images_kind_valid", sql`${table.imageKind} IN ('GALLERY','DETAIL') AND (NOT ${table.isCover} OR ${table.imageKind} = 'GALLERY')`),
   ],
 );
 
@@ -713,6 +725,13 @@ export const orders = pgTable(
     refundPolicyVersionId: uuid("refund_policy_version_id").references(() => policyVersions.id, { onDelete: "restrict" }),
     // Explicit business version; historical orders remain legacy, never inferred from dates or titles.
     ruleVersion: varchar("rule_version", { length: 32 }).default("legacy").notNull(),
+    gameSnapshot: varchar("game_snapshot", { length: 32 }),
+    fulfillmentSecondsSnapshot: integer("fulfillment_seconds_snapshot"),
+    fulfillmentDueAt: timestamp("fulfillment_due_at", { withTimezone: true }),
+    fulfillmentEvidenceJson: jsonb("fulfillment_evidence_json").$type<Array<{ file_id: string; kind: "IMAGE" | "VIDEO"; sha256: string }>>().default(sql`'[]'::jsonb`).notNull(),
+    evidenceReviewPending: boolean("evidence_review_pending").default(false).notNull(),
+    receiptExtensionUsed: boolean("receipt_extension_used").default(false).notNull(),
+    lastRemindedAt: timestamp("last_reminded_at", { withTimezone: true }),
     productTitleSnapshot: varchar("product_title_snapshot", { length: 120 }).notNull(),
     productImageSnapshot: text("product_image_snapshot").notNull(),
     productDescriptionSnapshot: text("product_description_snapshot").notNull(),
@@ -721,7 +740,7 @@ export const orders = pgTable(
     skuNameSnapshot: varchar("sku_name_snapshot", { length: 100 }).notNull(),
     skuDescriptionSnapshot: varchar("sku_description_snapshot", { length: 500 }),
     skuPriceCentSnapshot: money("sku_price_cent_snapshot").notNull(),
-    skuDurationMinutesSnapshot: integer("sku_duration_minutes_snapshot").notNull(),
+    skuDurationMinutesSnapshot: integer("sku_duration_minutes_snapshot"),
     quantity: integer("quantity").default(1).notNull(),
     totalAmountCent: money("total_amount_cent").notNull(),
     discountCent: money("discount_cent").default(sql`0`).notNull(),
@@ -731,8 +750,8 @@ export const orders = pgTable(
     commissionRateBpsSnapshot: integer("commission_rate_bps_snapshot").notNull(),
     platformFeeCent: money("platform_fee_cent").notNull(),
     sellerIncomeCent: money("seller_income_cent").notNull(),
-    serviceStartsAt: timestamp("service_starts_at", { withTimezone: true }).notNull(),
-    serviceEndsAt: timestamp("service_ends_at", { withTimezone: true }).notNull(),
+    serviceStartsAt: timestamp("service_starts_at", { withTimezone: true }),
+    serviceEndsAt: timestamp("service_ends_at", { withTimezone: true }),
     buyerNote: varchar("buyer_note", { length: 500 }),
     status: orderStatusEnum("status").default("PENDING_PAYMENT").notNull(),
     paymentStatus: paymentStatusEnum("payment_status").default("CREATED").notNull(),
@@ -770,6 +789,7 @@ export const orders = pgTable(
     check("orders_commission_bps_valid", sql`${table.commissionRateBpsSnapshot} BETWEEN 0 AND 10000`),
     check("orders_split_formula", sql`${table.platformFeeCent} + ${table.sellerIncomeCent} = ${table.payableAmountCent}`),
     check("orders_service_time_valid", sql`${table.serviceEndsAt} > ${table.serviceStartsAt}`),
+    check("orders_rule_flow_valid", sql`(${table.fulfillmentSecondsSnapshot} IS NULL AND ${table.gameSnapshot} IS NULL AND ${table.serviceStartsAt} IS NOT NULL AND ${table.serviceEndsAt} IS NOT NULL AND ${table.skuDurationMinutesSnapshot} IS NOT NULL) OR (${table.ruleVersion} = 'V3.1' AND ${table.fulfillmentSecondsSnapshot} IS NOT NULL AND ${table.fulfillmentSecondsSnapshot} BETWEEN 1 AND 604800 AND ${table.gameSnapshot} IS NOT NULL AND ${table.gameSnapshot} IN ('PEACE_ELITE','DELTA_FORCE','HONOR_OF_KINGS','VALORANT') AND ${table.serviceStartsAt} IS NULL AND ${table.serviceEndsAt} IS NULL)`),
     check(
       "orders_policy_versions_complete",
       sql`(${table.transactionPolicyVersionId} IS NULL AND ${table.refundPolicyVersionId} IS NULL) OR (${table.transactionPolicyVersionId} IS NOT NULL AND ${table.refundPolicyVersionId} IS NOT NULL)`,
@@ -1025,6 +1045,51 @@ export const reviews = pgTable(
   ],
 );
 
+// A case retains its original refund identity; channel execution still belongs
+// to refunds / financial_transfer_operations. Historical refunds have no case.
+export const afterSaleCases = pgTable("after_sale_cases", {
+  id: uuid("id").primaryKey().references(() => refunds.id, {onDelete:"restrict"}),
+  orderId: uuid("order_id").notNull().references(() => orders.id, {onDelete:"restrict"}),
+  state: varchar("state", {length:32}).notNull(),
+  kind: varchar("kind", {length:16}).notNull(),
+  deadlineAt: timestamp("deadline_at", {withTimezone:true}),
+  data: jsonb("data").$type<Record<string,unknown>>().notNull(),
+  version: integer("version").notNull().default(0),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, table=>[
+  index("after_sale_cases_order_idx").on(table.orderId,table.createdAt),
+  check("after_sale_cases_kind_valid",sql`${table.kind} IN ('NORMAL','REMEDY','SPECIAL')`),
+  check("after_sale_cases_state_valid",sql`${table.state} IN ('S01','S02','S03','S04','S05','R01','R02','P01','P02','P03','P04','EXECUTION_PENDING','F01','F02','F06','REMEDY_COMPLETED')`),
+  check("after_sale_cases_version_valid",sql`${table.version} >= 0`),
+]);
+
+export const afterSaleCaseEvents = pgTable("after_sale_case_events", {
+  id: uuid("id").primaryKey(),
+  caseId: uuid("case_id").notNull().references(()=>afterSaleCases.id,{onDelete:"restrict"}),
+  version: integer("version").notNull(),
+  action: varchar("action",{length:64}).notNull(),
+  actorUserId: uuid("actor_user_id").references(()=>users.id,{onDelete:"restrict"}),
+  actorAdminId: uuid("actor_admin_id").references(()=>adminAccounts.id,{onDelete:"restrict"}),
+  data: jsonb("data").$type<Record<string,unknown>>().notNull(),
+  createdAt: createdAt(),
+},table=>[
+  uniqueIndex("after_sale_case_events_version_uq").on(table.caseId,table.version),
+  check("after_sale_case_events_actor_valid",sql`NOT (${table.actorUserId} IS NOT NULL AND ${table.actorAdminId} IS NOT NULL)`),
+]);
+
+export const reviewImages = pgTable("review_images", {
+  id: uuid("id").primaryKey(),
+  reviewId: uuid("review_id").notNull().references(() => reviews.id, { onDelete: "restrict" }),
+  fileId: uuid("file_id").notNull().references(() => files.id, { onDelete: "restrict" }),
+  position: integer("position").notNull(),
+  createdAt: createdAt(),
+}, table => [
+  uniqueIndex("review_images_file_uq").on(table.fileId),
+  uniqueIndex("review_images_position_uq").on(table.reviewId, table.position),
+  check("review_images_position_valid", sql`${table.position} BETWEEN 0 AND 29`),
+]);
+
 export const ratingAggregates = pgTable(
   "rating_aggregates",
   {
@@ -1128,6 +1193,7 @@ export const sellerIncomes = pgTable(
     sellerAmountCent: money("seller_amount_cent").notNull(),
     availableAmountCent: money("available_amount_cent").default(sql`0`).notNull(),
     lockedAmountCent: money("locked_amount_cent").default(sql`0`).notNull(),
+    afterSaleHeldCent: money("after_sale_held_cent").default(sql`0`).notNull(),
     withdrawnAmountCent: money("withdrawn_amount_cent").default(sql`0`).notNull(),
     reversedAmountCent: money("reversed_amount_cent").default(sql`0`).notNull(),
     status: sellerIncomeStatusEnum("status").default("PENDING_SETTLEMENT").notNull(),
@@ -1143,10 +1209,21 @@ export const sellerIncomes = pgTable(
     uniqueIndex("seller_incomes_ledger_tx_uq").on(table.ledgerTransactionId),
     index("seller_incomes_seller_status_idx").on(table.sellerId, table.status, table.settlementAvailableAt),
     check("seller_incomes_amounts_valid", sql`${table.orderAmountCent} > 0 AND ${table.platformFeeCent} >= 0 AND ${table.sellerAmountCent} > 0 AND ${table.platformFeeCent} + ${table.sellerAmountCent} = ${table.orderAmountCent}`),
-    check("seller_income_buckets_nonnegative", sql`${table.availableAmountCent} >= 0 AND ${table.lockedAmountCent} >= 0 AND ${table.withdrawnAmountCent} >= 0 AND ${table.reversedAmountCent} >= 0`),
-    check("seller_income_buckets_cap", sql`${table.availableAmountCent} + ${table.lockedAmountCent} + ${table.withdrawnAmountCent} + ${table.reversedAmountCent} <= ${table.sellerAmountCent}`),
+    check("seller_income_buckets_nonnegative", sql`${table.availableAmountCent} >= 0 AND ${table.lockedAmountCent} >= 0 AND ${table.afterSaleHeldCent} >= 0 AND ${table.withdrawnAmountCent} >= 0 AND ${table.reversedAmountCent} >= 0`),
+    check("seller_income_buckets_cap", sql`${table.availableAmountCent} + ${table.lockedAmountCent} + ${table.afterSaleHeldCent} + ${table.withdrawnAmountCent} + ${table.reversedAmountCent} <= ${table.sellerAmountCent}`),
   ],
 );
+
+export const afterSaleFundHolds = pgTable("after_sale_fund_holds", {
+  id: uuid("id").primaryKey(),
+  caseId: uuid("case_id").notNull().references(() => afterSaleCases.id, {onDelete:"restrict"}),
+  incomeId: uuid("income_id").notNull().references(() => sellerIncomes.id, {onDelete:"restrict"}),
+  amountCent: money("amount_cent").notNull(),
+  sourceBucket: varchar("source_bucket", {length:16}).notNull(),
+  status: varchar("status", {length:16}).default("HELD").notNull(),
+  version: integer("version").default(0).notNull(),
+  createdAt: createdAt(), updatedAt: updatedAt(),
+}, table => [index("after_sale_holds_case_idx").on(table.caseId,table.status),index("after_sale_holds_income_idx").on(table.incomeId,table.status),check("after_sale_hold_valid",sql`${table.amountCent} > 0 AND ${table.sourceBucket} IN ('PENDING','AVAILABLE') AND ${table.status} IN ('HELD','RELEASED') AND ${table.version} >= 0`)]);
 
 export const sellerLiabilities = pgTable(
   "seller_liabilities",
@@ -1387,6 +1464,7 @@ export const messages = pgTable(
     senderAdminId: uuid("sender_admin_id").references(() => adminAccounts.id, { onDelete: "restrict" }),
     senderRole: conversationMemberRoleEnum("sender_role").notNull(),
     messageType: messageTypeEnum("message_type").default("TEXT").notNull(),
+    mediaFileId: uuid("media_file_id").references(() => files.id, { onDelete: "restrict" }),
     content: text("content").notNull(),
     sendStatus: messageSendStatusEnum("send_status").default("SENT").notNull(),
     moderationStatus: contentModerationStatusEnum("moderation_status").default("PENDING").notNull(),
@@ -1399,6 +1477,8 @@ export const messages = pgTable(
     uniqueIndex("messages_user_client_uq").on(table.senderUserId, table.clientMessageId).where(sql`${table.senderUserId} IS NOT NULL`),
     uniqueIndex("messages_admin_client_uq").on(table.senderAdminId, table.clientMessageId).where(sql`${table.senderAdminId} IS NOT NULL`),
     index("messages_conversation_created_idx").on(table.conversationId, table.createdAt),
+    uniqueIndex("messages_media_file_uq").on(table.mediaFileId).where(sql`${table.mediaFileId} IS NOT NULL`),
+    check("messages_media_shape_valid", sql`(${table.messageType}::text IN ('IMAGE','VOICE') AND ${table.mediaFileId} IS NOT NULL) OR (${table.messageType}::text NOT IN ('IMAGE','VOICE') AND ${table.mediaFileId} IS NULL)`),
     check("messages_sequence_positive", sql`${table.sequenceNo} > 0`),
     check(
       "messages_sender_valid",
@@ -1482,6 +1562,47 @@ export const notifications = pgTable(
   ],
 );
 
+// Feedback is not a support case: it has no order, conversation or money effects.
+export const feedbacks = pgTable("feedbacks", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "restrict" }),
+  clientRequestId: uuid("client_request_id").notNull(),
+  content: text("content").notNull(),
+  status: feedbackStatusEnum("status").default("SUBMITTED").notNull(),
+  reply: text("reply"),
+  repliedByAdminId: uuid("replied_by_admin_id").references(() => adminAccounts.id, { onDelete: "restrict" }),
+  repliedAt: timestamp("replied_at", { withTimezone: true }),
+  version: integer("version").default(0).notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, table => [
+  uniqueIndex("feedbacks_user_request_uq").on(table.userId, table.clientRequestId),
+  index("feedbacks_user_created_idx").on(table.userId, table.createdAt, table.id),
+  index("feedbacks_status_created_idx").on(table.status, table.createdAt, table.id),
+  check("feedbacks_content_valid", sql`length(trim(${table.content})) BETWEEN 1 AND 5000`),
+  check("feedbacks_version_valid", sql`${table.version} >= 0`),
+  check("feedbacks_reply_valid", sql`(${table.status} = 'REPLIED' AND ${table.reply} IS NOT NULL AND length(trim(${table.reply})) BETWEEN 1 AND 5000 AND ${table.repliedByAdminId} IS NOT NULL AND ${table.repliedAt} IS NOT NULL) OR (${table.status} <> 'REPLIED' AND ${table.reply} IS NULL AND ${table.repliedByAdminId} IS NULL AND ${table.repliedAt} IS NULL)`),
+]);
+
+export const announcements = pgTable("announcements", {
+  id: uuid("id").primaryKey(),
+  title: varchar("title", { length: 120 }).notNull(),
+  content: text("content").notNull(),
+  coverFileId: uuid("cover_file_id").references(() => files.id, { onDelete: "restrict" }),
+  status: announcementStatusEnum("status").default("DRAFT").notNull(),
+  createdByAdminId: uuid("created_by_admin_id").notNull().references(() => adminAccounts.id, { onDelete: "restrict" }),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  retiredAt: timestamp("retired_at", { withTimezone: true }),
+  version: integer("version").default(0).notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, table => [
+  index("announcements_status_created_idx").on(table.status, table.createdAt, table.id),
+  check("announcements_content_valid", sql`length(trim(${table.title})) BETWEEN 1 AND 120 AND length(trim(${table.content})) BETWEEN 1 AND 20000`),
+  check("announcements_version_valid", sql`${table.version} >= 0`),
+  check("announcements_lifecycle_valid", sql`(${table.status} = 'DRAFT' AND ${table.publishedAt} IS NULL AND ${table.retiredAt} IS NULL) OR (${table.status} = 'PUBLISHED' AND ${table.coverFileId} IS NOT NULL AND ${table.publishedAt} IS NOT NULL AND ${table.retiredAt} IS NULL) OR (${table.status} = 'RETIRED' AND ${table.coverFileId} IS NOT NULL AND ${table.publishedAt} IS NOT NULL AND ${table.retiredAt} IS NOT NULL AND ${table.retiredAt} >= ${table.publishedAt})`),
+]);
+
 export const deliveryLogs = pgTable(
   "delivery_logs",
   {
@@ -1510,7 +1631,7 @@ export const fileUsages = pgTable(
     createdAt: createdAt(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
-  (table) => [uniqueIndex("file_usages_target_uq").on(table.fileId, table.usageType, table.targetType, table.targetId).where(sql`${table.deletedAt} IS NULL`), index("file_usages_target_idx").on(table.targetType, table.targetId)],
+  (table) => [uniqueIndex("file_usages_target_uq").on(table.fileId, table.usageType, table.targetType, table.targetId).where(sql`${table.deletedAt} IS NULL`), uniqueIndex("file_usages_order_evidence_uq").on(table.fileId).where(sql`${table.targetType} = 'ORDER' AND ${table.usageType} = 'EVIDENCE' AND ${table.deletedAt} IS NULL`), index("file_usages_target_idx").on(table.targetType, table.targetId)],
 );
 
 export const platformConfigs = pgTable(
@@ -1689,6 +1810,54 @@ export const idempotencyKeys = pgTable(
   },
   (table) => [uniqueIndex("idempotency_keys_scope_key_uq").on(table.scope, table.idempotencyKey), index("idempotency_keys_expires_idx").on(table.expiresAt), check("idempotency_resource_pair", sql`(${table.resourceType} IS NULL) = (${table.resourceId} IS NULL)`)],
 );
+
+/** Durable intent; no account credentials or provider error bodies are stored here. */
+export const financialTransferOperations = pgTable("financial_transfer_operations", {
+  id: uuid("id").primaryKey(),
+  kind: varchar("kind", {length: 16}).$type<"REFUND" | "PAYOUT">().notNull(),
+  refundId: uuid("refund_id").references(() => refunds.id),
+  withdrawalId: uuid("withdrawal_id").references(() => withdrawals.id),
+  channel: varchar("channel", {length: 32}).notNull(),
+  businessNo: varchar("business_no", {length: 128}).notNull(),
+  amountCent: bigint("amount_cent", {mode: "bigint"}).notNull(),
+  status: varchar("status", {length: 32}).$type<"READY" | "PROCESSING" | "UNKNOWN" | "MANUAL_REVIEW" | "SUCCEEDED" | "FAILED">().default("READY").notNull(),
+  providerReference: varchar("provider_reference", {length: 160}),
+  attempts: integer("attempts").default(0).notNull(),
+  maxAttempts: integer("max_attempts").default(8).notNull(),
+  leaseToken: uuid("lease_token"),
+  leaseUntil: timestamp("lease_until", {withTimezone: true}),
+  nextRunAt: timestamp("next_run_at", {withTimezone: true}).defaultNow().notNull(),
+  lastError: varchar("last_error", {length: 64}),
+  version: integer("version").default(0).notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, t => [
+  check("transfer_target_valid", sql`(${t.kind}='REFUND' AND ${t.refundId} IS NOT NULL AND ${t.withdrawalId} IS NULL) OR (${t.kind}='PAYOUT' AND ${t.withdrawalId} IS NOT NULL AND ${t.refundId} IS NULL)`),
+  check("transfer_status_valid", sql`${t.status} IN ('READY','PROCESSING','UNKNOWN','MANUAL_REVIEW','SUCCEEDED','FAILED')`),
+  check("transfer_values_valid", sql`${t.amountCent}>0 AND ${t.attempts}>=0 AND ${t.maxAttempts}>0 AND ${t.version}>=0`),
+  check("transfer_channel_valid", sql`(${t.kind}='REFUND' AND ${t.channel} IN ('WECHAT_APP','ALIPAY_APP')) OR (${t.kind}='PAYOUT' AND ${t.channel} IN ('WECHAT','ALIPAY'))`),
+  uniqueIndex("transfer_refund_active_uq").on(t.refundId).where(sql`${t.status} NOT IN ('FAILED','SUCCEEDED')`),
+  uniqueIndex("transfer_withdrawal_active_uq").on(t.withdrawalId).where(sql`${t.status} NOT IN ('FAILED','SUCCEEDED')`),
+  index("transfer_due_idx").on(t.status,t.nextRunAt),
+]);
+
+/** Local Mock channel ledger, separate from business/ledger completion, survives process restarts. */
+export const mockTransferResults = pgTable("mock_transfer_results", {
+  id: uuid("id").primaryKey(),
+  kind: varchar("kind", {length: 16}).$type<"REFUND" | "PAYOUT">().notNull(),
+  channel: varchar("channel", {length: 32}).notNull(),
+  idempotencyKey: varchar("idempotency_key", {length: 160}).notNull(),
+  requestHash: char("request_hash", {length: 64}).notNull(),
+  providerReference: varchar("provider_reference", {length: 160}).notNull(),
+  status: varchar("status", {length: 16}).$type<"PROCESSING" | "UNKNOWN" | "SUCCEEDED" | "FAILED">().default("PROCESSING").notNull(),
+  version: integer("version").default(0).notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, t => [
+  uniqueIndex("mock_transfer_key_uq").on(t.kind,t.channel,t.idempotencyKey),
+  check("mock_transfer_status_valid", sql`${t.status} IN ('PROCESSING','UNKNOWN','SUCCEEDED','FAILED')`),
+  check("mock_transfer_kind_valid", sql`${t.kind} IN ('REFUND','PAYOUT')`),
+]);
 
 export const scheduledJobs = pgTable(
   "scheduled_jobs",

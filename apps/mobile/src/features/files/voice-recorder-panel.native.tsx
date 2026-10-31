@@ -7,7 +7,11 @@ import { recordingDurationMessage, recordingPermissionMessage, recordingPermissi
 import type { VoiceRecorderPanelProps } from "@/features/files/voice-recorder-panel";
 import { colors, spacing, typography } from "@/theme/tokens";
 
-export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecorderPanelProps) {
+export function VoiceRecorderPanel({ disabled, onAsset, onMessage, purpose = "profile" }: VoiceRecorderPanelProps) {
+  const minimumMs = purpose === "chat" ? 1000 : VOICE_MINIMUM_DURATION_MS;
+  const autoStopMs = purpose === "chat" ? 59000 : VOICE_NATIVE_AUTOSTOP_DURATION_MS;
+  const mounted = useRef(true);
+  const starting = useRef(false);
   const cancelled = useRef(false);
   const emittedUri = useRef<string | null>(null);
   const latestUri = useRef<string | null>(null);
@@ -19,10 +23,10 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
   const [recordingActive, setRecordingActive] = useState(false);
 
   function emitRecording(uri: string, durationMs: number) {
-    if (emittedUri.current === uri || cancelled.current) return;
+    if (!mounted.current || emittedUri.current === uri || cancelled.current) return;
     recordingActiveRef.current = false;
     recordingStartedAt.current = 0;
-    const durationError = recordingDurationMessage(durationMs);
+    const durationError = purpose === "chat" ? (durationMs < 1000 || durationMs > 60000 ? "聊天语音须为 1–60 秒。" : null) : recordingDurationMessage(durationMs);
     if (durationError) {
       const invalidFile = new File(uri);
       if (invalidFile.exists) invalidFile.delete();
@@ -56,7 +60,10 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
     latestDurationMs.current = state.durationMillis;
   }, [state.durationMillis]);
 
-  useEffect(() => () => {
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+    mounted.current = false;
     cancelled.current = true;
     // useAudioRecorder owns the native shared object's release on unmount. Do not
     // call recorder methods here: the hook may release it before an async cleanup
@@ -67,9 +74,12 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
       if (file.exists) file.delete();
     }
     void setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false, allowsBackgroundRecording: false }).catch(() => undefined);
+    };
   }, []);
 
   const start = async () => {
+    if (starting.current || disabled || !mounted.current) return;
+    starting.current = true;
     cancelled.current = false;
     recordingActiveRef.current = false;
     recordingStartedAt.current = 0;
@@ -78,10 +88,12 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
     setBlocked(false);
     try {
       const current = await getRecordingPermissionsAsync();
+      if (!mounted.current) return;
       // Android can report canAskAgain=false before the first runtime prompt.
       // Always make one real request while the permission is not granted; an
       // actually blocked permission returns immediately without showing UI.
       const permission = current.granted ? current : await requestRecordingPermissionsAsync();
+      if (!mounted.current) return;
       const permissionState = recordingPermissionState(permission);
       if (permissionState !== "granted") {
         const permanentlyBlocked = permissionState === "blocked";
@@ -90,13 +102,16 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
         return;
       }
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true, shouldPlayInBackground: false, shouldRouteThroughEarpiece: false, allowsBackgroundRecording: false });
+      if (!mounted.current) return;
       await recorder.prepareToRecordAsync();
+      if (!mounted.current) return;
       latestUri.current = recorder.uri;
       recordingStartedAt.current = Date.now();
-      recorder.record({ forDuration: VOICE_NATIVE_AUTOSTOP_DURATION_MS / 1_000 });
+      recorder.record({ forDuration: autoStopMs / 1_000 });
       recordingActiveRef.current = true;
       setRecordingActive(true);
     } catch {
+      if (!mounted.current) return;
       recordingActiveRef.current = false;
       recordingStartedAt.current = 0;
       const uri = recorder.uri;
@@ -106,22 +121,28 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
         if (file.exists) file.delete();
       }
       await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false, allowsBackgroundRecording: false }).catch(() => undefined);
-      onMessage("录音器启动失败，请检查麦克风权限后重试。", false);
+      if (mounted.current) onMessage("录音器启动失败，请检查麦克风权限后重试。", false);
+    } finally {
+      starting.current = false;
+      if (!mounted.current) void setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false, allowsBackgroundRecording: false }).catch(() => undefined);
     }
   };
 
   const stop = async () => {
-    if (state.durationMillis < VOICE_MINIMUM_DURATION_MS) { onMessage("录音至少需要 10 秒。", false); return; }
+    if (state.durationMillis < minimumMs) { onMessage(`录音至少需要 ${minimumMs / 1000} 秒。`, false); return; }
     setFinishing(true);
     try {
       await recorder.stop();
+      if (!mounted.current) return;
       const latest = recorder.getStatus();
       const uri = latest.url ?? recorder.uri;
       latestUri.current = uri;
       if (uri) emitRecording(uri, latest.durationMillis);
+    } catch {
+      if (mounted.current) onMessage("结束录音失败，请取消后重试。", false);
     } finally {
       await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false, allowsBackgroundRecording: false }).catch(() => undefined);
-      setFinishing(false);
+      if (mounted.current) setFinishing(false);
     }
   };
 
@@ -131,12 +152,13 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
     recordingStartedAt.current = 0;
     setRecordingActive(false);
     if (recorder.isRecording) await recorder.stop().catch(() => undefined);
+    if (!mounted.current) return;
     const uri = recorder.uri;
     if (uri) { const file = new File(uri); if (file.exists) file.delete(); }
     emittedUri.current = null;
     latestUri.current = null;
     await setAudioModeAsync({ allowsRecording: false, shouldPlayInBackground: false, allowsBackgroundRecording: false }).catch(() => undefined);
-    onMessage("本次录音已取消，临时文件已清理。", false);
+    if (mounted.current) onMessage("本次录音已取消，临时文件已清理。", false);
   };
 
   const togglePause = () => {
@@ -144,18 +166,18 @@ export function VoiceRecorderPanel({ disabled, onAsset, onMessage }: VoiceRecord
       recorder.pause();
       return;
     }
-    const remainingSeconds = Math.max(1, Math.ceil((VOICE_NATIVE_AUTOSTOP_DURATION_MS - state.durationMillis) / 1_000));
+    const remainingSeconds = Math.max(1, Math.ceil((autoStopMs - state.durationMillis) / 1_000));
     recorder.record({ forDuration: remainingSeconds });
   };
 
   const active = recordingActive;
   return <View style={styles.panel}>
-    <Text style={styles.meta}>现场录制 M4A（AAC）· 最短 10 秒 · 最长 30 秒</Text>
+    <Text style={styles.meta}>{purpose === "chat" ? "聊天语音 · 1–60 秒 · 非实时通话" : "现场录制 M4A（AAC）· 最短 10 秒 · 最长 30 秒"}</Text>
     {active ? <Text style={styles.timer}>{(state.durationMillis / 1_000).toFixed(1)} 秒{state.isRecording ? " · 录制中" : " · 已暂停"}</Text> : null}
-    {!active ? <PrimaryButton tone="plain" label="现场录制声音名片" disabled={disabled || finishing} onPress={() => void start()} /> : null}
+    {!active ? <PrimaryButton tone="plain" label={purpose === "chat" ? "录制聊天语音" : "现场录制声音名片"} disabled={disabled || finishing} onPress={() => void start()} /> : null}
     {active ? <View style={styles.row}>
       <View style={styles.flex}><PrimaryButton tone="plain" label={state.isRecording ? "暂停录音" : "继续录音"} disabled={finishing} onPress={togglePause} /></View>
-      <View style={styles.flex}><PrimaryButton label="结束录音" disabled={finishing || state.durationMillis < VOICE_MINIMUM_DURATION_MS} onPress={() => void stop()} /></View>
+      <View style={styles.flex}><PrimaryButton label="结束录音" disabled={finishing || state.durationMillis < minimumMs} onPress={() => void stop()} /></View>
     </View> : null}
     {active ? <PrimaryButton tone="plain" label="取消并清理本次录音" disabled={finishing} onPress={() => void cancel()} /> : null}
     {blocked ? <PrimaryButton tone="plain" label="打开系统麦克风设置" onPress={() => void Linking.openSettings()} /> : null}

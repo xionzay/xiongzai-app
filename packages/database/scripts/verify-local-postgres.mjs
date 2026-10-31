@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import pg from "pg";
+import { readMigrationStatus } from "../../../scripts/migration-status.mjs";
 
 if (!process.env.DATABASE_URL || !process.env.TEST_DATABASE_URL) {
   throw new Error("DATABASE_URL and TEST_DATABASE_URL are required.");
@@ -36,14 +37,16 @@ try {
   const developmentDatabase = (await client.query("SELECT current_database() AS database, current_user AS role")).rows[0];
 
   assert.match(String(version), /^16\./u);
-  assert.equal(tableCount, 70);
-  assert.equal(enumCount, 68);
+  assert.equal(tableCount, 72);
+  assert.equal(enumCount, 70);
   assert.equal(extensionCount, 1);
   assert.ok(foreignKeyCount > 0);
   assert.ok(partialIndexCount > 0);
   assert.equal(exclusionCount, 1);
   assert.ok(deferredTriggerCount >= 10);
-  assert.equal(migrationCount, 9);
+  const migrationStatus = await readMigrationStatus(process.env.DATABASE_URL);
+  assert.equal(migrationStatus.current, true, "Local migration hashes/timestamps must match the repository journal");
+  assert.equal(migrationCount, migrationStatus.expectedCount);
   assert.equal(policyBindingTriggerCount, 6);
   assert.equal(lifecycleTriggerCount, 9);
   assert.deepEqual(paymentChannels, ["WECHAT_APP", "ALIPAY_APP", "MOCK"]);

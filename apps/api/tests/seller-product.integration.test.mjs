@@ -53,7 +53,7 @@ before(async () => {
   await runMigration("0004_payment_channels_voice_constraints.sql");
   await runMigration("0005_policy_acceptance_context.sql");
   await runMigration("0006_policy_version_bindings.sql");
-  database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-seller-product-test", options: `-c search_path=${schemaName},public`, max: 4 });
+  await applyStageOneMigrations(migrationClient, schemaName); database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-seller-product-test", options: `-c search_path=${schemaName},public`, max: 4 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async () => {} }, objectStorageProvider: storage, logger: new JsonLogger("seller-product-test", () => {}) });
   user = await seedUser(true);
   await seedRequiredPolicies(user.id);
@@ -277,6 +277,12 @@ test("product versions, bigint cents, SKU state and off-sale discovery rules wor
   const secondImageId = await seedOwnedFile(user.id, "PRODUCT_IMAGE", "image/png");
   const duplicateImages = await userRequest("PUT", `/api/v1/seller/services/${productId}/images`, { version: draft.json().version, images: [{ file_id: firstImageId, sort_order: 0, is_cover: true }, { file_id: firstImageId, sort_order: 1, is_cover: false }] });
   assert.equal(duplicateImages.statusCode, 400, duplicateImages.body);
+  const limitId=randomUUID();
+  await migrationClient.query("INSERT INTO platform_configs(id,config_key,value_json,version_no,status,created_by_admin_id) VALUES($1,'product.image_max_count','{\"value\":1}',1,'ACTIVE',$2)",[limitId,admin.id]);
+  const overConfiguredLimit=await userRequest("PUT",`/api/v1/seller/services/${productId}/images`,{version:draft.json().version,images:[{file_id:firstImageId,sort_order:0,is_cover:true},{file_id:secondImageId,sort_order:1,is_cover:false}]});
+  assert.equal(overConfiguredLimit.statusCode,400,overConfiguredLimit.body);
+  await migrationClient.query("UPDATE platform_configs SET status='RETIRED' WHERE id=$1",[limitId]);
+  await migrationClient.query("INSERT INTO platform_configs(id,config_key,value_json,version_no,status,created_by_admin_id) VALUES($1,'product.image_max_count','{\"value\":2}',2,'ACTIVE',$2)",[randomUUID(),admin.id]);
   const images = await userRequest("PUT", `/api/v1/seller/services/${productId}/images`, { version: draft.json().version, images: [{ file_id: firstImageId, sort_order: 0, is_cover: true }, { file_id: secondImageId, sort_order: 1, is_cover: false }] });
   assert.equal(images.statusCode, 200, images.body);
   assert.deepEqual(images.json().map((item) => [item.file_id, item.sort_order, item.is_cover]), [[firstImageId, 0, true], [secondImageId, 1, false]]);
@@ -386,6 +392,15 @@ test("discovery search, scoped sorting cursors, favorite paging and public files
 
   const companionSearch = await app.inject({ method: "GET", url: "/api/v1/companions?keyword=%E6%90%9C%E7%B4%A2%E9%AB%98%E6%89%8B&sort=rating" });
   assert.equal(companionSearch.statusCode, 200, companionSearch.body); assert.equal(companionSearch.json().items[0].id, secondSellerId);
+  assert.equal(companionSearch.json().items[0].public_product_count, 1);
+  assert.deepEqual(companionSearch.json().items[0].main_games, []);
+  await migrationClient.query("UPDATE products SET game='DELTA_FORCE',fulfillment_seconds=86400 WHERE id=$1", [secondProductId]);
+  const hiddenProductId = randomUUID();
+  await migrationClient.query("INSERT INTO products(id,seller_id,title,description,status,min_price_cent,game,fulfillment_seconds) VALUES($1,$2,'未公开草稿商品','不能计入公开店铺汇总','DRAFT',100,'PEACE_ELITE',86400)", [hiddenProductId, secondSellerId]);
+  const summary = await app.inject({ method: "GET", url: "/api/v1/companions?keyword=%E6%90%9C%E7%B4%A2%E9%AB%98%E6%89%8B" });
+  assert.equal(summary.statusCode, 200, summary.body);
+  assert.equal(summary.json().items[0].public_product_count, 1);
+  assert.deepEqual(summary.json().items[0].main_games, ["DELTA_FORCE"]);
   const companionPage = await app.inject({ method: "GET", url: "/api/v1/companions?sort=rating&limit=1" });
   assert.ok(companionPage.json().next_cursor); assert.equal(companionPage.json().items[0].id, secondSellerId);
   const companionNext = await app.inject({ method: "GET", url: `/api/v1/companions?sort=rating&limit=1&cursor=${encodeURIComponent(companionPage.json().next_cursor)}` });
@@ -410,6 +425,24 @@ test("discovery search, scoped sorting cursors, favorite paging and public files
   await migrationClient.query("INSERT INTO files (id,owner_user_id,bucket,object_key,file_type,mime_type,size_bytes,sha256,upload_status,moderation_status,visibility) VALUES ($1,$2,'public-media','products/cover image.webp','PRODUCT_IMAGE','image/webp',128,$3,'VERIFIED','APPROVED','PUBLIC')", [fileId, user.id, "a".repeat(64)]);
   const publicFile = await app.inject({ method: "GET", url: `/api/v1/files/${fileId}` });
   assert.equal(publicFile.statusCode, 200, publicFile.body); assert.equal(publicFile.json().content_url, "https://cdn.example.test/assets/public-media/products/cover%20image.webp");
+});
+
+test("minimal onboarding draft and submission preserve optional voice and all server gates", {skip:!enabled}, async()=>{
+  const account=await seedUser(true);
+  const draft=await userRequestAs(account,"POST","/api/v1/seller/profile",{seller_nickname:"本地最小资料"});
+  assert.equal(draft.statusCode,201);
+  assert.equal((await userRequestAs(account,"POST","/api/v1/seller/applications",{version:draft.json().version})).statusCode,400);
+  const avatar=await seedOwnedFile(account.id,"SELLER_AVATAR","image/webp");
+  const saved=await userRequestAs(account,"PATCH","/api/v1/seller/profile",{seller_nickname:"本地最小资料",seller_avatar_file_id:avatar,introduction:"本地最小入驻资料",preferred_mode:"商品服务",game_rank:null,kd:null,play_style:null,game_experience:null,voice_file_id:null,voice_duration_ms:null,version:draft.json().version});
+  assert.equal(saved.statusCode,200);
+  const denied=await userRequestAs(account,"POST","/api/v1/seller/applications",{version:saved.json().version});
+  assert.equal(denied.statusCode,409);
+  await migrationClient.query("INSERT INTO user_policy_acceptances(user_id,policy_version_id,acceptance_scene,confirmation_method,ip,user_agent) SELECT $1,policy_version_id,acceptance_scene,'ONLINE_CONFIRM','127.0.0.1','isolated-alignment' FROM user_policy_acceptances WHERE user_id=$2 AND acceptance_scene<>'VOICE_SAMPLE_UPLOAD' ON CONFLICT DO NOTHING",[account.id,user.id]);
+  const submitted=await userRequestAs(account,"POST","/api/v1/seller/applications",{version:saved.json().version});
+  assert.equal(submitted.statusCode,201,submitted.body);
+  const detail=await adminRequest(readOnlyAdmin,"GET",`/admin-api/v1/seller-applications/${submitted.json().id}`);
+  assert.equal(detail.statusCode,200);assert.equal(detail.json().snapshot.voice_file_id,null);assert.equal(detail.json().snapshot.game_rank,null);
+  assert.equal((await userRequestAs(account,"POST","/api/v1/seller/applications",{version:saved.json().version})).statusCode,409);
 });
 
 async function seedUser(verified) {
@@ -458,3 +491,4 @@ function adminRequest(account, method, url, payload) { return app.inject({ metho
 function sellerPublicInput(profile) { return { seller_nickname: profile.seller_nickname, seller_avatar_file_id: profile.seller_avatar_file_id, cover_file_id: profile.cover_file_id, introduction: profile.introduction, game_rank: profile.game_rank, kd: profile.kd, preferred_mode: profile.preferred_mode, play_style: profile.play_style, game_experience: profile.game_experience, voice_file_id: profile.voice_file_id, voice_duration_ms: profile.voice_duration_ms }; }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(fileName) { let source = await readFile(new URL(`../../../packages/database/migrations/${fileName}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }
+import { applyStageOneMigrations } from "./stage-one-migrations.mjs";

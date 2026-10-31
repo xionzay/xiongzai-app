@@ -40,6 +40,7 @@ const platform = Platform.OS === "android" ? "android" : Platform.OS === "ios" ?
 export const apiClient = new ApiClient(
   resolveApiBaseUrl({
     configuredUrl: process.env.EXPO_PUBLIC_API_BASE_URL,
+    androidUsbReverse: process.env.EXPO_PUBLIC_ANDROID_USB_REVERSE,
     appEnvironment: runtimeFlags.appEnvironment,
     platform,
     isPhysicalDevice: Device.isDevice

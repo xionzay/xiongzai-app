@@ -58,22 +58,26 @@ test("系统权限拒绝与设置引导使用明确文案", () => {
   assert.equal(permissionCopy("unavailable"), "当前构建未接入");
 });
 
-test("我的页面保留原设计的天空背景、双资产卡和带说明菜单", () => {
-  assert.match(mineScreenSource, /skyBands/u);
-  assert.match(mineScreenSource, /height:\s*110/u);
-  assert.match(mineScreenSource, /height:\s*137/u);
-  assert.match(mineScreenSource, /height:\s*67/u);
-  assert.match(mineScreenSource, /个人资料与常用功能/u);
+test("我的页面同步10月25日确认设计、七个图标订单入口、紧凑资产区，身份统一放设置", () => {
+  assert.match(mineScreenSource, /<BrandBackdrop/u);
+  assert.match(mineScreenSource, /minHeight: approvedLayout.headerHeight/u);
+  assert.match(mineScreenSource, /minHeight:\s*88/u);
+  assert.match(mineScreenSource, /minHeight:\s*72/u);
+  assert.match(mineScreenSource, /查看全部订单/u);
+  assert.match(mineScreenSource, /params: \{ filter: item.status \}/u);
   assert.match(mineScreenSource, /styles\.assets/u);
-  assert.match(mineScreenSource, /FavoriteMenuIcon color="#FFB319" size=\{62\}/u);
-  assert.match(mineScreenSource, /CouponActionIcon color="#2F8FE5" size=\{62\}/u);
-  assert.match(mineScreenSource, /assetIcon: \{ width: 62, height: 62, alignItems: "center", justifyContent: "center" \}/u);
+  assert.match(mineScreenSource, /ApprovedIllustration kind="favorite" size=\{36\}/u);
+  assert.match(mineScreenSource, /Image source=\{couponIcon\} style=\{styles\.assetIcon\}/u);
+  assert.match(mineScreenSource, /assetIcon: \{ width: 36, height: 36, alignItems: "center", justifyContent: "center" \}/u);
   assert.doesNotMatch(mineScreenSource, /ui-(?:star|coupon)-rounded\.jpg/u);
-  assert.match(mineScreenSource, /<TargetIcon size=\{28\}/u);
-  assert.match(mineScreenSource, /陪玩 \$\{sellerFavorites\} · 服务 \$\{serviceFavorites\}/u);
+  assert.match(mineScreenSource, /<ApprovedIllustration kind="setting" size=\{28\}/u);
+  assert.match(mineScreenSource, /note="店铺与商品"/u);
+  assert.match(mineScreenSource, /label: "待评价", status: "PENDING_REVIEW"/u);
+  assert.match(mineScreenSource, /<ApprovedIllustration kind=\{item.icon\}/u);
+  assert.doesNotMatch(mineScreenSource, /0 张可用|当前在线/u);
   assert.match(mineScreenSource, /\$\{unreadCount\} 条未读/u);
-  assert.match(mineScreenSource, /设置与隐私/u);
-  assert.match(mineScreenSource, /陪玩身份申请入口/u);
+  assert.match(mineScreenSource, /accessibilityLabel="打开设置"/u);
+  assert.doesNotMatch(mineScreenSource, /seller\/status|卖家工作台|陪玩身份/u);
 });
 
 test("买家公开主页对齐原设计并只展示服务端公开资料与评价", () => {
@@ -89,8 +93,9 @@ test("买家公开主页对齐原设计并只展示服务端公开资料与评�
   assert.doesNotMatch(publicUserScreenSource, /熊崽玩家 K|10086|162|Kirito|sampleReview|demoReview|fake/u);
 });
 
-test("优惠券占位页对齐原设计并明确第一阶段不展示虚假优惠", () => {
-  for (const label of ["优惠券", "第一阶段暂不开放使用", "0", "张可用", "优惠券入口保留，后续版本开放领取与核销", "暂无可用优惠券", "第一阶段订单按服务实际价格结算，不展示虚假优惠信息。", "去看看服务"]) assert.match(couponsScreenSource, new RegExp(label, "u"));
+test("领券中心对齐入口并明确未接通业务，不展示虚假数量", () => {
+  for (const label of ["领券中心", "领取与核销尚未开放", "优惠券业务尚未接通", "优惠券入口保留，后续版本开放领取与核销", "领券功能尚未开放", "订单金额以服务端核算为准", "去看看商品"]) assert.match(couponsScreenSource, new RegExp(label, "u"));
+  assert.doesNotMatch(couponsScreenSource, /张可用|领取成功/u);
   assert.match(couponsScreenSource, /CouponActionIcon color="#2F8FE5" surfaceColor="#DDECFF" size=\{64\}/u);
   assert.doesNotMatch(couponsScreenSource, /ui-coupon-rounded\.jpg/u);
   assert.match(couponsScreenSource, /router\.replace\("\/\(buyer-tabs\)"\)/u);
@@ -132,16 +137,10 @@ test("协议与隐私中心展示服务端发布版本、分类与真实接受�
   assert.doesNotMatch(rulesScreenSource, /所有交易必须在熊崽电竞平台完成|samplePolicy|demoPolicy|fakePolicy/u);
 });
 
-test("设置页对齐原设计并依据真实陪玩状态开放经营入口", () => {
-  for (const label of ["设置", "账号、隐私与身份", "SELLER IDENTITY", "陪玩身份", "通过审核后，才可以拥有陪玩主页、发布服务并处理卖家订单。", "申请成为陪玩", "查看申请资料和审核记录", "个人资料", "头像、昵称、手机号", "隐私与安全", "手机号、实名认证、隐私设置", "协议与隐私中心", "协议、隐私清单、权限和接受记录", "退出登录"]) assert.match(settingsScreenSource, new RegExp(label, "u"));
-  assert.match(settingsScreenSource, /useSellerProfile\(\)/u);
-  assert.match(settingsScreenSource, /sellerEntry\(seller\.data\?\.status \?\? "NOT_APPLIED", seller\.data\?\.latest_application\?\.status\)/u);
-  assert.match(settingsScreenSource, /seller\.error instanceof ApiClientError && seller\.error\.code === "SELLER_NOT_FOUND"/u);
-  assert.match(settingsScreenSource, /if \(entry === "CENTER"\) router\.push\("\/\(seller-tabs\)"\)/u);
-  assert.match(settingsScreenSource, /router\.push\("\/seller\/status"\)/u);
-  assert.match(settingsScreenSource, /router\.push\("\/settings\/profile"\)/u);
-  assert.match(settingsScreenSource, /router\.push\("\/settings\/security"\)/u);
-  assert.match(settingsScreenSource, /router\.push\("\/rules"\)/u);
+test("设置页仅保留统一的身份切换入口，申请与资格判断移至切换页", () => {
+  for (const label of ["设置", "切换身份", "个人资料", "头像、昵称、手机号", "隐私与安全", "手机号、实名认证、隐私设置", "协议与隐私中心", "平台规则", "退出登录"]) assert.match(settingsScreenSource, new RegExp(label, "u"));
+  assert.match(settingsScreenSource, /<NativeHeader title="设置" subtitle=""/u);
+  assert.match(settingsScreenSource, /pathname: '\/settings\/switch-identity'/u);
+  assert.doesNotMatch(settingsScreenSource, /<Pressable[^>]*sellerCopy|const openSeller|卖家工作台|开始申请|进入陪玩中心/u);
   assert.match(settingsScreenSource, /await logout\(\)/u);
-  assert.doesNotMatch(settingsScreenSource, /sampleSeller|demoSeller|fakeSeller/u);
 });

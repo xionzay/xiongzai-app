@@ -39,16 +39,8 @@ before(async () => {
   await client.connect();
   await client.query(`CREATE SCHEMA "${schemaName}"`);
   await client.query(`SET search_path TO "${schemaName}", public`);
-  await runMigration("0000_initial_schema.sql");
-  await runMigration("0001_core_invariants.sql");
-  await runMigration("0002_admin_stage2_permissions.sql");
-  await runMigration("0003_admin_query_performance.sql");
-  await runMigration("0004_payment_channels_voice_constraints.sql");
-  await runMigration("0005_policy_acceptance_context.sql");
-  await runMigration("0006_policy_version_bindings.sql");
-  await runMigration("0007_user_lifecycle_requests.sql");
-  await runMigration("0008_user_lifecycle_invariants.sql");
-  await runMigration("0009_clear_rhodey.sql");
+  const journal = JSON.parse(await readFile(new URL("../migrations/meta/_journal.json", import.meta.url), "utf8"));
+  for (const entry of journal.entries) await runMigration(`${entry.tag}.sql`);
 });
 
 after(async () => {
@@ -65,7 +57,7 @@ test("all migrations apply to an empty PostgreSQL 16 database", { skip: !enabled
     [schemaName],
   );
 
-  assert.equal(result.rows[0].count, 70);
+  assert.equal(result.rows[0].count, 78);
   const enums = await client.query(
     `SELECT count(*)::integer AS count
        FROM pg_type type
@@ -73,7 +65,7 @@ test("all migrations apply to an empty PostgreSQL 16 database", { skip: !enabled
       WHERE namespace.nspname = $1 AND type.typtype = 'e'`,
     [schemaName],
   );
-  assert.equal(enums.rows[0].count, 68);
+  assert.equal(enums.rows[0].count, 70);
   const permission = await client.query("SELECT permission_key, high_risk FROM permissions WHERE permission_key='system_health.read'");
   assert.deepEqual(permission.rows, [{ permission_key: "system_health.read", high_risk: false }]);
   const localCompletionPermissions = await client.query("SELECT permission_key, high_risk FROM permissions WHERE permission_key IN ('finance.export', 'withdrawal.review.initial', 'withdrawal.review.final') ORDER BY permission_key");
@@ -130,6 +122,24 @@ test("critical constraints, partial indexes and deferred triggers exist", { skip
     [schemaName],
   );
   assert.equal(indexes.rowCount, 15);
+});
+
+test("feedback and announcements have isolated identities, lifecycle constraints, history guards and ungranted permissions", { skip: !enabled }, async () => {
+  const triggers = await client.query("SELECT tgname FROM pg_trigger WHERE tgrelid IN ('feedbacks'::regclass,'announcements'::regclass) AND NOT tgisinternal ORDER BY tgname");
+  assert.deepEqual(triggers.rows.map(row => row.tgname), ["announcements_protect_history", "feedbacks_protect_history"]);
+  const required = ["feedbacks_user_request_uq", "feedbacks_user_created_idx", "feedbacks_status_created_idx", "announcements_status_created_idx"];
+  const indexes = await client.query("SELECT indexname FROM pg_indexes WHERE schemaname=$1 AND indexname=ANY($2)", [schemaName, required]);
+  assert.deepEqual(indexes.rows.map(row => row.indexname).sort(), required.sort());
+  const permissionRows = await client.query("SELECT permission_key,high_risk FROM permissions WHERE permission_key LIKE 'feedback.%' OR permission_key LIKE 'announcement.%' ORDER BY permission_key");
+  assert.deepEqual(permissionRows.rows, [
+    { permission_key: "announcement.manage", high_risk: false }, { permission_key: "announcement.publish", high_risk: true }, { permission_key: "announcement.read", high_risk: false },
+    { permission_key: "feedback.manage", high_risk: false }, { permission_key: "feedback.read", high_risk: false }, { permission_key: "feedback.reply", high_risk: true },
+  ]);
+  const grants = await client.query("SELECT count(*)::int n FROM role_permissions rp JOIN permissions p ON p.id=rp.permission_id WHERE p.permission_key LIKE 'feedback.%' OR p.permission_key LIKE 'announcement.%'");
+  assert.equal(grants.rows[0].n, 0);
+  const enumValues = await client.query("SELECT enum_range(NULL::notification_category)::text[] categories,enum_range(NULL::file_type)::text[] purposes");
+  assert.ok(enumValues.rows[0].categories.includes("FEEDBACK"));
+  assert.ok(enumValues.rows[0].purposes.includes("ANNOUNCEMENT_IMAGE"));
 });
 
 test("critical cursor and worker queries can use their composite indexes", { skip: !enabled }, async () => {
@@ -834,3 +844,18 @@ async function connectIsolatedClient() {
   await isolatedClient.query(`SET search_path TO "${schemaName}", public`);
   return isolatedClient;
 }
+test("durable transfer intents enforce target, channel, amount and active-attempt uniqueness",{skip:!enabled},async()=>{
+  const names=["transfer_target_valid","transfer_status_valid","transfer_values_valid","transfer_channel_valid"];
+  const constraints=await client.query("SELECT conname FROM pg_constraint WHERE connamespace=$1::regnamespace AND conname=ANY($2::text[])",[schemaName,names]);
+  assert.deepEqual(constraints.rows.map(x=>x.conname).sort(),names.sort());
+  for(const [kind,channel,amount,status] of [["REFUND","ALIPAY_APP","0","READY"],["PAYOUT","BANK","100","READY"],["REFUND","WECHAT_APP","100","SUCCEEDED_FAKE"]]){
+    await assert.rejects(client.query("INSERT INTO financial_transfer_operations(id,kind,channel,business_no,amount_cent,status,refund_id,withdrawal_id) VALUES($1,$2,$3,'synthetic',$4,$5,$6,$7)",[randomUUID(),kind,channel,amount,status,kind==="REFUND"?randomUUID():null,kind==="PAYOUT"?randomUUID():null]),error=>error.code==="23514");
+  }
+  const indexes=await client.query("SELECT indexname,indexdef FROM pg_indexes WHERE schemaname=$1 AND indexname IN ('transfer_refund_active_uq','transfer_withdrawal_active_uq')",[schemaName]);
+  assert.equal(indexes.rows.length,2);for(const row of indexes.rows){assert.match(row.indexdef,/UNIQUE/);assert.match(row.indexdef,/FAILED/);assert.match(row.indexdef,/SUCCEEDED/);}
+  const key=randomUUID(),reference="mock-refund-"+key;
+  await client.query("INSERT INTO mock_transfer_results(id,kind,channel,idempotency_key,request_hash,provider_reference) VALUES($1,'REFUND','WECHAT_APP',$2,$3,$4)",[randomUUID(),key,"a".repeat(64),reference]);
+  await assert.rejects(client.query("INSERT INTO mock_transfer_results(id,kind,channel,idempotency_key,request_hash,provider_reference) VALUES($1,'REFUND','WECHAT_APP',$2,$3,$4)",[randomUUID(),key,"b".repeat(64),reference]),error=>error.code==="23505");
+  const columns=await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema=$1 AND table_name='mock_transfer_results'",[schemaName]);
+  assert.equal(columns.rows.some(row=>/account_token|password|secret|plaintext/.test(row.column_name)),false);
+});

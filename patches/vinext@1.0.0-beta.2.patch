@@ -1,0 +1,56 @@
+diff --git a/dist/server/prod-server.js b/dist/server/prod-server.js
+index 034f1574b95660d922742ed7eba6afdd54b5727a..5208555eec177f2721f0615e1bef624d2470f56b 100644
+--- a/dist/server/prod-server.js
++++ b/dist/server/prod-server.js
+@@ -584,6 +584,12 @@ function nodeToWebRequest(req, urlOverride, prerenderSecret) {
+ * Supports streaming compression for SSR responses.
+ */
+ async function sendWebResponse(webResponse, req, res, compress) {
++	// Rendering may finish after the client has already closed its socket.
++	// Do not acquire a reader or attach pipeline() to a destroyed destination.
++	if (res.destroyed || res.writableEnded) {
++		if (webResponse.body) await webResponse.body.cancel();
++		return;
++	}
+ 	const status = webResponse.status;
+ 	const statusText = webResponse.statusText || void 0;
+ 	const writeHead = (headers) => {
+@@ -613,13 +619,35 @@ async function sendWebResponse(webResponse, req, res, compress) {
+ 	}
+ 	writeHead(varyByEncoding ? mergeVaryHeader(nodeHeaders, "Accept-Encoding") : nodeHeaders);
+ 	if (req.method === "HEAD") {
+-		cancelResponseBody(webResponse);
++		await webResponse.body.cancel();
+ 		res.end();
+ 		return;
+ 	}
++	if (res.destroyed || res.writableEnded) {
++		await webResponse.body.cancel();
++		return;
++	}
+ 	const nodeStream = Readable.fromWeb(webResponse.body);
+-	if (shouldCompress) pipeline(nodeStream, createCompressor(encoding, "streaming"), res, () => {});
+-	else pipeline(nodeStream, res, () => {});
++	const compressor = shouldCompress ? createCompressor(encoding, "streaming") : null;
++	let clientDisconnected = false;
++	// Register before pipeline's close listener: a source/codec failure also
++	// destroys the response, but is not a client disconnect and must surface.
++	const onClose = () => {
++		clientDisconnected = !res.writableFinished && !nodeStream.errored && !compressor?.errored && !res.errored;
++	};
++	res.once("close", onClose);
++	try {
++		await new Promise((resolve, reject) => {
++			const done = (error) => {
++				if (!error || clientDisconnected && error.code === "ERR_STREAM_PREMATURE_CLOSE") resolve();
++				else reject(nodeStream.errored ?? compressor?.errored ?? error);
++			};
++			if (compressor) pipeline(nodeStream, compressor, res, done);
++			else pipeline(nodeStream, res, done);
++		});
++	} finally {
++		res.off("close", onClose);
++	}
+ }
+ /**
+ * Start the production server.

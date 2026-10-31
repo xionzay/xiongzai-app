@@ -1,7 +1,31 @@
-import type { MessageApiView, NotificationApiView, RelatedObjectType } from "@/types/api";
+import type { MessageApiView, NotificationApiView, NotificationCategory, NotificationRelatedObjectType as RelatedObjectType } from "@/types/api";
 
-export type LocalMessage = { clientMessageId: string; content: string; state: "SENDING" | "FAILED"; createdAt: string };
+const notificationCopies: Record<NotificationCategory, { badge: string; label: string }> = {
+  ORDER: { badge: "订", label: "订单通知" },
+  ACCOUNT: { badge: "账", label: "账户通知" },
+  PLATFORM: { badge: "平", label: "平台通知" },
+  FEEDBACK: { badge: "反", label: "反馈通知" }
+};
+
+export function notificationCategoryCopy(category: string): { badge: string; label: string } {
+  return Object.hasOwn(notificationCopies, category)
+    ? notificationCopies[category as NotificationCategory]
+    : { badge: "通", label: "其他通知" };
+}
+
+export function notificationListPath(category?: NotificationCategory, cursor?: string): string {
+  return `/notifications?limit=20&include_feedback=true${category ? `&category=${category}` : ""}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+}
+
+export type ChatMedia = { type: "IMAGE" | "VOICE"; fileId: string };
+export type LocalMessage = { clientMessageId: string; content: string; stickerId?: string; media?: ChatMedia; state: "SENDING" | "FAILED"; createdAt: string };
 export const CHAT_POLL_INTERVAL_MS = 5_000;
+
+// A restored in-flight record has no running request in this screen. Offer a
+// same-ID retry instead of leaving its bubble stuck on “发送中”.
+export function recoverPendingMessage(message: LocalMessage | null): LocalMessage | null {
+  return message ? { ...message, state: "FAILED" } : null;
+}
 
 export function mergeServerMessages(pages: { items: MessageApiView[] }[]): MessageApiView[] {
   const seen = new Set<string>(); const result: MessageApiView[] = [];
@@ -15,6 +39,8 @@ export function maxSequence(messages: Pick<MessageApiView, "sequence_no">[]) { r
 
 export type NotificationDestination = { pathname: string; params?: Record<string, string> } | null;
 export function notificationDestination(type: RelatedObjectType | null, id: string | null, variables: Record<string, unknown>): NotificationDestination {
+  if (type === "FEEDBACK") return id ? { pathname: "/feedback", params: { id } } : null;
+  if (type === "ANNOUNCEMENT") return id ? { pathname: "/announcements/[id]", params: { id } } : null;
   if (type === "ORDER" && id) return { pathname: "/orders/[id]", params: { id } };
   if (type === "REFUND" && id) return { pathname: "/refunds/[id]", params: { id } };
   if (type === "COMPLAINT" && id) return { pathname: "/complaints/[id]", params: { id } };

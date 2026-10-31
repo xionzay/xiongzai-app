@@ -33,7 +33,7 @@ export async function createApiApp(options: { config?: ApiConfig; databaseClient
     origin: config.corsOrigins,
     credentials: true,
     methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposedHeaders: ["x-request-id"],
+    exposedHeaders: ["x-request-id", "content-range", "accept-ranges", "content-disposition"],
   });
   app.enableShutdownHooks();
   await app.init();

@@ -1,128 +1,82 @@
-import type { ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { NativePage, nativeShadow } from "@/components/native-page";
-import { FileImage } from "@/components/file-image";
-import { MessageTabIcon, MineTabIcon, OrderTabIcon, ServiceTabIcon, WithdrawTabIcon } from "@/components/tab-icons";
-import { StateView } from "@/components/state-view";
-import { useSellerOverview } from "@/features/seller/seller-api";
-import { colors } from "@/theme/tokens";
-import { formatCent } from "@/utils/money";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router, type Href } from 'expo-router';
+import { BrandBackdrop } from '@/components/brand-backdrop';
+import { ApprovedIllustration } from '@/components/approved-illustration';
+import { FileImage } from '@/components/file-image';
+import { StateView } from '@/components/state-view';
+import { useSellerOverview } from './seller-api';
+import { useSellerOrders } from './seller-order-api';
+import { SellerIdentity } from './seller-identity';
+import { sellerHomeTasks, type SellerHomeFilter } from './seller-home-model';
+import { sellerOrderStatusLabel } from './seller-order-domain';
+import { colors } from '@/theme/tokens';
+import { approvedLayout } from '@/theme/approved-layout';
+import { formatCent } from '@/utils/money';
+import type { OrderApiView } from '@/types/api';
 
 export function SellerOverviewScreen() {
   const query = useSellerOverview();
+  const ordersQuery = useSellerOrders(Boolean(query.data));
+  const { fontScale } = useWindowDimensions();
   const data = query.data;
-  const services = data?.service_counts ?? {};
-  const orders = data?.order_counts ?? {};
+  const rows = ordersQuery.data?.pages.flatMap(page => page.items) ?? [];
+  const tasks = sellerHomeTasks(rows);
+  const complete = Boolean(ordersQuery.data) && !ordersQuery.hasNextPage && !ordersQuery.isError;
+  const refundCount = complete ? new Set(rows.filter(row => row.after_sale_status === 'IN_PROGRESS').map(row => row.id)).size : null;
+  const openOrders = (filter: SellerHomeFilter) => router.push({ pathname: '/(seller-tabs)/orders', params: { filter } });
+  const refresh = () => { void query.refetch(); void ordersQuery.refetch(); };
 
-  return (
-    <NativePage
-      title="陪玩中心"
-      subtitle={data ? `${data.seller.seller_nickname} 的经营工作台` : "经营数据与待办事项"}
-      action={<Pressable accessibilityRole="button" accessibilityLabel="刷新数据" onPress={() => void query.refetch()} style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}><MessageTabIcon color={colors.text} size={29} /></Pressable>}
-      refreshing={query.isRefetching}
-      onRefresh={() => void query.refetch()}
-      onBack={() => router.replace("/(buyer-tabs)/mine")}
-      contentStyle={styles.content}
-    >
-      {query.isPending ? <View style={styles.state}><StateView kind="loading" title="正在读取真实经营数据" /></View> : null}
-      {query.isError || (!query.isPending && !data) ? <View style={styles.state}><StateView kind="error" title="陪玩中心加载失败" onRetry={() => void query.refetch()} /></View> : null}
-      {data ? (
-        <>
-          <View style={styles.finance}>
-            <Text style={styles.financeLabel}>可提现收益</Text>
-            <Text style={styles.amount}>{formatCent(data.finance.available_cent)}</Text>
-            <Text style={styles.financeMeta}>待结算 {formatCent(data.finance.pending_cent)}</Text>
-            <Pressable accessibilityRole="button" accessibilityLabel="查看收益" onPress={() => router.push("/(seller-tabs)/earnings")} style={({ pressed }) => [styles.financeButton, pressed && styles.pressed]}><Text style={styles.financeButtonText}>查看收益 ›</Text></Pressable>
+  return <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}><BrandBackdrop seller />
+    <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={query.isRefetching || ordersQuery.isRefetching} onRefresh={refresh} />}>
+      {query.isPending ? <StateView kind="loading" title="正在读取经营数据" /> : query.isError || !data ? <StateView kind="error" title="工作台加载失败" onRetry={refresh} /> : <>
+        <SellerIdentity seller={data.seller} />
+        <View style={styles.section}>
+          <View style={styles.titleRow}><Text style={styles.title}>今日经营</Text><Pressable accessibilityRole="button" accessibilityLabel="查看经营数据" style={styles.linkButton} onPress={() => router.push('/(seller-tabs)/earnings')}><Text style={styles.link}>查看数据</Text><Arrow /></Pressable></View>
+          <View style={styles.stats}><View style={[styles.stat, styles.turnoverStat]}><Text style={styles.note}>今日成交额（元）</Text><Text style={styles.number}>—</Text></View><View style={[styles.stat, styles.paidStat]}><Text style={styles.note}>支付订单</Text><Text style={styles.number}>—</Text></View></View>
+          <Text style={styles.note}>今日成交统计暂未提供，不能以余额或累计订单代替。</Text>
+          <View style={styles.counts}>
+            <Count label="待付款" value={data.order_counts.PENDING_PAYMENT ?? 0} large={fontScale > 1.3} />
+            <Count label="待服务" value={data.order_counts.PENDING_SERVICE ?? 0} large={fontScale > 1.3} onPress={() => openOrders('PENDING_SERVICE')} />
+            <Count label="服务中" value={data.order_counts.IN_SERVICE ?? 0} large={fontScale > 1.3} onPress={() => openOrders('IN_SERVICE')} />
+            <Count label="待收货" value={data.order_counts.PENDING_BUYER_CONFIRM ?? 0} large={fontScale > 1.3} onPress={() => openOrders('PENDING_BUYER_CONFIRM')} />
+            <Count label="退款售后" value={refundCount} large={fontScale > 1.3} onPress={() => openOrders('AFTER_SALE')} />
           </View>
-
-          {data.finance.withdrawal_paused ? <View style={styles.danger}><Text style={styles.dangerText}>存在欠款 {formatCent(data.finance.liability_cent)}，提现已暂停。</Text></View> : null}
-
-          <View style={styles.metrics}>
-            <Metric label="新订单" value={orders.PENDING_ACCEPT ?? 0} />
-            <Metric label="服务中" value={orders.IN_SERVICE ?? 0} />
-            <Metric label="待确认" value={orders.PENDING_BUYER_CONFIRM ?? 0} />
-            <Metric label="在售服务" value={services.ON_SALE ?? 0} />
-          </View>
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>经营工具</Text>
-            <View style={styles.tools}>
-              <Tool icon={<OrderTabIcon color="#2877B9" size={32} />} label="卖家订单" onPress={() => router.push("/(seller-tabs)/orders")} />
-              <Tool icon={<ServiceTabIcon color="#2877B9" size={32} />} label="服务管理" onPress={() => router.push("/(seller-tabs)/services")} />
-              <Tool icon={<MineTabIcon color="#2877B9" size={32} />} label="主页管理" onPress={() => router.push("/seller/profile")} />
-              <Tool icon={<WithdrawTabIcon color="#2877B9" size={32} />} label="收益提现" onPress={() => router.push("/(seller-tabs)/earnings")} />
-            </View>
-          </View>
-
-          <View style={styles.todo}>
-            <View style={styles.todoTitleRow}><Text style={styles.sectionTitle}>待处理事项</Text><Text style={styles.live}>实时</Text></View>
-            <Todo label={`${orders.PENDING_ACCEPT ?? 0} 个新订单等待接单`} note="请按订单中的接单截止时间处理" action="处理" onPress={() => router.push("/(seller-tabs)/orders")} />
-            <Todo label={`${services.REVIEW_REJECTED ?? 0} 个服务审核未通过`} note="根据审核意见修改后重新提交" action="查看" onPress={() => router.push("/(seller-tabs)/services")} last />
-          </View>
-
-          <Pressable accessibilityRole="button" accessibilityLabel="查看我的公开陪玩主页" onPress={() => router.push("/seller/preview")} style={({ pressed }) => [styles.preview, pressed && styles.pressed]}>
-            <View style={styles.previewAvatar}><FileImage fileId={data.seller.seller_avatar_file_id} style={styles.previewMark} label="陪玩头像" /><View accessibilityLabel="在线" style={styles.onlineDot} /></View>
-            <View style={styles.previewCopy}><Text style={styles.previewTitle}>查看我的公开陪玩主页</Text><Text style={styles.previewNote}>买家看到的主页效果</Text></View>
-            <Text style={styles.previewAction}>预览 ›</Text>
-          </Pressable>
-        </>
-      ) : null}
-    </NativePage>
-  );
+          <Text style={styles.note}>待付款仅展示数量，付款后才可查看买家订单。</Text>
+        </View>
+        <View style={styles.tools}>
+          <Tool label="商品管理" icon="product" href="/(seller-tabs)/services" large={fontScale > 1.3} />
+          <Tool label="评价管理" icon="message" href="/seller/reviews" large={fontScale > 1.3} />
+          <Tool label="售后处理" icon="shield" href="/seller/refunds" large={fontScale > 1.3} />
+          <Tool label="经营数据" icon="data" href="/(seller-tabs)/earnings" large={fontScale > 1.3} />
+        </View>
+        {data.finance.withdrawal_paused ? <Text style={styles.warning}>存在欠款 {formatCent(data.finance.liability_cent)}，提现已暂停。请到“我的 → 资金与结算明细”查看。</Text> : null}
+        <View style={styles.titleRow}><Text style={styles.title}>{complete ? '待办事项' : '已加载待办'} {ordersQuery.isPending || ordersQuery.isError ? '—' : tasks.length}</Text><Text style={styles.note}>按已知时限排序</Text></View>
+        {ordersQuery.isPending ? <StateView kind="loading" title="正在读取订单待办" /> : ordersQuery.isError ? <StateView kind="error" title="待办读取失败" onRetry={() => void ordersQuery.refetch()} /> : <>
+          {tasks.map(order => <Task key={order.id} order={order} />)}
+          {!tasks.length ? <View style={styles.empty}><ApprovedIllustration kind="shield" size={48} /><Text style={styles.title}>{complete ? '暂无订单待办' : '已加载订单中暂无待办'}</Text><Text style={styles.note}>{complete ? '有新的订单或售后时会显示在这里。' : '还有历史订单未加载，请继续查看。'}</Text></View> : null}
+          {ordersQuery.hasNextPage ? <Pressable accessibilityRole="button" accessibilityLabel="加载更多订单待办" disabled={ordersQuery.isFetchingNextPage} style={styles.loadMore} onPress={() => void ordersQuery.fetchNextPage()}><Text style={styles.link}>{ordersQuery.isFetchingNextPage ? '加载中…' : '加载更多订单待办'}</Text></Pressable> : null}
+        </>}
+        {(data.service_counts.REVIEW_REJECTED ?? 0) > 0 ? <Pressable accessibilityRole="button" style={styles.task} onPress={() => router.push('/(seller-tabs)/services')}><Text style={styles.title}>{data.service_counts.REVIEW_REJECTED} 个服务审核未通过</Text><Text style={styles.note}>查看审核意见并修改</Text></Pressable> : null}
+      </>}
+    </ScrollView>
+  </SafeAreaView>;
 }
-
-function Metric({ label, value }: { label: string; value: number }) {
-  return <View style={styles.metric}><Text style={styles.metricValue}>{value}</Text><Text style={styles.metricLabel}>{label}</Text></View>;
+function Arrow() { return <ApprovedIllustration kind="chevron" rotation={-90} size={16} />; }
+function Count({ label, value, onPress, large }: { label: string; value: number | null; onPress?: () => void; large: boolean }) {
+  const content = <><Text style={styles.countNumber}>{value ?? '—'}</Text><Text style={styles.countLabel}>{label}</Text></>;
+  return onPress ? <Pressable accessibilityRole="button" accessibilityLabel={`查看${label}订单`} onPress={onPress} style={({ pressed }) => [styles.count, large && styles.largeCell, pressed && styles.pressed]}>{content}</Pressable> : <View style={[styles.count, large && styles.largeCell]}>{content}</View>;
 }
-
-function Tool({ icon, label, onPress }: { icon: ReactNode; label: string; onPress(): void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={({ pressed }) => [styles.tool, pressed && styles.pressed]}><View style={styles.toolMark}>{icon}</View><Text style={styles.toolLabel}>{label}</Text></Pressable>;
+function Tool({ label, icon, href, large }: { label: string; icon: 'product'|'message'|'shield'|'data'; href: Href; large: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={() => router.push(href)} style={({ pressed }) => [styles.tool, large && styles.largeCell, pressed && styles.pressed]}><ApprovedIllustration kind={icon} size={36} /><Text style={styles.toolLabel}>{label}</Text></Pressable>;
 }
-
-function Todo({ label, note, action, onPress, last = false }: { label: string; note: string; action: string; onPress(): void; last?: boolean }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={`${label}，${note}`} onPress={onPress} style={({ pressed }) => [styles.todoRow, !last && styles.todoBorder, pressed && styles.pressed]}><View style={styles.todoCopy}><Text style={styles.todoLabel}>{label}</Text><Text style={styles.todoNote}>{note}</Text></View><Text style={styles.todoAction}>{action} ›</Text></Pressable>;
+function Task({ order }: { order: OrderApiView }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${sellerOrderStatusLabel(order)}，${order.product_title}，查看订单`} onPress={() => router.push({ pathname: '/seller/orders/[id]', params: { id: order.id } })} style={({ pressed }) => [styles.task, pressed && styles.pressed]}>
+    <Text style={styles.title}>{sellerOrderStatusLabel(order)}</Text>
+    <View style={styles.product}><FileImage fileId={order.product_image} label={`${order.product_title}主图`} compact style={styles.cover} /><View style={styles.copy}><Text style={styles.productName}>{order.product_title}</Text><Text style={styles.note}>{order.sku_name}</Text><Text style={styles.note}>买家实付 <Text style={styles.productName}>{formatCent(order.paid_amount_cent)}</Text></Text></View><Arrow /></View>
+    <View style={styles.titleRow}><Text style={[styles.note, styles.copy]}>{order.buyer?.nickname ?? '平台买家'}</Text><Text style={styles.link}>查看订单</Text></View>
+  </Pressable>;
 }
-
 const styles = StyleSheet.create({
-  content: { gap: 13 },
-  headerAction: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#FFFDF8" },
-  state: { minHeight: 260, justifyContent: "center", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
-  finance: { position: "relative", minHeight: 168, justifyContent: "center", paddingHorizontal: 22, paddingVertical: 18, borderRadius: 20, backgroundColor: "#367FBF", ...nativeShadow },
-  financeLabel: { color: "#FFFFFF", fontSize: 14, lineHeight: 19, fontWeight: "800" },
-  amount: { marginTop: 4, color: "#FFFFFF", fontSize: 41, lineHeight: 45, fontWeight: "900" },
-  financeMeta: { marginTop: 5, color: "#D7ECFF", fontSize: 12, lineHeight: 16 },
-  financeButton: { position: "absolute", right: 18, bottom: 18, minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderRadius: 13, backgroundColor: "#CFF20B" },
-  financeButtonText: { color: "#29390B", fontSize: 13, lineHeight: 17, fontWeight: "900" },
-  metrics: { flexDirection: "row", minHeight: 86, overflow: "hidden", paddingVertical: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 16, backgroundColor: "#FFFDF8", ...nativeShadow },
-  metric: { flex: 1, minHeight: 56, alignItems: "center", justifyContent: "center", borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: "rgba(62,57,47,0.12)" },
-  metricValue: { color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: "900" },
-  metricLabel: { marginTop: 5, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  section: { padding: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
-  sectionTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "900" },
-  tools: { flexDirection: "row", gap: 8, marginTop: 13 },
-  tool: { flex: 1, minHeight: 96, alignItems: "center", justifyContent: "center", gap: 7, borderWidth: 1, borderColor: "#D8E8F5", borderRadius: 15, backgroundColor: "#F3F8FC" },
-  toolMark: { width: 46, height: 46, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: "#C6DEF1", borderRadius: 14, backgroundColor: "#E1F1FF" },
-  toolLabel: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800", textAlign: "center" },
-  todo: { overflow: "hidden", paddingTop: 14, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
-  todoTitleRow: { minHeight: 24, flexDirection: "row", alignItems: "center", gap: 8 },
-  live: { color: colors.textSecondary, fontSize: 10, lineHeight: 14 },
-  todoRow: { minHeight: 68, flexDirection: "row", alignItems: "center", gap: 9 },
-  todoBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.12)" },
-  todoCopy: { flex: 1 },
-  todoLabel: { color: colors.text, fontSize: 12, lineHeight: 16, fontWeight: "800" },
-  todoNote: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  todoAction: { color: colors.brandDeep, fontSize: 12, lineHeight: 16, fontWeight: "800" },
-  preview: { minHeight: 78, flexDirection: "row", alignItems: "center", gap: 11, paddingHorizontal: 14, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "rgba(255,248,221,0.95)", ...nativeShadow },
-  previewAvatar: { position: "relative" },
-  previewMark: { width: 50, height: 50, borderRadius: 16, backgroundColor: "#E4F2FF" },
-  onlineDot: { position: "absolute", right: -2, bottom: -2, width: 13, height: 13, borderWidth: 2, borderColor: "#FFFDF8", borderRadius: 7, backgroundColor: "#39C868" },
-  previewCopy: { flex: 1 },
-  previewTitle: { color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: "900" },
-  previewNote: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 16 },
-  previewAction: { color: colors.brandDeep, fontSize: 12, fontWeight: "900" },
-  arrow: { color: colors.textSecondary, fontSize: 26 },
-  danger: { padding: 13, borderRadius: 14, backgroundColor: "rgba(255,240,232,0.96)" },
-  dangerText: { color: colors.danger, fontSize: 12, lineHeight: 16 },
-  pressed: { opacity: 0.72 }
+  safe: { flex: 1 }, content: { paddingHorizontal: approvedLayout.gutter, paddingBottom: 24 }, section: { paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: approvedLayout.divider }, titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, minHeight: 48 }, title: { color: colors.text, fontSize: 16, fontWeight: '700' }, note: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 }, link: { color: colors.brandDeep, fontSize: 12 }, linkButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 6 }, stats: { flexDirection: 'row', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: approvedLayout.divider }, stat: { gap: 8, paddingHorizontal: 8 }, turnoverStat: { flex: 1.4 }, paidStat: { flex: 1, paddingLeft: 30, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: approvedLayout.divider }, number: { color: colors.text, fontSize: 29, fontWeight: '700' }, counts: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 12 }, count: { width: '20%', minHeight: 64, justifyContent: 'center', alignItems: 'center', gap: 6 }, countNumber: { color: colors.text, fontSize: 21, fontWeight: '600' }, countLabel: { color: colors.textSecondary, fontSize: 12, textAlign: 'center' }, tools: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: approvedLayout.divider }, tool: { width: '25%', minHeight: 72, alignItems: 'center', justifyContent: 'center', gap: 6 }, toolLabel: { color: colors.text, fontSize: 13, textAlign: 'center' }, largeCell: { width: '50%', paddingVertical: 8 }, task: { gap: 10, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: approvedLayout.divider }, product: { flexDirection: 'row', alignItems: 'center', gap: 10 }, cover: { width: 62, height: 62, borderRadius: 8 }, copy: { flex: 1, gap: 4 }, productName: { color: colors.text, fontSize: 14, fontWeight: '600' }, empty: { alignItems: 'center', paddingVertical: 32, gap: 10 }, loadMore: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, warning: { color: colors.danger, fontSize: 13, lineHeight: 20, paddingVertical: 12 }, pressed: { opacity: 0.7 }
 });

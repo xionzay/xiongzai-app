@@ -1,6 +1,6 @@
 /* Homepage commerce treatment: existing brand art, simpler browsing surfaces. */
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen { --home-gutter: 12px; --home-text: #22262b; --home-muted: #6b7078; overflow-anchor: none; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-command-bar { padding-inline: var(--home-gutter); }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen { --home-gutter: 12px; --home-text: #22262b; --home-muted: #6b7078; overflow-anchor: none; overscroll-behavior-y: contain; scroll-padding-top: 124px; }
+.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-command-bar { padding-inline: var(--home-gutter); position: sticky; top: 0; z-index: 75; background: var(--buyer-page-background); }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-search-field { height: 44px; border: 1.5px solid var(--brand); border-radius: 5px; background: #fff; color: var(--home-muted); }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-search-field > span { font-size: 14px; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-search-field > strong { width: 64px; border-radius: 3px; font-weight: 600; }
@@ -44,9 +44,17 @@
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-stats { display: flex; flex-wrap: wrap; gap: 2px 12px; color: var(--home-muted); font-size: 13px; line-height: 19px; font-weight: 400; }
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-card:active,
 .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-card[data-pressed="true"] { background-color: #3085be0e; transform: none; scale: 1; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-load-more { display: block; min-height: 44px; margin: 8px auto 0; padding: 8px 16px; border: 1px solid #4084b333; border-radius: 10px; background: transparent; color: var(--brand); font-size: 14px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-load-error { margin: 12px 0 0; color: #a5392e; font-size: 14px; line-height: 21px; }
-.phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-companion-end { margin: 0; font-size: 13px; color: var(--home-muted); padding-block: 14px 2px; text-align: center; }
+/* One stable loading slot; list and header never move during a request. */
+.home-feed-footer { min-height: 68px; padding: 10px 16px; display: grid; place-items: center; color: #52697e; font-size: 13px; text-align: center; }
+.home-feed-feedback { display: grid; gap: 4px; justify-items: center; transform: translateY(var(--home-pull, 0px)); transition: transform 160ms ease-out; }
+.home-feed-feedback > span { display: inline-flex; gap: 8px; align-items: center; }
+.home-feed-feedback button { min-height: 44px; border: 0; background: transparent; color: var(--brand); font: inherit; padding: 8px 12px; border-radius: 8px; }
+.home-feed-feedback button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.home-feed-feedback button:disabled { opacity: .5; }
+.home-feed-feedback [role="alert"] { color: #a5392e; overflow-wrap: anywhere; }
+.home-feed-spinner { width: 16px; height: 16px; border: 2px solid #84bde455; border-top-color: var(--brand); border-radius: 50%; animation: home-feed-spin 700ms linear infinite; }
+@keyframes home-feed-spin { to { rotate: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .home-feed-feedback { transition: none; transform: none; } .home-feed-spinner { animation: none; } }
 @media (prefers-reduced-motion: reduce) {
   .phone-shell.user-theme[data-page-palette="buyer"] .home-screen .home-shop-card { transition: none; }
 }

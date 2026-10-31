@@ -12,6 +12,7 @@ import "./home-commerce.css";
 import "./search-discovery.css";
 import "./trade-v31/trade.css";
 import "./conversation-list.css";
+import "./seller-workbench/revenue.css";
 import "./seller-workbench/seller-workbench.css"; // Merchant workbench theme
 import "./purchase-spec-sheet.css";
 import "./buyer-surfaces.css"; // Buyer-only surfaces; seller and chat canvases stay unchanged

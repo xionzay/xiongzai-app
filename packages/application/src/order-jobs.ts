@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { orderSlotReservations, orders, orderStatusLogs, payments, uuidv7, type Database } from "@xiongzai/database";
+import { orderSlotReservations, orders, orderStatusLogs, payments, notifications, uuidv7, type Database } from "@xiongzai/database";
 import { OutboxService } from "./reliability.js";
 import { FinanceLedgerEngine } from "./finance-ledger.js";
 
@@ -7,6 +7,8 @@ export const ORDER_JOB_TYPES = {
   PAYMENT_TIMEOUT: "ORDER_PAYMENT_TIMEOUT",
   ACCEPT_TIMEOUT: "ORDER_ACCEPT_TIMEOUT",
   AUTO_CONFIRM: "ORDER_AUTO_CONFIRM",
+  RECEIPT_REMINDER: "ORDER_RECEIPT_REMINDER",
+  FULFILLMENT_DUE: "ORDER_FULFILLMENT_DUE",
 } as const;
 
 export class OrderJobProcessor {
@@ -14,10 +16,11 @@ export class OrderJobProcessor {
   private readonly finance: FinanceLedgerEngine;
   constructor(private readonly database: Database) { this.finance = new FinanceLedgerEngine(database); }
 
-  async process(jobType: string, orderId: string, requestId: string): Promise<boolean> {
+  async process(jobType: string, orderId: string, requestId: string, payload?: { order_version?: unknown; deadline_at?: unknown; hours?: unknown }): Promise<boolean> {
     if (jobType === ORDER_JOB_TYPES.PAYMENT_TIMEOUT) return this.closeForPaymentTimeout(orderId, requestId);
     if (jobType === ORDER_JOB_TYPES.ACCEPT_TIMEOUT) return this.closeForAcceptTimeout(orderId, requestId);
-    if (jobType === ORDER_JOB_TYPES.AUTO_CONFIRM) return this.autoConfirm(orderId, requestId);
+    if (jobType === ORDER_JOB_TYPES.AUTO_CONFIRM) return this.autoConfirm(orderId, requestId, payload);
+    if (jobType === ORDER_JOB_TYPES.RECEIPT_REMINDER || jobType === ORDER_JOB_TYPES.FULFILLMENT_DUE) return this.remind(jobType, orderId, payload);
     throw new Error(`Unsupported order job type: ${jobType}`);
   }
 
@@ -28,8 +31,9 @@ export class OrderJobProcessor {
       const changed = await tx.update(orders).set({ status: "CLOSED", paymentStatus: "CLOSED", closedAt: new Date(), cancelReason: "PAYMENT_TIMEOUT", version: sql`${orders.version} + 1`, updatedAt: new Date() })
         .where(and(eq(orders.id, orderId), eq(orders.status, "PENDING_PAYMENT"), eq(orders.version, order.version))).returning({ id: orders.id });
       if (!changed[0]) return false;
-      await tx.update(payments).set({ status: "CLOSED", closedAt: new Date(), version: sql`${payments.version} + 1`, updatedAt: new Date() })
-        .where(and(eq(payments.orderId, orderId), inArray(payments.status, ["CREATED", "PAYING"])));
+      const activePayments = await tx.select().from(payments).where(and(eq(payments.orderId, orderId), inArray(payments.status, ["CREATED", "PAYING"]))).for("update");
+      for (const payment of activePayments) await tx.update(payments).set({ status: "CLOSED", closedAt: new Date(), version: sql`${payments.version} + 1`, updatedAt: new Date() })
+        .where(and(eq(payments.id, payment.id), eq(payments.status, payment.status), eq(payments.version, payment.version)));
       await releaseReservation(tx, orderId);
       await appendOrderLog(tx, orderId, order.status, "CLOSED", "PAYMENT_TIMEOUT", requestId, "支付超时自动关单");
       await this.outbox.enqueue(tx, { aggregateType: "ORDER", aggregateId: orderId, eventType: "OrderPaymentTimedOut", payload: { order_id: orderId, order_no: order.orderNo } });
@@ -40,7 +44,7 @@ export class OrderJobProcessor {
   private async closeForAcceptTimeout(orderId: string, requestId: string): Promise<boolean> {
     return this.database.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
-      if (!order || order.status !== "PENDING_ACCEPT" || order.afterSaleStatus === "IN_PROGRESS") return false;
+      if (!order || order.fulfillmentSecondsSnapshot !== null || order.status !== "PENDING_ACCEPT" || order.afterSaleStatus === "IN_PROGRESS") return false;
       const changed = await tx.update(orders).set({ status: "CLOSED", closedAt: new Date(), cancelReason: "SELLER_ACCEPT_TIMEOUT", version: sql`${orders.version} + 1`, updatedAt: new Date() })
         .where(and(eq(orders.id, orderId), eq(orders.status, "PENDING_ACCEPT"), eq(orders.version, order.version))).returning({ id: orders.id });
       if (!changed[0]) return false;
@@ -51,10 +55,12 @@ export class OrderJobProcessor {
     });
   }
 
-  private async autoConfirm(orderId: string, requestId: string): Promise<boolean> {
+  private async autoConfirm(orderId: string, requestId: string, payload?: { order_version?: unknown; deadline_at?: unknown }): Promise<boolean> {
     return this.database.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
       if (!order || order.afterSaleStatus === "IN_PROGRESS" || order.paymentStatus === "REFUNDING" || order.status !== "PENDING_BUYER_CONFIRM" || !order.autoConfirmAt || order.autoConfirmAt > new Date()) return false;
+      if (order.evidenceReviewPending) return false;
+      if (order.fulfillmentSecondsSnapshot !== null && (!payload || payload.order_version!==order.version || payload.deadline_at!==order.autoConfirmAt.toISOString())) return false;
       const changed = await tx.update(orders).set({ status: "COMPLETED", completedAt: new Date(), version: sql`${orders.version} + 1`, updatedAt: new Date() })
         .where(and(eq(orders.id, orderId), eq(orders.status, "PENDING_BUYER_CONFIRM"), eq(orders.version, order.version))).returning();
       if (!changed[0]) return false;
@@ -63,6 +69,26 @@ export class OrderJobProcessor {
       await this.finance.recordOrderCompleted(tx, changed[0], requestId);
       await this.outbox.enqueue(tx, { aggregateType: "ORDER", aggregateId: orderId, eventType: "OrderAutoConfirmed", payload: { order_id: orderId, order_no: order.orderNo } });
       return true;
+    });
+  }
+
+  private async remind(jobType: string, orderId: string, payload?: { order_version?: unknown; deadline_at?: unknown; hours?: unknown }): Promise<boolean> {
+    return this.database.transaction(async tx => {
+      const [order] = await tx.select().from(orders).where(eq(orders.id, orderId)).limit(1).for("update");
+      if (!order || order.fulfillmentSecondsSnapshot===null || order.afterSaleStatus==="IN_PROGRESS" || order.paymentStatus==="REFUNDING" || order.evidenceReviewPending || typeof payload?.deadline_at!=="string") return false;
+      const receipt = jobType===ORDER_JOB_TYPES.RECEIPT_REMINDER;
+      const deadline = receipt ? order.autoConfirmAt : order.fulfillmentDueAt;
+      if (!deadline || deadline.toISOString()!==payload.deadline_at) return false;
+      if (receipt ? order.status!=="PENDING_BUYER_CONFIRM" || order.version!==payload.order_version || ![24,2].includes(Number(payload.hours)) || Date.now()<deadline.getTime()-Number(payload.hours)*3600000 || Date.now()>=deadline.getTime() : !["PENDING_SERVICE","IN_SERVICE"].includes(order.status) || deadline>new Date()) return false;
+      const title = receipt ? `收货确认剩余${payload.hours}小时` : "订单履约已逾期，请联系对方或申请售后";
+      const key = `order:${orderId}:${jobType}:${payload.deadline_at}:${receipt ? payload.hours : "due"}`;
+      let created = false;
+      for (const userId of receipt ? [order.buyerId] : [order.buyerId,order.sellerUserId]) {
+        const inserted = await tx.insert(notifications).values({ id:uuidv7(),userId,category:"ORDER",notificationType:jobType,title,contentTemplateId:jobType.toLowerCase(),contentVariablesJson:{order_id:orderId,deadline_at:payload.deadline_at},relatedType:"ORDER",relatedId:orderId,idempotencyKey:`${key}:${userId}` }).onConflictDoNothing().returning({id:notifications.id});
+        created ||= inserted.length>0;
+      }
+      if (created) await this.outbox.enqueue(tx,{aggregateType:"ORDER",aggregateId:orderId,eventType:receipt ? "OrderReceiptReminder" : "OrderFulfillmentOverdue",payload:{order_id:orderId,deadline_at:payload.deadline_at}});
+      return created;
     });
   }
 }

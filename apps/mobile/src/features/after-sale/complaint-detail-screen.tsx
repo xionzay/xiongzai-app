@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { useState } from "react";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
@@ -14,15 +16,7 @@ import { colors } from "@/theme/tokens";
 import type { ComplaintApiView, ComplaintStatus } from "@/types/api";
 import { ShieldIcon } from "@/components/tab-icons";
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function ComplaintDetailScreen() {
   const { id = "" } = useLocalSearchParams<{ id: string }>();
@@ -117,36 +111,36 @@ function ComplaintProgress({ progress, completed, item }: { progress: 1 | 2; com
     { title: "平台处理", note: complaintStatusCopy[item.status] },
     { title: "处理结果", note: completed ? complaintStatusCopy[item.status] : "等待处理" }
   ];
-  return <View style={styles.progressCard}>{steps.map((step, index) => { const active = index <= progress; return <View key={step.title} style={styles.progressStep}>{index < 2 ? <View style={[styles.progressLine, index < progress && styles.progressLineDone]} /> : null}<View style={[styles.progressMark, active && styles.progressMarkActive]}><Text style={[styles.progressMarkText, active && styles.progressMarkTextActive]}>{index < progress || completed && index === 2 ? "✓" : index + 1}</Text></View><Text style={styles.progressTitle}>{step.title}</Text><Text style={styles.progressNote} numberOfLines={2}>{step.note}</Text></View>; })}</View>;
+  return <View style={styles.progressCard}>{steps.map((step, index) => { const active = index <= progress; return <View key={step.title} style={styles.progressStep}>{index < 2 ? <View style={[styles.progressLine, index < progress && styles.progressLineDone]} /> : null}<View style={[styles.progressMark, active && styles.progressMarkActive]}><Text style={[styles.progressMarkText, active && styles.progressMarkTextActive]}>{index < progress || completed && index === 2 ? <JellyIcon kind="check" label="已选" /> : index + 1}</Text></View><Text style={styles.progressTitle}>{step.title}</Text><Text style={styles.progressNote} numberOfLines={2}>{step.note}</Text></View>; })}</View>;
 }
 
-function ComplaintBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function ComplaintBackdrop() { return <BrandBackdrop />; }
 
 function InfoRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) { return <View style={[styles.infoRow, last && styles.infoRowLast]}><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue} numberOfLines={3}>{value}</Text></View>; }
 
 function ActionButton({ label, onPress, primary = false, disabled = false }: { label: string; onPress: () => void; primary?: boolean; disabled?: boolean }) { return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={[styles.actionButton, primary && styles.actionPrimary, disabled && styles.disabled]}><Text style={[styles.actionText, primary && styles.actionPrimaryText]}>{label}</Text></Pressable>; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
-const card = { borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow } as const;
+const card = { ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 30 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 25, lineHeight: 31, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   notice: { marginHorizontal: 12, marginBottom: 10 },
   statusCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 12, marginBottom: 10, borderRadius: 20, padding: 18, backgroundColor: "#DFF0FF", ...softShadow },
   shieldWrap: { width: 52, height: 52, alignItems: "center", justifyContent: "center", borderRadius: 16, backgroundColor: "#3A86C2" },
   statusCopy: { flex: 1 },
   statusTitle: { color: colors.text, fontSize: 19, lineHeight: 25, fontWeight: "900" },
   statusNote: { marginTop: 5, color: "#4D6983", fontSize: 12, lineHeight: 17 },
-  progressCard: { flexDirection: "row", marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 8, paddingVertical: 16, ...card },
+  progressCard: { flexDirection: "row", marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 8, paddingVertical: 16, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   progressStep: { position: "relative", flex: 1, alignItems: "center" },
   progressLine: { position: "absolute", zIndex: 0, left: "50%", top: 16, width: "100%", height: 2, backgroundColor: "#D9D4CC" },
   progressLineDone: { backgroundColor: "#BADF28" },
@@ -156,18 +150,18 @@ const styles = StyleSheet.create({
   progressMarkTextActive: { color: "#34470F" },
   progressTitle: { marginTop: 8, color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "900", textAlign: "center" },
   progressNote: { marginTop: 4, color: "#74767B", fontSize: 12, lineHeight: 16, fontWeight: "700", textAlign: "center" },
-  factsCard: { marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 15, ...card },
+  factsCard: { marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   infoRow: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)" },
   infoRowLast: { borderBottomWidth: 0 },
   infoLabel: { color: "#74767B", fontSize: 12, lineHeight: 18 },
   infoValue: { maxWidth: "68%", color: colors.text, fontSize: 13, lineHeight: 19, fontWeight: "900", textAlign: "right" },
-  descriptionCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  descriptionCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   sectionTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontWeight: "900" },
   descriptionText: { marginTop: 10, color: "#555B61", fontSize: 12, lineHeight: 20 },
-  decisionCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, borderWidth: 1, borderColor: "#B8D7ED", borderRadius: 17, backgroundColor: "#F1F9FF", ...softShadow },
+  decisionCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   decisionText: { marginTop: 10, color: colors.text, fontSize: 13, lineHeight: 21, fontWeight: "800" },
   decisionNote: { marginTop: 8, color: "#647889", fontSize: 12, lineHeight: 16 },
-  evidenceCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  evidenceCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   sectionCount: { color: "#3478B2", fontSize: 12, fontWeight: "900" },
   evidenceRow: { minHeight: 59, flexDirection: "row", alignItems: "center", gap: 11, marginTop: 10, borderRadius: 13, padding: 10, backgroundColor: "#F2F7FB" },
@@ -177,7 +171,7 @@ const styles = StyleSheet.create({
   evidenceTitle: { color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: "900" },
   evidenceNote: { marginTop: 4, color: "#74767B", fontSize: 12, lineHeight: 16 },
   emptyEvidence: { marginTop: 11, color: "#74767B", fontSize: 12, lineHeight: 17 },
-  timelineCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  timelineCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   logRow: { flexDirection: "row", gap: 13, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)" },
   logDot: { width: 12, height: 12, marginTop: 5, borderWidth: 3, borderColor: colors.white, borderRadius: 6, backgroundColor: colors.brand, shadowColor: colors.brand, shadowOpacity: 1, shadowRadius: 2 },
   logCopy: { flex: 1 },

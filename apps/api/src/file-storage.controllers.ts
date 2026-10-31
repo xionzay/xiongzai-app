@@ -13,17 +13,18 @@ const fileType = z.enum(fileTypes);
 const uploadRequest = z.object({
   file_type: fileType,
   mime_type: z.string().trim().min(3).max(128).transform((value) => value.toLowerCase()),
-  size_bytes: z.number().int().positive().max(20 * 1_024 * 1_024),
+  size_bytes: z.number().int().positive().max(100 * 1_024 * 1_024),
   sha256: z.string().trim().regex(/^[a-f0-9]{64}$/u),
 });
 const moderationList = z.object({
+  file_type: fileType.optional(),
   upload_status: z.enum(["PENDING", "UPLOADED", "VERIFIED", "FAILED", "DELETED"]).optional(),
   moderation_status: z.enum(["PENDING", "APPROVED", "REJECTED", "FLAGGED"]).optional(),
   cursor: z.string().trim().min(1).max(4096).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   sort: z.enum(["created_desc", "created_asc"]).default("created_desc"),
 });
-const moderation = z.object({ decision: z.enum(["APPROVED", "REJECTED", "FLAGGED"]), reason: z.string().trim().min(2).max(1000) });
+const moderation = z.object({ decision: z.enum(["APPROVED", "REJECTED", "FLAGGED"]), continuous_recording_confirmed: z.boolean().optional(), reason: z.string().trim().min(2).max(1000) });
 const myFilesQuery = z.object({
   file_type: fileType.optional(),
   upload_status: z.enum(["PENDING", "UPLOADED", "VERIFIED", "FAILED"]).optional(),
@@ -37,9 +38,14 @@ export class UserFileController {
   constructor(private readonly service: FileStorageService) {}
 
   @Get("policies") @Public() policies() { return this.service.listPolicies(); }
+  @Get("after-sale-evidence/:caseId/:fileId/access") afterSaleEvidence(@Req()request:UserRequest,@Res({passthrough:true})reply:FastifyReply,@Param("caseId",new ZodValidationPipe(uuid))caseId:string,@Param("fileId",new ZodValidationPipe(uuid))fileId:string){reply.header("cache-control","no-store, private");return this.service.getAfterSaleEvidenceAccess(principal(request),caseId,fileId);}
+  @Get("review-images/:reviewId/:fileId/content") @Public() async reviewImage(@Res() reply:FastifyReply,@Param("reviewId",new ZodValidationPipe(uuid))reviewId:string,@Param("fileId",new ZodValidationPipe(uuid))fileId:string){await sendReviewImage(reply,await this.service.previewReviewImage(reviewId,fileId));}
+  @Get(":fileId/review-preview") async reviewPreview(@Req()request:UserRequest,@Res()reply:FastifyReply,@Param("fileId",new ZodValidationPipe(uuid))fileId:string){await sendReviewImage(reply,await this.service.previewOwnedReviewImage(principal(request),fileId));}
+  @Get("chat-media/:conversationId/:messageId/access") chatAccess(@Req() request: UserRequest, @Res({ passthrough: true }) reply: FastifyReply, @Param("conversationId", new ZodValidationPipe(uuid)) conversationId: string, @Param("messageId", new ZodValidationPipe(uuid)) messageId: string) { reply.header("cache-control", "no-store, private"); return this.service.getChatMediaAccess(principal(request), conversationId, messageId); }
+  @Get("order-evidence/:orderId/:fileId/access") evidenceAccess(@Req() request: UserRequest, @Res({passthrough:true}) reply:FastifyReply, @Param("orderId",new ZodValidationPipe(uuid)) orderId:string,@Param("fileId",new ZodValidationPipe(uuid)) fileId:string){reply.header("cache-control","no-store, private");return this.service.getOrderEvidenceAccess(principal(request),orderId,fileId);}
   @Post("uploads") requestUpload(@Req() request: UserRequest, @Body(new ZodValidationPipe(uploadRequest)) body: z.infer<typeof uploadRequest>) { return this.service.requestUserUpload(principal(request), { fileType: body.file_type, mimeType: body.mime_type, sizeBytes: body.size_bytes, sha256: body.sha256 }); }
   @Post(":fileId/complete") complete(@Req() request: UserRequest, @Param("fileId", new ZodValidationPipe(uuid)) fileId: string) { return this.service.completeUserUpload(principal(request), fileId); }
-  @Get(":fileId/access") access(@Req() request: UserRequest, @Param("fileId", new ZodValidationPipe(uuid)) fileId: string) { return this.service.getMyFile(principal(request), fileId); }
+  @Get(":fileId/access") access(@Req() request: UserRequest, @Res({ passthrough: true }) reply: FastifyReply, @Param("fileId", new ZodValidationPipe(uuid)) fileId: string) { reply.header("cache-control", "no-store, private"); return this.service.getMyFile(principal(request), fileId); }
   @Delete(":fileId") remove(@Req() request: UserRequest, @Param("fileId", new ZodValidationPipe(uuid)) fileId: string) { return this.service.deleteMyFile(principal(request), fileId); }
 }
 
@@ -57,7 +63,7 @@ export class MyFileController {
 export class AdminFileController {
   constructor(private readonly service: FileStorageService) {}
 
-  @Get() @RequirePermissions("file.read") list(@Query(new ZodValidationPipe(moderationList)) query: z.infer<typeof moderationList>) { return this.service.listForModeration({ uploadStatus: query.upload_status, moderationStatus: query.moderation_status, cursor:query.cursor,limit: query.limit,sort:query.sort }); }
+  @Get() @RequirePermissions("file.read") list(@Query(new ZodValidationPipe(moderationList)) query: z.infer<typeof moderationList>) { return this.service.listForModeration({ fileType: query.file_type, uploadStatus: query.upload_status, moderationStatus: query.moderation_status, cursor:query.cursor,limit: query.limit,sort:query.sort }); }
   @Post("uploads") @RequirePermissions("file.manage") requestUpload(@Req() request: AdminRequest, @Body(new ZodValidationPipe(uploadRequest)) body: z.infer<typeof uploadRequest>) { return this.service.requestAdminUpload(principal(request), { fileType: body.file_type, mimeType: body.mime_type, sizeBytes: body.size_bytes, sha256: body.sha256 },metadata(request)); }
   @Post(":fileId/complete") @RequirePermissions("file.manage") complete(@Req()request:AdminRequest,@Param("fileId", new ZodValidationPipe(uuid)) fileId: string) { return this.service.completeAdminUpload(principal(request),fileId,metadata(request)); }
   @Get(":fileId/access") @RequirePermissions("file.read") access(@Param("fileId", new ZodValidationPipe(uuid)) fileId: string) { return this.service.getAdminFile(fileId); }
@@ -80,7 +86,7 @@ export class AdminFileController {
     result.body.once("end", removeDisconnectHandler);
     await reply.send(result.body);
   }
-  @Post(":fileId/moderation") @RequirePermissions("file.review") moderate(@Req() request: AdminRequest, @Param("fileId", new ZodValidationPipe(uuid)) fileId: string, @Body(new ZodValidationPipe(moderation)) body: z.infer<typeof moderation>) { return this.service.moderate(principal(request), fileId, body.decision, body.reason, metadata(request)); }
+  @Post(":fileId/moderation") @RequirePermissions("file.review") moderate(@Req() request: AdminRequest, @Param("fileId", new ZodValidationPipe(uuid)) fileId: string, @Body(new ZodValidationPipe(moderation)) body: z.infer<typeof moderation>) { return this.service.moderate(principal(request), fileId, body.decision, body.reason, metadata(request),body.continuous_recording_confirmed); }
 }
 
 type UserRequest = FastifyRequest & AuthenticatedRequest;
@@ -88,3 +94,11 @@ type AdminRequest = FastifyRequest & AuthenticatedRequest;
 function principal(request: UserRequest): string { if (!request.principal) throw new AppError({ code: errorCodes.AUTH_REQUIRED, message: "请先登录", statusCode: 401 }); return request.principal.sub; }
 function metadata(request: FastifyRequest): RequestMetadata { const context = requestContext.get(); return { ip: request.ip.slice(0, 64), userAgent: String(request.headers["user-agent"] ?? "unknown").slice(0, 2000), requestId: context?.requestId ?? "unknown", traceId: context?.traceId }; }
 function headerValue(value: string | string[] | undefined): string | undefined { return typeof value === "string" ? value : value?.[0]; }
+
+async function sendReviewImage(reply:FastifyReply,result:Awaited<ReturnType<FileStorageService["previewReviewImage"]>>) {
+  reply.header("cache-control","no-store, private").header("x-content-type-options","nosniff").header("content-security-policy","default-src 'none'; sandbox").header("content-type",result.contentType).header("content-length",String(result.contentLength));
+  const disconnect=()=>{if(!reply.raw.writableFinished)result.body.destroy();};
+  reply.raw.once("close",disconnect);
+  result.body.once("close",()=>reply.raw.off("close",disconnect));
+  await reply.send(result.body);
+}

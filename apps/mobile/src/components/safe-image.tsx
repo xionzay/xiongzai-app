@@ -1,3 +1,4 @@
+import { JellyIcon } from "./jelly-icon";
 import { useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View, type ImageResizeMode, type ImageSourcePropType, type ImageStyle, type StyleProp } from "react-native";
 import { colors, spacing, typography } from "@/theme/tokens";
@@ -14,7 +15,7 @@ function SafeImageContent({ source, style, label, resizeMode = "cover" }: SafeIm
   if (failed) {
     return (
       <View style={[style, styles.fallback]} accessibilityRole="image" accessibilityLabel={`${label}，图片加载失败`}>
-        <Text style={styles.mark}>◇</Text>
+        <JellyIcon kind="image" size={24} />
         <Text style={styles.text}>图片暂不可用</Text>
       </View>
     );

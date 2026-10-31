@@ -1,109 +1,66 @@
-import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
-import { CalendarDatePicker } from "@/components/calendar-date-picker";
-import { NativePage, nativeShadow } from "@/components/native-page";
-import { StateView } from "@/components/state-view";
-import { WithdrawTabIcon } from "@/components/tab-icons";
-import { useFinanceSummary, useSellerIncomes } from "@/features/seller/seller-finance-api";
-import { colors } from "@/theme/tokens";
-import type { SellerIncomeApiView } from "@/types/api";
-import { formatCent } from "@/utils/money";
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { router } from 'expo-router';
+import { CalendarDatePicker } from '@/components/calendar-date-picker';
+import { NativePage } from '@/components/native-page';
+import { StateView } from '@/components/state-view';
+import { ApprovedIllustration } from '@/components/approved-illustration';
+import { useSellerIncomes } from './seller-finance-api';
+import { colors } from '@/theme/tokens';
+import { approvedLayout } from '@/theme/approved-layout';
+import { chinaDate, revenueBounds, revenueMetrics, revenueMoney, type RevenueRange } from '../../../../../app/seller-workbench/revenue-model';
 
-type Range = "今日" | "昨日" | "本周" | "本月" | "本年" | "累计";
-const ranges: Range[] = ["今日", "昨日", "本周", "本月", "本年", "累计"];
+const ranges: RevenueRange[] = ['今日', '昨日', '本周', '本月', '本年', '累计', '自定义'];
+const tools = [
+  { label: '我的订单', icon: 'order', href: '/(seller-tabs)/orders' },
+  { label: '资金明细', icon: 'wallet', href: '/seller/finance' },
+  { label: '联系客服', icon: 'service', href: '/support' }
+] as const;
 
 export function SellerEarningsSummaryScreen() {
-  const summary = useFinanceSummary();
   const incomes = useSellerIncomes();
-  const [range, setRange] = useState<Range>("本周");
-  const [customStart, setCustomStart] = useState("");
-  const [customEnd, setCustomEnd] = useState(() => dateInputValue(new Date()));
-  const [datePicker, setDatePicker] = useState<"start" | "end" | null>(null);
-  const rows = useMemo(() => incomes.data?.pages.flatMap((page) => page.items) ?? [], [incomes.data]);
-  const earliestValue = useMemo(() => rows.length ? dateInputValue(rows.reduce((earliest, item) => { const date = new Date(item.created_at); return date < earliest ? date : earliest; }, new Date(rows[0]!.created_at))) : `${new Date().getFullYear()}-01-01`, [rows]);
-  const effectiveStart = customStart || earliestValue;
-  const customDatesValid = validDateValue(effectiveStart) && validDateValue(customEnd) && effectiveStart <= customEnd;
-  const selected = useMemo(() => rows.filter((item) => inRange(item.created_at, range, effectiveStart, customEnd)), [customEnd, effectiveStart, range, rows]);
-  const amountCent = selected.reduce((sum, item) => sum + BigInt(item.seller_amount_cent), 0n);
-  const averageCent = selected.length ? amountCent / BigInt(selected.length) : 0n;
-  const finance = summary.data;
+  const { fontScale } = useWindowDimensions();
+  const [range, setRange] = useState<RevenueRange>('本月');
+  const [customStart, setCustomStart] = useState(() => chinaDate(Date.now()));
+  const [customEnd, setCustomEnd] = useState(() => chinaDate(Date.now()));
+  const [datePicker, setDatePicker] = useState<'start' | 'end' | null>(null);
+  const [trend, setTrend] = useState(false);
+  const [now, setNow] = useState(() => new Date());
+  const rows = useMemo(() => [...new Map((incomes.data?.pages.flatMap(page => page.items) ?? []).map(row => [row.id, row])).values()], [incomes.data]);
+  const bounds = revenueBounds(range, customStart, customEnd, now);
+  const metrics = revenueMetrics(rows, bounds);
+  // A partial cursor page is not a complete financial report.
+  const complete = Boolean(incomes.data) && !incomes.hasNextPage && !incomes.isError;
+  const money = (value: bigint | null) => complete && bounds && value !== null ? revenueMoney(value) : '—';
+  const count = (value: number | null) => complete && bounds && value !== null ? String(value) : '—';
 
-  return (
-    <NativePage title="收益中心" subtitle="按时间查看真实收益" action={<Pressable accessibilityRole="button" accessibilityLabel="提现记录" onPress={() => router.push("/seller/finance/withdrawals")} style={({ pressed }) => [styles.headerAction, pressed && styles.pressed]}><WithdrawTabIcon color={colors.text} size={29} /></Pressable>} contentStyle={styles.content} refreshing={summary.isRefetching || incomes.isRefetching} onRefresh={() => void Promise.all([summary.refetch(), incomes.refetch()])} onBack={() => router.replace("/(seller-tabs)")}>
-      {summary.isPending || incomes.isPending ? <View style={styles.state}><StateView kind="loading" title="正在读取收益数据" /></View> : null}
-      {summary.isError || incomes.isError || (!summary.isPending && !finance) ? <View style={styles.state}><StateView kind="error" title="收益数据加载失败" onRetry={() => void Promise.all([summary.refetch(), incomes.refetch()])} /></View> : null}
-      {finance ? <>
-        <View style={styles.balance}>
-          <Text style={styles.balanceLabel}>可提现金额</Text>
-          <Text style={styles.balanceMoney}>{formatCent(finance.available_cent)}</Text>
-          <Text style={styles.balanceMeta}>待结算 {formatCent(finance.pending_cent)} · 欠款 {formatCent(finance.liability_cent)}</Text>
-          <Pressable accessibilityRole="button" disabled={finance.withdrawal_paused} onPress={() => router.push("/seller/finance/withdraw")} style={({ pressed }) => [styles.withdraw, finance.withdrawal_paused && styles.disabled, pressed && styles.pressed]}><Text style={styles.withdrawText}>{finance.withdrawal_paused ? "提现暂停" : "提现"}</Text></Pressable>
-        </View>
-        {finance.withdrawal_paused ? <View style={styles.danger}><Text style={styles.dangerText}>当前存在欠款或风险事件，服务端已暂停提现。</Text></View> : null}
-        <View style={styles.rangeTabs}>{ranges.map((item) => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: range === item }} onPress={() => setRange(item)} style={({ pressed }) => [styles.range, range === item && styles.rangeActive, pressed && styles.pressed]}><Text style={[styles.rangeText, range === item && styles.rangeTextActive]}>{item}</Text></Pressable>)}</View>
-        {range === "累计" ? <View style={styles.dateRange} accessibilityLabel="累计收益日期范围">
-          <View style={styles.dateRangeTitle}><Text style={styles.dateRangeBadge}>日</Text><Text style={styles.dateRangeTitleText}>自定义累计区间</Text></View>
-          <View style={styles.dateField}><Text style={styles.dateLabel}>开始日期</Text><DateField label="开始日期" value={effectiveStart} onPress={() => setDatePicker("start")} /></View>
-          <Text style={styles.dateSeparator}>至</Text>
-          <View style={styles.dateField}><Text style={styles.dateLabel}>结束日期</Text><DateField label="结束日期" value={customEnd} onPress={() => setDatePicker("end")} /></View>
-          <Text style={[styles.dateCaption, !customDatesValid && styles.dateInvalid]}>{customDatesValid ? `${displayDate(effectiveStart)} 至 ${displayDate(customEnd)}` : "请输入有效日期，开始日期不能晚于结束日期"}</Text>
-        </View> : null}
-        <View style={styles.summary}>
-          <Summary label={`${range === "累计" ? "区间" : range}收益`} value={formatCent(amountCent.toString())} note={`${selected.length} 笔已完成收益`} accent />
-          <Summary label="平均单笔" value={formatCent(averageCent.toString())} note="按当前筛选计算" />
-          <Summary label="锁定中" value={formatCent(finance.locked_cent)} note="等待平台或渠道处理" />
-        </View>
-        <View style={styles.paper}>
-          <Pressable accessibilityRole="button" onPress={() => router.push("/seller/finance/incomes")} style={styles.sectionHead}><View style={styles.sectionTitleRow}><Text style={styles.sectionTitle}>收益明细</Text><Text style={styles.sectionCount}>{rows.length} 笔</Text></View><Text style={styles.sectionLink}>全部 ›</Text></Pressable>
-          {rows.slice(0, 3).map((item, index) => <IncomeRow key={item.id} item={item} last={index === Math.min(rows.length, 3) - 1} />)}
-          {!rows.length ? <Text style={styles.empty}>暂时没有收益记录</Text> : null}
-        </View>
-        {datePicker ? <CalendarDatePicker visible title={datePicker === "start" ? "选择开始日期" : "选择结束日期"} value={datePicker === "start" ? effectiveStart : customEnd} minimumDate={datePicker === "end" ? effectiveStart : undefined} maximumDate={datePicker === "start" ? customEnd : dateInputValue(new Date())} onSelect={datePicker === "start" ? setCustomStart : setCustomEnd} onClose={() => setDatePicker(null)} /> : null}
-      </> : null}
-    </NativePage>
-  );
+  return <NativePage title="收益中心" subtitle="" onBack={() => router.canGoBack() ? router.back() : router.replace('/(seller-tabs)/mine')} refreshing={incomes.isRefetching} onRefresh={() => { setNow(new Date()); void incomes.refetch(); }} contentStyle={styles.content}>
+    {incomes.isPending ? <StateView kind="loading" title="正在读取收益数据" /> : incomes.isError ? <StateView kind="error" title="收益数据加载失败" onRetry={() => void incomes.refetch()} /> : <>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>{ranges.map(item => <Pressable key={item} accessibilityRole="tab" accessibilityState={{ selected: range === item }} onPress={() => { setRange(item); setNow(new Date()); }} style={[styles.tab, range === item && styles.active]}><Text style={[styles.tabText, range === item && styles.activeText]}>{item === '累计' ? '全部' : item === '自定义' ? '范围' : item}</Text></Pressable>)}</ScrollView>
+      {range === '自定义' ? <View style={styles.dates}><DateField label="开始日期" value={customStart} onPress={() => setDatePicker('start')} /><Text style={styles.note}>至</Text><DateField label="结束日期" value={customEnd} onPress={() => setDatePicker('end')} />{!bounds ? <Text style={styles.error}>请选择有效日期，开始不能晚于结束，结束不能晚于今天。</Text> : null}</View> : null}
+      <View style={styles.panel}><View style={styles.hero}><Text style={styles.amount}>{money(metrics.net)}</Text><Text style={styles.title}>{range === '累计' ? '累计' : range}净收益（元）</Text><Text style={styles.note}>订单收入扣除平台服务费与退款扣减</Text></View>
+        <View style={styles.grid}>{[
+          ['订单收入', money(metrics.gross)], ['平台服务费', money(metrics.fees)], ['退款扣减', money(metrics.reversed)],
+          ['收益订单', count(metrics.orders)], ['服务买家', count(metrics.buyers)], ['平均单笔收益', money(metrics.average)]
+        ].map(([label, value]) => <View key={label} style={[styles.metric, fontScale > 1.3 && styles.metricLarge]}><Text style={styles.value}>{value}</Text><Text style={styles.note}>{label}</Text></View>)}</View>
+      </View>
+      {!complete ? <View style={styles.notice}><Text style={styles.note}>收益明细尚未加载完整，汇总暂不展示，避免将部分金额当作全部收益。</Text><Pressable accessibilityRole="button" disabled={incomes.isFetchingNextPage} style={styles.link} onPress={() => { if (!incomes.isFetchingNextPage) void incomes.fetchNextPage(); }}><Text style={styles.action}>{incomes.isFetchingNextPage ? '正在加载…' : '继续加载收益明细'}</Text></Pressable></View> : metrics.buyers === null ? <Text style={styles.note}>服务买家数暂不可用：当前接口未返回买家标识，不以订单数代替。</Text> : null}
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: trend }} style={styles.link} onPress={() => setTrend(!trend)}><Text style={styles.action}>{trend ? '收起收益趋势' : '展开收益趋势'}</Text></Pressable>
+      {trend ? <View style={styles.panel}>{!complete ? <Text style={styles.note}>请先加载完整收益明细</Text> : metrics.buckets.length ? metrics.buckets.map(bucket => <View key={bucket.key} style={styles.trendRow}><Text style={styles.note}>{bucket.key}</Text><Text style={styles.value}>{revenueMoney(bucket.value)}</Text></View>) : <Text style={styles.note}>当前区间暂无收益</Text>}</View> : null}
+      <View style={styles.panel}><View style={styles.sectionHead}><Text style={styles.title}>收益明细</Text><Pressable accessibilityRole="button" style={styles.link} onPress={() => router.push('/seller/finance/incomes')}><Text style={styles.action}>查看更多</Text></Pressable></View>
+        {metrics.selected.slice(0, 3).map(item => <Pressable key={item.id} accessibilityRole="button" style={styles.income} onPress={() => router.push({ pathname: '/seller/orders/[id]', params: { id: item.order_id } })}><View style={styles.grow}><Text style={styles.title}>{item.service_title}</Text><Text style={styles.note}>{item.order_no} · {chinaDate(Date.parse(item.created_at))}</Text></View><Text style={styles.value}>{revenueMoney(BigInt(item.seller_amount_cent) - BigInt(item.reversed_amount_cent))}</Text></Pressable>)}
+        {!metrics.selected.length ? <Text style={styles.note}>{complete ? '当前区间暂无收益记录' : '已加载记录中暂无当前区间收益'}</Text> : null}
+      </View>
+      <View style={styles.tools}>{tools.map(item => <Pressable key={item.label} accessibilityRole="button" onPress={() => router.push(item.href)} style={styles.tool}><ApprovedIllustration kind={item.icon} size={32} /><Text style={styles.note}>{item.label}</Text></Pressable>)}</View>
+    </>}
+    {datePicker ? <CalendarDatePicker visible title={datePicker === 'start' ? '选择开始日期' : '选择结束日期'} value={datePicker === 'start' ? customStart : customEnd} minimumDate={datePicker === 'end' ? customStart : undefined} maximumDate={datePicker === 'start' ? customEnd : chinaDate(now.getTime())} onSelect={datePicker === 'start' ? setCustomStart : setCustomEnd} onClose={() => setDatePicker(null)} /> : null}
+  </NativePage>;
 }
-
-function Summary({ label, value, note, accent = false }: { label: string; value: string; note: string; accent?: boolean }) {
-  return <View style={styles.summaryCard}><Text style={styles.summaryLabel}>{label}</Text><Text numberOfLines={1} style={[styles.summaryValue, accent && styles.summaryAccent]}>{value}</Text><Text style={styles.summaryNote}>{note}</Text></View>;
-}
-
-function DateField({ label, value, onPress }: { label: string; value: string; onPress: () => void }) {
-  return <Pressable accessibilityRole="button" accessibilityLabel={`选择${label}，当前${displayDate(value)}`} accessibilityHint="打开日历" onPress={onPress} style={({ pressed }) => [styles.dateInput, pressed && styles.dateInputPressed]}><Text numberOfLines={1} style={styles.dateInputText}>{value}</Text><View accessibilityElementsHidden style={styles.calendarIcon}><View style={styles.calendarIconTop} /><Text style={styles.calendarIconText}>日</Text></View></Pressable>;
-}
-
-function IncomeRow({ item, last }: { item: SellerIncomeApiView; last: boolean }) {
-  return <View style={[styles.incomeRow, !last && styles.rowBorder]}><View style={styles.incomeCopy}><Text style={styles.incomeTitle}>订单 {item.order_no}</Text><Text style={styles.incomeMeta}>{item.service_title} · {new Date(item.created_at).toLocaleString("zh-CN")}</Text></View><Text style={styles.incomeMoney}>+{formatCent(item.seller_amount_cent)}</Text></View>;
-}
-
-function inRange(value: string, range: Range, customStart: string, customEnd: string) {
-  const date = new Date(value);
-  const now = new Date();
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (range === "今日") return date >= startToday;
-  if (range === "昨日") { const start = new Date(startToday); start.setDate(start.getDate() - 1); return date >= start && date < startToday; }
-  if (range === "本周") { const start = new Date(startToday); start.setDate(start.getDate() - ((start.getDay() + 6) % 7)); return date >= start; }
-  if (range === "本月") return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
-  if (range === "本年") return date.getFullYear() === now.getFullYear();
-  if (!validDateValue(customStart) || !validDateValue(customEnd) || customStart > customEnd) return false;
-  return date >= new Date(`${customStart}T00:00:00`) && date <= new Date(`${customEnd}T23:59:59.999`);
-}
-
-function dateInputValue(value: Date) { return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`; }
-function validDateValue(value: string) { if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false; const date = new Date(`${value}T00:00:00`); return !Number.isNaN(date.getTime()) && dateInputValue(date) === value; }
-function displayDate(value: string) { const [year, month, day] = value.split("-"); return `${year}年${month}月${day}日`; }
-
+function DateField({ label, value, onPress }: { label: string; value: string; onPress: () => void }) { return <Pressable accessibilityRole="button" accessibilityLabel={`选择${label}，当前${value}`} style={styles.date} onPress={onPress}><Text style={styles.note}>{label}</Text><Text style={styles.title}>{value}</Text></Pressable>; }
 const styles = StyleSheet.create({
-  content: { gap: 12 }, state: { minHeight: 250, justifyContent: "center", borderRadius: 18, backgroundColor: "#FFFDF8", ...nativeShadow },
-  headerAction: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#FFFDF8" },
-  balance: { position: "relative", minHeight: 154, justifyContent: "center", paddingHorizontal: 21, borderRadius: 20, backgroundColor: "#367FBF", ...nativeShadow }, balanceLabel: { color: "#DCEDFF", fontSize: 13, fontWeight: "800" }, balanceMoney: { marginTop: 5, color: "#FFFFFF", fontSize: 39, lineHeight: 44, fontWeight: "900" }, balanceMeta: { alignSelf: "flex-start", marginTop: 12, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 8, color: "#FFFFFF", backgroundColor: "rgba(255,255,255,0.15)", fontSize: 11 },
-  withdraw: { position: "absolute", right: 17, top: 55, minWidth: 76, minHeight: 43, alignItems: "center", justifyContent: "center", borderRadius: 12, backgroundColor: "#CFF20B", ...nativeShadow }, withdrawText: { color: "#2B3A0C", fontSize: 13, fontWeight: "900" },
-  rangeTabs: { flexDirection: "row", gap: 3, padding: 4, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 14, backgroundColor: "#FFFDF8", ...nativeShadow }, range: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: 10 }, rangeActive: { backgroundColor: "#2F82C9" }, rangeText: { color: "#696B6D", fontSize: 11, fontWeight: "800" }, rangeTextActive: { color: "#FFFFFF" },
-  dateRange: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end", gap: 7, padding: 11, paddingBottom: 13, borderWidth: 3, borderBottomWidth: 6, borderColor: "#78B8E7", borderBottomColor: "#A8D4EF", borderRadius: 21, backgroundColor: "#EDF8FF", ...nativeShadow }, dateRangeTitle: { width: "100%", minHeight: 30, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7, marginBottom: 1 }, dateRangeBadge: { width: 27, height: 27, paddingTop: 4, borderWidth: 2, borderColor: "#FFFFFF", borderRadius: 9, backgroundColor: "#FF7D48", color: "#FFFFFF", fontSize: 11, fontWeight: "900", textAlign: "center", overflow: "hidden" }, dateRangeTitleText: { color: "#285F91", fontSize: 12, fontWeight: "900", letterSpacing: 0.3 }, dateField: { flex: 1, minWidth: 125 }, dateLabel: { marginBottom: 6, marginLeft: 3, color: "#527391", fontSize: 11, fontWeight: "900" }, dateInput: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 5, paddingHorizontal: 9, borderWidth: 2, borderColor: "#BDDbed", borderRadius: 12, backgroundColor: "#FFFFFF" }, dateInputPressed: { borderColor: "#2F82C9", backgroundColor: "#F7FCFF" }, dateInputText: { flex: 1, color: "#283641", fontSize: 12, fontWeight: "900" }, calendarIcon: { width: 22, height: 22, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#2F82C9", borderRadius: 6 }, calendarIconTop: { position: "absolute", top: 4, left: 3, right: 3, height: 1.5, backgroundColor: "#2F82C9" }, calendarIconText: { marginTop: 4, color: "#2F82C9", fontSize: 8, lineHeight: 10, fontWeight: "900" }, dateSeparator: { marginBottom: 15, color: "#6D8CA4", fontSize: 11, fontWeight: "900" }, dateCaption: { width: "100%", color: "#527391", fontSize: 10, lineHeight: 15, fontWeight: "800", textAlign: "center" }, dateInvalid: { color: colors.danger },
-  summary: { flexDirection: "row", gap: 7 }, summaryCard: { flex: 1, minHeight: 100, justifyContent: "center", paddingHorizontal: 10, borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 15, backgroundColor: "#FFFDF8", ...nativeShadow }, summaryLabel: { color: "#6E7479", fontSize: 11 }, summaryValue: { marginVertical: 7, color: "#1F6EAE", fontSize: 18, fontWeight: "900" }, summaryAccent: { color: colors.accent, fontSize: 20 }, summaryNote: { color: colors.textSecondary, fontSize: 9, lineHeight: 13 },
-  paper: { overflow: "hidden", borderWidth: 1, borderColor: "rgba(62,57,47,0.10)", borderRadius: 18, backgroundColor: "#FFFDF8", ...nativeShadow }, sectionHead: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 14 }, sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 8 }, sectionTitle: { color: colors.text, fontSize: 16, fontWeight: "900" }, sectionCount: { color: colors.textSecondary, fontSize: 11 }, sectionLink: { color: colors.brandDeep, fontSize: 12, fontWeight: "900" },
-  empty: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 12, color: colors.textSecondary, fontSize: 12, textAlign: "center" },
-  incomeRow: { minHeight: 64, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14 }, rowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.10)" }, incomeCopy: { flex: 1 }, incomeTitle: { color: colors.text, fontSize: 13, fontWeight: "900" }, incomeMeta: { marginTop: 5, color: colors.textSecondary, fontSize: 10, lineHeight: 14 }, incomeMoney: { color: colors.accent, fontSize: 15, fontWeight: "900" },
-  danger: { padding: 12, borderRadius: 13, backgroundColor: "#FFF0E8" }, dangerText: { color: colors.danger, fontSize: 12 }, disabled: { opacity: 0.45 }, pressed: { opacity: 0.72 }
+  content: { gap: 14 }, tabs: { gap: 4 }, tab: { paddingHorizontal: 12, minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 10 }, active: { backgroundColor: colors.brand }, tabText: { color: colors.text, fontSize: 13 }, activeText: { color: '#fff' },
+  panel: { padding: 16, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.4)' }, hero: { alignItems: 'center', paddingVertical: 12, gap: 8 }, note: { fontSize: 12, lineHeight: 18, color: colors.textSecondary }, amount: { fontSize: 38, color: '#b6584c', fontWeight: '700', textAlign: 'center' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: approvedLayout.divider }, metric: { width: '33.333%', minHeight: 84, padding: 8, justifyContent: 'center', alignItems: 'center', gap: 8 }, metricLarge: { width: '50%' }, value: { fontSize: 17, color: colors.text, fontWeight: '600', flexShrink: 1 }, title: { fontSize: 15, color: colors.text, fontWeight: '600' },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, link: { minHeight: 48, alignItems: 'center', justifyContent: 'center' }, action: { color: colors.brandDeep, fontSize: 13 }, income: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: approvedLayout.divider }, grow: { flex: 1, gap: 5 },
+  dates: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }, date: { flex: 1, minWidth: 125, minHeight: 60, padding: 8, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.5)' }, error: { width: '100%', color: colors.danger, fontSize: 12 }, notice: { padding: 12 }, trendRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }, tools: { flexDirection: 'row' }, tool: { flex: 1, alignItems: 'center', gap: 8, minHeight: 72 }
 });

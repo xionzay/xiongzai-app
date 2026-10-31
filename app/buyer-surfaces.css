@@ -68,6 +68,21 @@
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-profile-copy > b { font-size: 18px; }
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-profile-copy > span { margin-top: 5px; font-size: 13px; }
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .commerce-my-orders { margin: 0 14px; padding: 4px 0 12px; }
+.phone-shell .buyer-mine .commerce-order-entries {
+  grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 20%; gap: 0;
+  overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.phone-shell .buyer-mine .commerce-order-entries::-webkit-scrollbar { display: none; }
+.phone-shell .buyer-mine .mine-order-scrollbar {
+  display: block; width: 64px; height: 24px; min-height: 24px; margin: 0 auto; padding: 0;
+  appearance: none; -webkit-appearance: none; border: 0; border-radius: 0; background: transparent;
+  cursor: ew-resize; touch-action: pan-y; box-shadow: none;
+}
+.phone-shell .buyer-mine .mine-order-scrollbar::-webkit-slider-runnable-track { height: 3px; border-radius: 9px; background: #c3e5f7; }
+.phone-shell .buyer-mine .mine-order-scrollbar::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 46px; height: 3px; border-radius: 9px; background: #2698ec; }
+.phone-shell .buyer-mine .mine-order-scrollbar::-moz-range-track { height: 3px; border-radius: 9px; background: #c3e5f7; }
+.phone-shell .buyer-mine .mine-order-scrollbar::-moz-range-thumb { width: 46px; height: 3px; border: 0; border-radius: 9px; background: #2698ec; }
+.phone-shell .buyer-mine .mine-order-scrollbar:focus-visible { outline: 2px solid #087bf5; outline-offset: 2px; border-radius: 9px; }
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .commerce-order-entries button { min-height: 72px; font-size: 13px; }
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .commerce-order-entries .app-icon { mix-blend-mode: normal; }
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .buyer-assets { margin: 0 14px; gap: 0; border-bottom: 1px solid var(--buyer-line); }
@@ -81,6 +96,16 @@
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-menu button { min-height: 72px; padding: 12px 0; background: transparent; border-bottom-color: var(--buyer-line); }
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-menu button b { font-size: 15px; }
 .phone-shell.user-theme[data-page-palette="buyer"]:not(.page-home) .mine-menu button small { font-size: 12px; color: var(--muted); }
+/* Personal account hierarchy: purchases first, support next, seller identity separate. */
+.phone-shell .buyer-mine { --muted: #465e73; }
+.phone-shell .buyer-mine .mine-menu button small,
+.phone-shell .buyer-mine .buyer-assets button > span:last-child { font-size: 13px; line-height: 1.45; color: #465e73; }
+.phone-shell.user-theme[data-page-palette="buyer"] .buyer-mine .mine-identity { margin-top: 16px; border-top: 1px solid var(--buyer-line); }
+.phone-shell .buyer-mine .mine-identity h2 { margin: 12px 0 0; font-size: 12px; line-height: 1.5; font-weight: 600; color: #465e73; }
+.phone-shell .buyer-mine .mine-identity button { min-height: 68px; }
+.phone-shell .buyer-mine .commerce-order-entries button { white-space: nowrap; }
+.phone-shell .buyer-mine :is(.mine-menu,.buyer-assets,.commerce-order-entries) button:focus-visible { outline: 2px solid #087bf5; outline-offset: -2px; border-radius: 8px; }
+
 
 
 .phone-shell .buyer-mine .mine-menu button > .menu-symbol,
@@ -164,3 +189,37 @@
 @media (prefers-reduced-motion: reduce) {
   .phone-shell[data-page-palette="buyer"]:not(.page-home) .v31-tabs button { transition: none; }
 }
+/* Real feedback and announcement text remains plain text and inside the existing canvas. */
+.connected-community { overflow-wrap:anywhere; }
+.community-plain-copy { white-space:pre-wrap;line-height:1.8;overflow-wrap:anywhere; }
+.public-announcements { min-width:0; }
+.public-announcements>p { margin:10px 16px; }
+.public-announcements details { margin:8px 16px; }
+.public-announcements summary { min-height:36px;cursor:pointer; }
+.connected-community button { min-height:40px; }
+.phone-shell.user-theme .connected-community.decision-page { padding:14px 16px 28px; }
+.phone-shell.user-theme .connected-community>article { margin:16px 0;padding:16px;border:1px solid var(--line);border-radius:var(--radius-card);background:var(--surface,#fff);box-shadow:var(--soft-shadow); }
+.phone-shell.user-theme .connected-community>article>small { display:block;margin:8px 0;color:var(--muted);font-size:12px;line-height:1.6; }
+.phone-shell.user-theme .connected-community>article>h2 { margin:24px 0 10px;font-size:17px; }
+.phone-shell.user-theme .connected-community>article>p { margin:0; }
+.phone-shell.user-theme .connected-community>button:not(.decision-row):not(.full-primary),.phone-shell.user-theme .connected-community>article>button,.phone-shell.user-theme .connected-community [role="alert"] button,.phone-shell.user-theme .public-announcements button:not(.home-announcement-slide):not(.decision-row) { min-height:40px;border:1px solid var(--line);border-radius:var(--radius-control);padding:9px 14px;background:var(--brand-soft);color:var(--brand-strong);font:inherit;font-weight:650;cursor:pointer; }
+.phone-shell.user-theme .connected-community>article>button { margin-top:16px; }
+.phone-shell.user-theme .connected-community .decision-row { gap:12px;overflow-wrap:anywhere; }
+.phone-shell.user-theme .connected-community .decision-row>span { min-width:0; }
+.phone-shell.user-theme .connected-community button:focus-visible,.phone-shell.user-theme .public-announcements button:focus-visible { outline:3px solid var(--brand-strong);outline-offset:3px; }
+.phone-shell.user-theme .connected-community button:disabled { cursor:not-allowed;opacity:.6; }
+
+/* Shared identity switch keeps the original role-specific background and jelly artwork. */
+.phone-shell .identity-switch-screen { min-height: 100%; }
+.phone-shell .identity-switch-content { padding: 48px 24px 32px; text-align: center; }
+.phone-shell .identity-switch-art { position: relative; width: 160px; margin: 0 auto 32px; }
+.phone-shell .identity-switch-art > img { display: block; width: 160px; height: 160px; object-fit: contain; border-radius: 36px; }
+.phone-shell .identity-switch-art > span { position: absolute; right: -12px; bottom: -12px; width: 64px; height: 64px; }
+.phone-shell .identity-switch-art .toon-icon { width: 64px; height: 64px; }
+.phone-shell .identity-switch-content h2 { font-size: 21px; line-height: 1.5; margin: 0 0 12px; }
+.phone-shell .identity-switch-content p { color: var(--muted); font-size: 14px; line-height: 1.7; }
+.phone-shell .identity-switch-action { width: 100%; min-height: 52px; margin-top: 44px; border: 2px solid #fff; border-radius: 28px; background: linear-gradient(135deg,#47b8fa,#197df1); box-shadow: 0 5px 0 #c2e3fb; color: white; font-size: 17px; font-weight: 700; }
+.phone-shell .identity-switch-action:disabled { opacity: .65; cursor: wait; }
+.phone-shell .identity-switch-action:focus-visible { outline: 2px solid #156fc5; outline-offset: 3px; }
+.phone-shell .identity-switch-note { margin-top: 18px; font-size: 12px; }
+.phone-shell .identity-switch-error { color: #aa3939; }

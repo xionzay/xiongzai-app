@@ -8,6 +8,8 @@ export interface StateTransition<TState extends string> {
 }
 
 export const orderStatusTransitions = [
+  { from: "PENDING_PAYMENT", to: "PENDING_SERVICE", action: "PAYMENT_SUCCEEDED_V31" },
+  { from: "PENDING_SERVICE", to: "IN_SERVICE", action: "SELLER_START" },
   { from: "PENDING_PAYMENT", to: "PENDING_ACCEPT", action: "PAYMENT_SUCCEEDED" },
   { from: "PENDING_PAYMENT", to: "CANCELLED", action: "BUYER_CANCEL" },
   { from: "PENDING_PAYMENT", to: "CLOSED", action: "PAYMENT_TIMEOUT" },
@@ -38,6 +40,9 @@ export const refundStatusTransitions = [
   { from: "REQUESTED", to: "SELLER_APPROVED", action: "SELLER_APPROVE" },
   { from: "REQUESTED", to: "SELLER_REJECTED", action: "SELLER_REJECT" },
   { from: "SELLER_APPROVED", to: "REFUND_PROCESSING", action: "PROVIDER_REFUND_CREATED" },
+  { from: "PLATFORM_REVIEW", to: "SELLER_APPROVED", action: "ADMIN_APPROVE_PENDING_SUBMISSION" },
+  { from: "SELLER_REJECTED", to: "SELLER_APPROVED", action: "ADMIN_APPROVE_PENDING_SUBMISSION" },
+  { from: "NEGOTIATING", to: "SELLER_APPROVED", action: "ADMIN_APPROVE_PENDING_SUBMISSION" },
   { from: "SELLER_REJECTED", to: "PLATFORM_REVIEW", action: "BUYER_ESCALATE" },
   { from: "SELLER_REJECTED", to: "REJECTED", action: "ADMIN_REJECT" },
   { from: "SELLER_REJECTED", to: "REFUND_PROCESSING", action: "ADMIN_APPROVE" },
@@ -71,6 +76,7 @@ export const withdrawalStatusTransitions = [
   { from: "CREATED", to: "RISK_REVIEW", action: "ADMIN_INITIAL_APPROVE" },
   { from: "CREATED", to: "REJECTED", action: "ADMIN_REJECT" },
   { from: "RISK_REVIEW", to: "PAYOUT_PROCESSING", action: "INDEPENDENT_ADMIN_FINAL_APPROVE" },
+  { from: "RISK_REVIEW", to: "REJECTED", action: "INDEPENDENT_ADMIN_FINAL_REJECT" },
   { from: "PAYOUT_PROCESSING", to: "COMPLETED", action: "PAYOUT_SUCCEEDED" },
   { from: "PAYOUT_PROCESSING", to: "FAILED", action: "PAYOUT_FAILED" },
 ] as const satisfies readonly StateTransition<WithdrawalStatus>[];

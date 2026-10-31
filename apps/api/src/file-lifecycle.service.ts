@@ -116,7 +116,7 @@ export class FileLifecycleService {
     const claimed = await this.database.db.execute(sql`
       UPDATE scheduled_jobs
       SET status = 'RUNNING', attempts = attempts + 1, locked_at = ${now}, locked_by = ${workerId}, updated_at = ${now}
-      WHERE id = ${jobId} AND status = 'PENDING' AND run_at <= ${now}
+      WHERE id = ${jobId} AND status = 'PENDING' AND run_at <= ${now} AND attempts < max_attempts
       RETURNING id, job_type, target_id, payload_json, attempts, max_attempts
     `);
     const row = claimed.rows[0];
@@ -127,21 +127,23 @@ export class FileLifecycleService {
     };
     try {
       await this.handleClaimedJob(job, now);
-      await this.database.db.update(scheduledJobs).set({ status: "COMPLETED", completedAt: now, lockedAt: null, lockedBy: null, lastError: null, updatedAt: now }).where(and(eq(scheduledJobs.id, job.id), eq(scheduledJobs.status, "RUNNING"), eq(scheduledJobs.lockedBy, workerId)));
+      const completed = await this.database.db.update(scheduledJobs).set({ status: "COMPLETED", completedAt: now, lockedAt: null, lockedBy: null, lastError: null, updatedAt: now }).where(and(eq(scheduledJobs.id, job.id), eq(scheduledJobs.status, "RUNNING"), eq(scheduledJobs.lockedBy, workerId), eq(scheduledJobs.attempts, job.attempts))).returning({ id: scheduledJobs.id });
+      if (!completed.length) return "not_claimed";
       this.logger.info("file_lifecycle_job_completed", { job_id: job.id, job_type: job.jobType, attempts: job.attempts, elapsed_ms: Date.now() - startedAt });
       return "completed";
     } catch (error) {
       const failure = classifyFailure(error);
       const exhausted = !failure.retryable || job.attempts >= job.maxAttempts;
       const nextRunAt = new Date(now.getTime() + retryDelayMs(job.attempts, job.id));
-      await this.database.db.update(scheduledJobs).set({
+      const failed = await this.database.db.update(scheduledJobs).set({
         status: exhausted ? "FAILED" : "PENDING",
         runAt: exhausted ? undefined : nextRunAt,
         lockedAt: null,
         lockedBy: null,
         lastError: failure.category,
         updatedAt: now,
-      }).where(and(eq(scheduledJobs.id, job.id), eq(scheduledJobs.status, "RUNNING"), eq(scheduledJobs.lockedBy, workerId)));
+      }).where(and(eq(scheduledJobs.id, job.id), eq(scheduledJobs.status, "RUNNING"), eq(scheduledJobs.lockedBy, workerId), eq(scheduledJobs.attempts, job.attempts))).returning({ id: scheduledJobs.id });
+      if (!failed.length) return "not_claimed";
       this.logger.warn("file_lifecycle_job_failed", { job_id: job.id, job_type: job.jobType, attempts: job.attempts, error_category: failure.category, retryable: failure.retryable, exhausted, elapsed_ms: Date.now() - startedAt });
       return exhausted ? "permanent_failure" : "retry_scheduled";
     }

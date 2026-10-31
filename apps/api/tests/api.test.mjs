@@ -39,6 +39,13 @@ const stagingEnv = {
   FILE_PUBLIC_BUCKET: "xiongzai-staging-public", FILE_PRIVATE_BUCKET: "xiongzai-staging-private", FILE_QUARANTINE_BUCKET: "xiongzai-staging-quarantine",
 };
 
+test("local device storage endpoint is private, test-only and errors expose only configuration key", () => {
+  const local = { ...testEnv, FILE_STORAGE_PROVIDER: "minio", FILE_STORAGE_ENDPOINT: "http://127.0.0.1:9000", FILE_STORAGE_ACCESS_KEY_ID: "synthetic-access", FILE_STORAGE_SECRET_ACCESS_KEY: "synthetic-secret" };
+  assert.equal(loadApiConfig({ ...local, FILE_STORAGE_CLIENT_ENDPOINT: "http://192.168.1.2:9002" }).fileStorageClientEndpoint, "http://192.168.1.2:9002");
+  for (const endpoint of ["https://example.invalid", "http://u:private@192.168.1.2:9002", "http://192.168.1.2:9002/path", "http://192.168.1.2:9002?secret=synthetic", "http://8.8.8.8:9002"]) assert.throws(() => loadApiConfig({ ...local, FILE_STORAGE_CLIENT_ENDPOINT: endpoint }), error => error.message === "Invalid API configuration: FILE_STORAGE_CLIENT_ENDPOINT");
+  for (const DEPLOYMENT_ENV of ["staging", "production"]) assert.throws(() => loadApiConfig({ ...stagingEnv, DEPLOYMENT_ENV, FILE_STORAGE_CLIENT_ENDPOINT: "http://192.168.1.2:9002" }), error => error.message === "Invalid API configuration: FILE_STORAGE_CLIENT_ENDPOINT");
+});
+
 function fakeDatabase(query) {
   return { db: {}, pool: { query }, close: async () => {} };
 }
@@ -75,6 +82,11 @@ test("browser preflight permits every mutable API method used by the user app", 
     });
     assert.equal(response.statusCode, 204);
     assert.match(response.headers["access-control-allow-methods"], new RegExp(`(?:^|,\\s*)${method}(?:,|$)`));
+  }
+  const mediaHeaders = await app.inject({ method: "GET", url: "/health/live", headers: { origin: testConfig.corsOrigins[0] } });
+  assert.equal(mediaHeaders.headers["access-control-allow-origin"],testConfig.corsOrigins[0]);
+  for (const header of ["content-range", "accept-ranges", "content-disposition"]) {
+    assert.ok(String(mediaHeaders.headers["access-control-expose-headers"]).toLowerCase().includes(header));
   }
 });
 

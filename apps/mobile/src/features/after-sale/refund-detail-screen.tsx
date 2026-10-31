@@ -1,3 +1,6 @@
+import { CaseScreen } from "./case-screen";
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import { useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/ui-icons";
 import { KeyboardAvoidingView, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -19,15 +22,7 @@ import type { RefundApiView, RefundStatus } from "@/types/api";
 import { formatCent } from "@/utils/money";
 import { ShieldIcon } from "@/components/tab-icons";
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const firstStop = 0.55;
-  const from = ratio <= firstStop ? [238, 248, 255] : [255, 250, 240];
-  const to = ratio <= firstStop ? [255, 250, 240] : [247, 251, 255];
-  const progress = ratio <= firstStop ? ratio / firstStop : (ratio - firstStop) / (1 - firstStop);
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function RefundDetailScreen() {
   const { id = "" } = useLocalSearchParams<{ id: string }>();
@@ -43,6 +38,7 @@ export function RefundDetailScreen() {
   if (!query.data || query.isError) return <AppScreen><PageHeader title="退款详情" /><StateView kind="error" onRetry={() => void query.refetch()} /></AppScreen>;
 
   const refund = query.data;
+  if (refund.case_id) return <CaseScreen key={refund.case_id} id={refund.case_id} />;
   const state = refundState(refund);
   const canEscalate = refund.available_actions.includes("ESCALATE");
   const rejectionReason = refund.seller_reason ?? refund.admin_reason;
@@ -168,36 +164,36 @@ function RefundProgress({ progress, completed, refund }: { progress: 1 | 2; comp
     { title: "陪玩/平台处理", note: refundStatusCopy[refund.status] },
     { title: "退款结果", note: completed ? "已完成" : progress >= 2 ? "渠道处理中" : "等待处理" }
   ];
-  return <View style={styles.progressCard}>{items.map((item, index) => { const active = index <= progress; return <View key={item.title} style={styles.progressStep}>{index < 2 ? <View style={[styles.progressLine, index < progress && styles.progressLineDone]} /> : null}<View style={[styles.progressMark, active && styles.progressMarkActive]}><Text style={[styles.progressMarkText, active && styles.progressMarkTextActive]}>{index < progress || completed && index === 2 ? "✓" : index + 1}</Text></View><Text style={styles.progressTitle}>{item.title}</Text><Text style={styles.progressNote} numberOfLines={2}>{item.note}</Text></View>; })}</View>;
+  return <View style={styles.progressCard}>{items.map((item, index) => { const active = index <= progress; return <View key={item.title} style={styles.progressStep}>{index < 2 ? <View style={[styles.progressLine, index < progress && styles.progressLineDone]} /> : null}<View style={[styles.progressMark, active && styles.progressMarkActive]}><Text style={[styles.progressMarkText, active && styles.progressMarkTextActive]}>{index < progress || completed && index === 2 ? <JellyIcon kind="check" label="已选" /> : index + 1}</Text></View><Text style={styles.progressTitle}>{item.title}</Text><Text style={styles.progressNote} numberOfLines={2}>{item.note}</Text></View>; })}</View>;
 }
 
-function RefundBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function RefundBackdrop() { return <BrandBackdrop />; }
 
 function InfoRow({ label, value, last = false }: { label: string; value: string; last?: boolean }) { return <View style={[styles.infoRow, last && styles.infoRowLast]}><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoValue} numberOfLines={3}>{value}</Text></View>; }
 
 function ToolRow({ label, onPress, last = false }: { label: string; onPress: () => void; last?: boolean }) { return <Pressable accessibilityRole="button" onPress={onPress} style={[styles.toolRow, last && styles.toolRowLast]}><Text style={styles.toolText}>{label}</Text><ChevronRightIcon size={20} /></Pressable>; }
 
 const softShadow = { shadowColor: "#526F86", shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.13, shadowRadius: 28, elevation: 4 } as const;
-const card = { borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow } as const;
+const card = { ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF8FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 30 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 25, lineHeight: 31, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   notice: { marginHorizontal: 12, marginBottom: 10 },
   hero: { flexDirection: "row", alignItems: "center", gap: 13, marginHorizontal: 12, marginBottom: 10, padding: 20, borderRadius: 20, backgroundColor: "#3A86C2", ...softShadow },
   heroCopy: { flex: 1 },
   heroTitle: { color: colors.white, fontSize: 20, lineHeight: 26, fontWeight: "900" },
   heroNote: { marginTop: 5, color: "#E1F2FF", fontSize: 12, lineHeight: 17 },
-  progressCard: { flexDirection: "row", marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 8, paddingVertical: 18, ...card },
+  progressCard: { flexDirection: "row", marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 8, paddingVertical: 18, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   progressStep: { position: "relative", flex: 1, alignItems: "center" },
   progressLine: { position: "absolute", zIndex: 0, left: "50%", top: 16, width: "100%", height: 2, backgroundColor: "#D9D4CC" },
   progressLineDone: { backgroundColor: "#BADF28" },
@@ -207,7 +203,7 @@ const styles = StyleSheet.create({
   progressMarkTextActive: { color: "#34470F" },
   progressTitle: { marginTop: 8, color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: "900", textAlign: "center" },
   progressNote: { marginTop: 5, color: "#74767B", fontSize: 12, lineHeight: 16, fontWeight: "700", textAlign: "center" },
-  summaryCard: { marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 15, ...card },
+  summaryCard: { marginHorizontal: 12, marginBottom: 10, paddingHorizontal: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   infoRow: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 18, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)" },
   infoRowLast: { borderBottomWidth: 0 },
   infoLabel: { color: "#74767B", fontSize: 13, lineHeight: 18 },
@@ -215,20 +211,20 @@ const styles = StyleSheet.create({
   rejectionCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, borderWidth: 1, borderColor: "#F2A18A", borderRadius: 17, backgroundColor: "#FFF7F3", ...softShadow },
   sectionTitle: { color: colors.text, fontSize: 16, lineHeight: 21, fontWeight: "900" },
   rejectionText: { marginTop: 8, color: "#6B4D46", fontSize: 12, lineHeight: 20 },
-  logCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
+  logCard: { marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   logRow: { flexDirection: "row", gap: 13, paddingVertical: 15, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)" },
   logDot: { width: 12, height: 12, marginTop: 5, borderWidth: 3, borderColor: colors.white, borderRadius: 6, backgroundColor: colors.brand, shadowColor: "#9BC8EB", shadowOpacity: 1, shadowRadius: 2 },
   logCopy: { flex: 1 },
   logTitle: { color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: "900" },
   logNote: { marginTop: 6, color: "#74767B", fontSize: 12, lineHeight: 17 },
-  escalateCard: { position: "relative", marginHorizontal: 12, marginBottom: 10, padding: 15, ...card },
-  reasonInput: { minHeight: 100, marginTop: 10, borderWidth: 1, borderColor: "#D8D1C6", borderRadius: 14, padding: 12, paddingBottom: 28, backgroundColor: "#F7F3EC", color: colors.text, fontSize: 12, lineHeight: 18 },
+  escalateCard: { position: "relative", marginHorizontal: 12, marginBottom: 10, padding: 15, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
+  reasonInput: { marginTop: 10, borderWidth: 1, padding: 12, paddingBottom: 28, color: colors.text, lineHeight: 18, backgroundColor: colors.input, borderColor: colors.controlBorder, borderRadius: 10, fontSize: 16, minHeight: 48, shadowOpacity: 0, elevation: 0 },
   counter: { position: "absolute", right: 25, bottom: 21, color: "#74767B", fontSize: 12 },
   actions: { marginHorizontal: 12, marginTop: 2, marginBottom: 10 },
   primary: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.accent },
   primaryText: { color: colors.white, fontSize: 12, fontWeight: "900" },
   disabled: { opacity: 0.5 },
-  toolsCard: { marginHorizontal: 12, paddingHorizontal: 14, ...card },
+  toolsCard: { marginHorizontal: 12, paddingHorizontal: 14, ...card, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   toolRow: { minHeight: 50, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(62,57,47,0.11)" },
   toolRowLast: { borderBottomWidth: 0 },
   toolText: { color: colors.text, fontSize: 12, fontWeight: "800" },

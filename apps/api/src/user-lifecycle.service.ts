@@ -1,3 +1,4 @@
+import { cursorColumns, cursorTimestamp, cursorTimeValue } from "./cursor-time.js";
 import { createHash, randomInt } from "node:crypto";
 import { Inject, Injectable } from "@nestjs/common";
 import { OutboxService } from "@xiongzai/application";
@@ -65,12 +66,12 @@ export class UserLifecycleService {
     const newPhone = this.protector.normalizePhone(rawNewPhone);
     const newPhoneHash = this.protector.piiHash("phone", newPhone);
     return this.database.db.transaction(async (tx) => {
-      const [existing] = await tx.select().from(phoneChangeRequests).where(and(eq(phoneChangeRequests.userId, userId), eq(phoneChangeRequests.idempotencyKey, idempotencyKey))).limit(1);
+      const [existing] = await tx.select(cursorColumns(phoneChangeRequests)).from(phoneChangeRequests).where(and(eq(phoneChangeRequests.userId, userId), eq(phoneChangeRequests.idempotencyKey, idempotencyKey))).limit(1);
       if (existing) {
         if (existing.newPhoneHash !== newPhoneHash) throw idempotencyConflict();
         return phoneChangeView(existing);
       }
-      const [user] = await tx.select().from(users).where(eq(users.id, userId)).limit(1).for("update");
+      const [user] = await tx.select(cursorColumns(users)).from(users).where(eq(users.id, userId)).limit(1).for("update");
       if (!user || user.status !== "NORMAL") throw unavailableUser();
       const [active] = await tx.select({ id: phoneChangeRequests.id }).from(phoneChangeRequests).where(and(eq(phoneChangeRequests.userId, userId), inArray(phoneChangeRequests.status, ["PENDING_OLD_VERIFICATION", "PENDING_NEW_VERIFICATION", "READY"]))).limit(1);
       if (active) throw lifecycleConflict("PHONE_CHANGE_ALREADY_ACTIVE", "当前已有进行中的手机号换绑申请");
@@ -97,14 +98,14 @@ export class UserLifecycleService {
   }
 
   async listPhoneChanges(userId: string) {
-    const rows = await this.database.db.select().from(phoneChangeRequests).where(eq(phoneChangeRequests.userId, userId)).orderBy(desc(phoneChangeRequests.createdAt)).limit(50);
+    const rows = await this.database.db.select(cursorColumns(phoneChangeRequests)).from(phoneChangeRequests).where(eq(phoneChangeRequests.userId, userId)).orderBy(desc(phoneChangeRequests.createdAt)).limit(50);
     return rows.map(phoneChangeView);
   }
 
   async sendPhoneChangeCode(userId: string, requestId: string, side: "old" | "new", metadata: RequestMetadata) {
     const expectedStatus: PhoneStatus = side === "old" ? "PENDING_OLD_VERIFICATION" : "PENDING_NEW_VERIFICATION";
     const purpose: SmsPurpose = side === "old" ? "PHONE_CHANGE_OLD" : "PHONE_CHANGE_NEW";
-    const [request] = await this.database.db.select().from(phoneChangeRequests).where(and(eq(phoneChangeRequests.id, requestId), eq(phoneChangeRequests.userId, userId), eq(phoneChangeRequests.status, expectedStatus))).limit(1);
+    const [request] = await this.database.db.select(cursorColumns(phoneChangeRequests)).from(phoneChangeRequests).where(and(eq(phoneChangeRequests.id, requestId), eq(phoneChangeRequests.userId, userId), eq(phoneChangeRequests.status, expectedStatus))).limit(1);
     if (!request) throw lifecycleConflict("PHONE_CHANGE_STATUS_INVALID", "当前换绑状态不能发送该验证码");
     if (request.expiresAt <= new Date()) throw lifecycleConflict("PHONE_CHANGE_EXPIRED", "手机号换绑申请已过期");
     const phoneHash = side === "old" ? request.oldPhoneHash : request.newPhoneHash;
@@ -118,7 +119,7 @@ export class UserLifecycleService {
     const expectedStatus: PhoneStatus = side === "old" ? "PENDING_OLD_VERIFICATION" : "PENDING_NEW_VERIFICATION";
     const purpose: SmsPurpose = side === "old" ? "PHONE_CHANGE_OLD" : "PHONE_CHANGE_NEW";
     const result = await this.database.db.transaction(async (tx) => {
-      const [request] = await tx.select().from(phoneChangeRequests).where(and(eq(phoneChangeRequests.id, requestId), eq(phoneChangeRequests.userId, userId))).limit(1).for("update");
+      const [request] = await tx.select(cursorColumns(phoneChangeRequests)).from(phoneChangeRequests).where(and(eq(phoneChangeRequests.id, requestId), eq(phoneChangeRequests.userId, userId))).limit(1).for("update");
       if (!request || request.status !== expectedStatus || request.version !== version) throw versionConflict("手机号换绑申请");
       if (request.expiresAt <= new Date()) throw lifecycleConflict("PHONE_CHANGE_EXPIRED", "手机号换绑申请已过期");
       const phoneHash = side === "old" ? request.oldPhoneHash : request.newPhoneHash;
@@ -185,7 +186,7 @@ export class UserLifecycleService {
 
   async createDataExport(userId: string, idempotencyKey: string, metadata: RequestMetadata) {
     return this.database.db.transaction(async (tx) => {
-      const [existing] = await tx.select().from(personalDataExportJobs).where(and(eq(personalDataExportJobs.userId, userId), eq(personalDataExportJobs.idempotencyKey, idempotencyKey))).limit(1);
+      const [existing] = await tx.select(cursorColumns(personalDataExportJobs)).from(personalDataExportJobs).where(and(eq(personalDataExportJobs.userId, userId), eq(personalDataExportJobs.idempotencyKey, idempotencyKey))).limit(1);
       if (existing) return exportView(existing);
       const [user] = await tx.select({ id: users.id, status: users.status }).from(users).where(eq(users.id, userId)).limit(1).for("update");
       if (!user || user.status !== "NORMAL") throw unavailableUser();
@@ -201,12 +202,12 @@ export class UserLifecycleService {
   }
 
   async listDataExports(userId: string) {
-    const rows = await this.database.db.select().from(personalDataExportJobs).where(eq(personalDataExportJobs.userId, userId)).orderBy(desc(personalDataExportJobs.createdAt)).limit(50);
+    const rows = await this.database.db.select(cursorColumns(personalDataExportJobs)).from(personalDataExportJobs).where(eq(personalDataExportJobs.userId, userId)).orderBy(desc(personalDataExportJobs.createdAt)).limit(50);
     return rows.map(exportView);
   }
 
   async dataExportDownload(userId: string, exportId: string) {
-    const [row] = await this.database.db.select({ job: personalDataExportJobs, file: files }).from(personalDataExportJobs)
+    const [row] = await this.database.db.select({ job: cursorColumns(personalDataExportJobs), file: files }).from(personalDataExportJobs)
       .leftJoin(files, eq(files.id, personalDataExportJobs.outputFileId))
       .where(and(eq(personalDataExportJobs.id, exportId), eq(personalDataExportJobs.userId, userId))).limit(1);
     if (!row || row.job.status !== "COMPLETED" || !row.file || row.job.expiresAt <= new Date() || row.file.deletedAt) throw new AppError({ code: "DATA_EXPORT_NOT_READY", message: "导出文件尚未生成或已经过期", statusCode: 409 });
@@ -215,12 +216,12 @@ export class UserLifecycleService {
   }
 
   async createCancellation(userId: string, reason: string, idempotencyKey: string, metadata: RequestMetadata) {
-    const [replay] = await this.database.db.select().from(accountCancellationRequests).where(and(eq(accountCancellationRequests.userId, userId), eq(accountCancellationRequests.idempotencyKey, idempotencyKey))).limit(1);
+    const [replay] = await this.database.db.select(cursorColumns(accountCancellationRequests)).from(accountCancellationRequests).where(and(eq(accountCancellationRequests.userId, userId), eq(accountCancellationRequests.idempotencyKey, idempotencyKey))).limit(1);
     if (replay) return cancellationView(replay);
     const blockers = await this.cancellationBlockers(userId);
     if (blockers.length) throw cancellationBlocked(blockers);
     return this.database.db.transaction(async (tx) => {
-      const [existing] = await tx.select().from(accountCancellationRequests).where(and(eq(accountCancellationRequests.userId, userId), eq(accountCancellationRequests.idempotencyKey, idempotencyKey))).limit(1);
+      const [existing] = await tx.select(cursorColumns(accountCancellationRequests)).from(accountCancellationRequests).where(and(eq(accountCancellationRequests.userId, userId), eq(accountCancellationRequests.idempotencyKey, idempotencyKey))).limit(1);
       if (existing) return cancellationView(existing);
       const [user] = await tx.select({ id: users.id, status: users.status }).from(users).where(eq(users.id, userId)).limit(1).for("update");
       if (!user || user.status !== "NORMAL") throw unavailableUser();
@@ -236,7 +237,7 @@ export class UserLifecycleService {
   }
 
   async listCancellations(userId: string) {
-    const rows = await this.database.db.select().from(accountCancellationRequests).where(eq(accountCancellationRequests.userId, userId)).orderBy(desc(accountCancellationRequests.createdAt)).limit(50);
+    const rows = await this.database.db.select(cursorColumns(accountCancellationRequests)).from(accountCancellationRequests).where(eq(accountCancellationRequests.userId, userId)).orderBy(desc(accountCancellationRequests.createdAt)).limit(50);
     return rows.map(cancellationView);
   }
 
@@ -257,10 +258,10 @@ export class UserLifecycleService {
     const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw new AppError({ code: errorCodes.VALIDATION_FAILED, message: "分页游标与账号注销筛选条件不匹配", statusCode: 400 });
     const ascending = input.sort === "created_asc";
-    const cursorDate = cursor ? new Date(cursor.sort_value) : undefined;
+    const cursorDate = cursor ? cursorTimeValue(cursor.sort_value) : undefined;
     const keyword = input.keyword ? `%${input.keyword}%` : undefined;
     const rows = await this.database.db.select({
-      request: accountCancellationRequests,
+      request: cursorColumns(accountCancellationRequests),
       nickname: userProfiles.nickname,
       publicUserNo: userProfiles.publicUserNo,
       phoneMask: users.phoneMask,
@@ -291,7 +292,7 @@ export class UserLifecycleService {
 
   async adminCancellationDetail(requestId: string) {
     const [row] = await this.database.db.select({
-      request: accountCancellationRequests,
+      request: cursorColumns(accountCancellationRequests),
       nickname: userProfiles.nickname,
       publicUserNo: userProfiles.publicUserNo,
       phoneMask: users.phoneMask,
@@ -307,7 +308,7 @@ export class UserLifecycleService {
   async adminRejectCancellation(adminId: string, requestId: string, version: number, reason: string, metadata: RequestMetadata) {
     const now = new Date();
     return this.database.db.transaction(async (tx) => {
-      const [current] = await tx.select().from(accountCancellationRequests).where(eq(accountCancellationRequests.id, requestId)).limit(1).for("update");
+      const [current] = await tx.select(cursorColumns(accountCancellationRequests)).from(accountCancellationRequests).where(eq(accountCancellationRequests.id, requestId)).limit(1).for("update");
       if (!current || current.status !== "REQUESTED" || current.version !== version) throw versionConflict("账号注销申请");
       const logId = uuidv7();
       await tx.insert(adminOperationLogs).values({ id: logId, adminId, action: "ACCOUNT_CANCELLATION_REJECTED", targetType: "USER", targetId: current.userId, reason, beforeJson: { request_id: requestId, status: current.status, version: current.version }, afterJson: { request_id: requestId, status: "REJECTED", version: current.version + 1 }, requestId: metadata.requestId, traceId: metadata.traceId, ip: metadata.ip, userAgent: metadata.userAgent });
@@ -338,9 +339,9 @@ export class UserLifecycleService {
     const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw validation("cursor", "分页游标与手机号换绑筛选条件不匹配");
     const ascending = input.sort === "created_asc";
-    const cursorDate = cursor ? new Date(cursor.sort_value) : undefined;
+    const cursorDate = cursor ? cursorTimeValue(cursor.sort_value) : undefined;
     const keyword = input.keyword ? `%${input.keyword.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%` : undefined;
-    const rows = await this.database.db.select({ request: phoneChangeRequests, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, userStatus: users.status })
+    const rows = await this.database.db.select({ request: cursorColumns(phoneChangeRequests), nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, userStatus: users.status })
       .from(phoneChangeRequests)
       .innerJoin(users, eq(users.id, phoneChangeRequests.userId))
       .leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt)))
@@ -359,11 +360,11 @@ export class UserLifecycleService {
   }
 
   async adminPhoneChangeDetail(requestId: string) {
-    const [row] = await this.database.db.select({ request: phoneChangeRequests, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, userStatus: users.status })
+    const [row] = await this.database.db.select({ request: cursorColumns(phoneChangeRequests), nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, userStatus: users.status })
       .from(phoneChangeRequests).innerJoin(users, eq(users.id, phoneChangeRequests.userId)).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt)))
       .where(eq(phoneChangeRequests.id, requestId)).limit(1);
     if (!row) throw new AppError({ code: "RESOURCE_NOT_FOUND", message: "手机号换绑记录不存在", statusCode: 404 });
-    const history = await this.database.db.select({ id: securityLogs.id, eventType: securityLogs.eventType, status: securityLogs.status, riskScore: securityLogs.riskScore, metadataJson: securityLogs.metadataJson, createdAt: securityLogs.createdAt })
+    const history = await this.database.db.select({ id: securityLogs.id, eventType: securityLogs.eventType, status: securityLogs.status, riskScore: securityLogs.riskScore, metadataJson: securityLogs.metadataJson, createdAt: cursorTimestamp(securityLogs.createdAt) })
       .from(securityLogs).where(and(eq(securityLogs.userId, row.request.userId), sql<boolean>`${securityLogs.metadataJson}->>'phone_change_request_id' = ${requestId}`)).orderBy(desc(securityLogs.createdAt)).limit(50);
     return { ...adminPhoneChangeView(row), security_history: history.map((entry) => ({ id: entry.id, event_type: entry.eventType, status: entry.status, risk_score: entry.riskScore, request_id: phoneSecurityRequestId(entry.metadataJson), created_at: entry.createdAt })) };
   }
@@ -373,9 +374,9 @@ export class UserLifecycleService {
     const scope = `admin-data-exports:${input.status ?? ""}:${input.keyword ?? ""}:${input.sort}`;
     const cursor = input.cursor ? decodeCursor(input.cursor, this.config.cursorSigningSecret) : undefined;
     if (cursor && cursor.scope !== scope) throw validation("cursor", "分页游标与数据导出筛选条件不匹配");
-    const ascending = input.sort === "created_asc"; const cursorDate = cursor ? new Date(cursor.sort_value) : undefined;
+    const ascending = input.sort === "created_asc"; const cursorDate = cursor ? cursorTimeValue(cursor.sort_value) : undefined;
     const keyword = input.keyword ? `%${input.keyword.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%` : undefined;
-    const rows = await this.database.db.select({ job: personalDataExportJobs, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask, userStatus: users.status })
+    const rows = await this.database.db.select({ job: cursorColumns(personalDataExportJobs), nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask, userStatus: users.status })
       .from(personalDataExportJobs).innerJoin(users, eq(users.id, personalDataExportJobs.userId)).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt)))
       .where(and(
         input.status ? eq(personalDataExportJobs.status, input.status) : undefined,
@@ -392,7 +393,7 @@ export class UserLifecycleService {
   }
 
   async adminDataExportDetail(exportId: string) {
-    const [row] = await this.database.db.select({ job: personalDataExportJobs, nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask, userStatus: users.status })
+    const [row] = await this.database.db.select({ job: cursorColumns(personalDataExportJobs), nickname: userProfiles.nickname, publicUserNo: userProfiles.publicUserNo, phoneMask: users.phoneMask, userStatus: users.status })
       .from(personalDataExportJobs).innerJoin(users, eq(users.id, personalDataExportJobs.userId)).leftJoin(userProfiles, and(eq(userProfiles.userId, users.id), isNull(userProfiles.deletedAt)))
       .where(eq(personalDataExportJobs.id, exportId)).limit(1);
     if (!row) throw new AppError({ code: "RESOURCE_NOT_FOUND", message: "个人数据导出任务不存在", statusCode: 404 });
@@ -464,7 +465,7 @@ export class UserLifecycleJobProcessor {
   }
 
   private async expirePhoneChange(id: string) {
-    const [row] = await this.database.db.select().from(phoneChangeRequests).where(eq(phoneChangeRequests.id, id)).limit(1);
+    const [row] = await this.database.db.select(cursorColumns(phoneChangeRequests)).from(phoneChangeRequests).where(eq(phoneChangeRequests.id, id)).limit(1);
     if (!row || (["COMPLETED", "CANCELLED", "EXPIRED"] as PhoneStatus[]).includes(row.status)) return;
     const updated = await this.database.db.update(phoneChangeRequests).set({ status: "EXPIRED", version: sql`${phoneChangeRequests.version} + 1`, updatedAt: new Date() })
       .where(and(eq(phoneChangeRequests.id, id), eq(phoneChangeRequests.status, row.status), eq(phoneChangeRequests.version, row.version), sql`${phoneChangeRequests.expiresAt} <= now()`)).returning({ id: phoneChangeRequests.id });
@@ -472,7 +473,7 @@ export class UserLifecycleJobProcessor {
   }
 
   private async generateExport(id: string, traceId?: string) {
-    const [job] = await this.database.db.select().from(personalDataExportJobs).where(eq(personalDataExportJobs.id, id)).limit(1);
+    const [job] = await this.database.db.select(cursorColumns(personalDataExportJobs)).from(personalDataExportJobs).where(eq(personalDataExportJobs.id, id)).limit(1);
     if (!job || job.status === "COMPLETED" || job.status === "EXPIRED") return;
     if (!(["PENDING", "PROCESSING"] as ExportStatus[]).includes(job.status)) throw new LifecycleTaskError("data_export_terminal", false);
     let processing = job;
@@ -489,7 +490,7 @@ export class UserLifecycleJobProcessor {
     const response = await fetch(upload.url, { method: "PUT", headers: upload.headers, body: bytes });
     if (!response.ok) throw new LifecycleTaskError("data_export_object_write_failed", true);
     await this.database.db.transaction(async (tx) => {
-      const [current] = await tx.select().from(personalDataExportJobs).where(eq(personalDataExportJobs.id, id)).limit(1).for("update");
+      const [current] = await tx.select(cursorColumns(personalDataExportJobs)).from(personalDataExportJobs).where(eq(personalDataExportJobs.id, id)).limit(1).for("update");
       if (!current || current.status === "COMPLETED") return;
       if (current.status !== "PROCESSING") throw new LifecycleTaskError("data_export_status_changed", false);
       await tx.insert(files).values({ id: fileId, ownerUserId: current.userId, bucket: this.config.filePrivateBucket, objectKey, fileType: "DATA_EXPORT", mimeType: "application/json", sizeBytes: BigInt(bytes.byteLength), sha256, uploadStatus: "VERIFIED", moderationStatus: "APPROVED", visibility: "SIGNED" });
@@ -503,7 +504,7 @@ export class UserLifecycleJobProcessor {
   }
 
   private async expireExport(id: string, traceId?: string) {
-    const [row] = await this.database.db.select().from(personalDataExportJobs).where(eq(personalDataExportJobs.id, id)).limit(1);
+    const [row] = await this.database.db.select(cursorColumns(personalDataExportJobs)).from(personalDataExportJobs).where(eq(personalDataExportJobs.id, id)).limit(1);
     if (!row || row.status === "EXPIRED") return;
     if (row.expiresAt > new Date()) throw new LifecycleTaskError("data_export_not_due", true);
     if (row.status !== "COMPLETED" || !row.outputFileId) throw new LifecycleTaskError("data_export_not_ready_at_expiry", true);
@@ -520,13 +521,13 @@ export class UserLifecycleJobProcessor {
   }
 
   private async completeCancellation(id: string, traceId?: string) {
-    const [candidate] = await this.database.db.select().from(accountCancellationRequests).where(eq(accountCancellationRequests.id, id)).limit(1);
+    const [candidate] = await this.database.db.select(cursorColumns(accountCancellationRequests)).from(accountCancellationRequests).where(eq(accountCancellationRequests.id, id)).limit(1);
     if (!candidate || candidate.status === "COMPLETED" || candidate.status === "CANCELLED" || candidate.status === "REJECTED") return;
     if (candidate.waitingPeriodEndsAt > new Date()) throw new LifecycleTaskError("account_cancellation_not_due", true);
     const blockers = await cancellationBlockers(this.database, candidate.userId);
     if (blockers.length) throw new LifecycleTaskError("account_cancellation_blocked", true);
     await this.database.db.transaction(async (tx) => {
-      const [current] = await tx.select().from(accountCancellationRequests).where(eq(accountCancellationRequests.id, id)).limit(1).for("update");
+      const [current] = await tx.select(cursorColumns(accountCancellationRequests)).from(accountCancellationRequests).where(eq(accountCancellationRequests.id, id)).limit(1).for("update");
       if (!current || current.status !== "REQUESTED") return;
       const now = new Date();
       const [processing] = await tx.update(accountCancellationRequests).set({ status: "PROCESSING", processingAt: now, version: sql`${accountCancellationRequests.version} + 1`, updatedAt: now })
@@ -547,7 +548,7 @@ export class UserLifecycleJobProcessor {
 
   private async exportPayload(userId: string) {
     const [user, profile, privacy, acceptances] = await Promise.all([
-      this.database.db.select({ id: users.id, phoneMask: users.phoneMask, status: users.status, profileInitialized: users.profileInitialized, createdAt: users.createdAt }).from(users).where(eq(users.id, userId)).limit(1),
+      this.database.db.select({ id: users.id, phoneMask: users.phoneMask, status: users.status, profileInitialized: users.profileInitialized, createdAt: cursorTimestamp(users.createdAt) }).from(users).where(eq(users.id, userId)).limit(1),
       this.database.db.select({ nickname: userProfiles.nickname, bio: userProfiles.bio, publicUserNo: userProfiles.publicUserNo, createdAt: userProfiles.createdAt }).from(userProfiles).where(and(eq(userProfiles.userId, userId), isNull(userProfiles.deletedAt))).limit(1),
       this.database.db.select().from(privacySettings).where(eq(privacySettings.userId, userId)).limit(1),
       this.database.db.select({ policyVersionId: userPolicyAcceptances.policyVersionId, scene: userPolicyAcceptances.acceptanceScene, method: userPolicyAcceptances.confirmationMethod, acceptedAt: userPolicyAcceptances.acceptedAt }).from(userPolicyAcceptances).where(eq(userPolicyAcceptances.userId, userId)),

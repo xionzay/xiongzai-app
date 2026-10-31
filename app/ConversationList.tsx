@@ -7,8 +7,9 @@ export type InboxEntry = { id: string; name: string; avatar: string; preview: st
 
 export type InboxSearchState = { searching: boolean; query: string; searched: string; results: InboxEntry[] | null };
 
-export function ConversationList({ entries, onOpen, search, loading = false, error = '', empty, seller = false, initialSearch, onSearchStateChange }: {
+export function ConversationList({ entries, onOpen, search, loading = false, error = '', empty, seller = false, initialSearch, onSearchStateChange, onSupport, support }: {
   entries: InboxEntry[]; onOpen: (id: string, matchMessageId?: string) => void;
+  onSupport?: () => void; support?: { preview?: string | null; time?: string | null; unread?: number };
   search: (keyword: string) => Promise<InboxEntry[]>; loading?: boolean; error?: string; empty?: ReactNode; seller?: boolean; initialSearch?: InboxSearchState; onSearchStateChange?: (state: InboxSearchState) => void;
 }) {
   const [searching, setSearching] = useState(initialSearch?.searching ?? false);
@@ -43,6 +44,10 @@ export function ConversationList({ entries, onOpen, search, loading = false, err
       <button type="submit" disabled={busy}>查找</button><button type="button" onClick={collapse}>收起</button>
     </form>}
     {(searched || query) && <div className="seller-search-summary"><span>{searched ? `搜索“${searched}”` : `待查找“${query}”`}</span><button type="button" onClick={clear}>清除</button></div>}
+    {onSupport && <button type="button" className="conversation-inbox-row conversation-support-entry" aria-label="进入平台客服" onClick={onSupport}>
+      <span className="conversation-inbox-avatar"><CartoonIcon kind="service" />{Boolean(support?.unread) && <em>{support!.unread! > 99 ? '99+' : support!.unread}</em>}</span>
+      <span className="conversation-inbox-copy"><span><b>平台客服 <i className="conversation-official-label">官方</i></b><time>{support?.time ? new Date(support.time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : ''}</time></span><small>{support?.preview || '订单咨询与问题反馈'}</small></span>
+    </button>}
     {(busy || loading) && <p className="conversation-search-state" role="status">{busy ? '正在搜索聊天记录…' : '正在加载会话…'}</p>}
     {(searchError || error) && <p className="conversation-search-state" role="alert">{searchError || error}{searchError && <button type="button" disabled={busy} onClick={() => void submit()}>重试</button>}</p>}
     {!busy && !searchError && <div className="conversation-inbox-rows">{rows.map(row => <button type="button" className="conversation-inbox-row" key={row.id} onClick={() => onOpen(row.id, row.matchMessageId)}>

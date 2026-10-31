@@ -1,26 +1,28 @@
-import { useMemo, useState } from "react";
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { router } from "expo-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { isFulfillmentOrder } from "@xiongzai/contracts/commerce";
+import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/auth/auth-provider";
 import { AppScreen } from "@/components/app-screen";
-import { FileImage } from "@/components/file-image";
 import { ListSkeleton } from "@/components/list-skeleton";
 import { PrimaryButton } from "@/components/primary-button";
 import { StateView } from "@/components/state-view";
-import { ChevronRightIcon, RefreshIcon } from "@/components/ui-icons";
+import { ChevronRightIcon } from "@/components/ui-icons";
+import { ApprovedIllustration } from "@/components/approved-illustration";
 import { nativeShadow } from "@/components/native-page";
-import { formatServiceTime } from "@/features/checkout/checkout-domain";
 import { useBuyerOrders } from "@/features/checkout/order-api";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { colors, radii, spacing, typography } from "@/theme/tokens";
 import type { OrderApiView, OrderStatus } from "@/types/api";
-import { formatCent } from "@/utils/money";
-import { OrderTabIcon, ShieldIcon } from "@/components/tab-icons";
+import { BuyerOrderCard } from './buyer-order-card';
+import { ShieldIcon } from "@/components/tab-icons";
+import { orderFilterRequest, visibleBuyerOrders, searchLoadedBuyerOrders, type BuyerOrderFilter } from "./order-list-filter";
 
 const labels: Record<OrderStatus, string> = {
   PENDING_PAYMENT: "待付款",
   PENDING_ACCEPT: "待接单",
   ACCEPTED: "待开始",
+  PENDING_SERVICE: "待服务",
   IN_SERVICE: "服务中",
   PENDING_BUYER_CONFIRM: "待确认",
   COMPLETED: "已完成",
@@ -29,31 +31,46 @@ const labels: Record<OrderStatus, string> = {
   SELLER_REJECTED: "未接单"
 };
 
-type OrderFilter = OrderStatus | "AFTER_SALE" | undefined;
+type OrderFilter = BuyerOrderFilter;
 const filters: { label: string; value?: OrderFilter }[] = [
-  { label: "全部" },
+  { label: "全部", value: "ALL" },
   { label: "待付款", value: "PENDING_PAYMENT" },
-  { label: "待接单", value: "PENDING_ACCEPT" },
-  { label: "待开始", value: "ACCEPTED" },
+  { label: "待服务", value: "PENDING_SERVICE" },
   { label: "服务中", value: "IN_SERVICE" },
-  { label: "待确认", value: "PENDING_BUYER_CONFIRM" },
+  { label: "待收货", value: "PENDING_BUYER_CONFIRM" },
+  { label: "待评价", value: "PENDING_REVIEW" },
+  { label: "售后中", value: "AFTER_SALE" },
   { label: "已完成", value: "COMPLETED" },
-  { label: "售后", value: "AFTER_SALE" }
+  { label: "待接单", value: "PENDING_ACCEPT" },
+  { label: "待开始", value: "ACCEPTED" }
 ];
 
-let savedFilter: OrderFilter;
+let savedFilter: OrderFilter = "ALL";
 let savedOffset = 0;
 
 export function OrdersScreen() {
   const { status, user } = useAuth();
   const online = useOnlineStatus();
-  const [filter, setFilter] = useState<OrderFilter>(savedFilter);
-  const query = useBuyerOrders(
-    status === "authenticated",
-    filter === "AFTER_SALE" ? undefined : filter,
-    filter === "AFTER_SALE" ? "IN_PROGRESS" : undefined
-  );
-  const items = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data]);
+  const params = useLocalSearchParams<{ filter?: string }>();
+  const [manualFilter, setFilter] = useState<OrderFilter>(savedFilter);
+  const [searchOpen, setSearchOpen] = useState(false);
+  // Account-scoped state prevents a previous account's private search leaking on switch.
+  const [search, setSearch] = useState({ owner: user?.id, value: "" });
+  const keyword = search.owner === user?.id ? search.value : "";
+  const routeFilter = filters.find(item => item.value === params.filter)?.value;
+  const filter = routeFilter ?? manualFilter;
+  const filterScroll = useRef<ScrollView>(null);
+  const filterPositions = useRef<Partial<Record<OrderFilter, number>>>({});
+  useEffect(() => {
+    const x = filterPositions.current[filter];
+    if (x !== undefined) filterScroll.current?.scrollTo({ x: Math.max(0, x - 12), animated: false });
+  }, [filter]);
+  useEffect(() => {
+    if (routeFilter) { savedFilter = routeFilter; savedOffset = 0; }
+  }, [routeFilter]);
+  const request = orderFilterRequest(filter);
+  const query = useBuyerOrders(status === "authenticated", request.status, request.afterSale);
+  const items = useMemo(() => searchLoadedBuyerOrders(visibleBuyerOrders(query.data?.pages.flatMap((page) => page.items) ?? [], filter), keyword), [query.data, filter, keyword]);
 
   if (status === "booting") return <AppScreen><StateView kind="loading" /></AppScreen>;
   if (!user) return <AppScreen><StateView kind="empty" title="登录后查看订单" message="订单属于账号私有数据" actionLabel="去登录" onRetry={() => router.push({ pathname: "/(auth)/required", params: { action: "查看订单", returnTo: "/(buyer-tabs)/orders" } })} /></AppScreen>;
@@ -63,8 +80,17 @@ export function OrdersScreen() {
 
   return (
     <AppScreen scroll={false} contentContainerStyle={styles.content}>
-      <OrdersHeader refreshing={query.isRefetching} onRefresh={() => void query.refetch()} />
+      <OrdersHeader searchOpen={searchOpen} onSearch={() => setSearchOpen(value => !value)} />
+      {searchOpen ? <View style={styles.searchRow}>
+        <TextInput accessibilityLabel="搜索订单" placeholder="搜索商品、店铺或订单号" placeholderTextColor={colors.textSecondary} value={keyword}
+          onChangeText={value => { savedOffset = 0; setSearch({ owner: user.id, value }); }} style={styles.searchInput} returnKeyType="search" autoCapitalize="none" />
+        <Pressable accessibilityRole="button" accessibilityLabel="清空订单搜索" onPress={() => setSearch({ owner: user.id, value: "" })} style={styles.searchControl}><Text style={styles.linkText}>清空</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="收起订单搜索" onPress={() => setSearchOpen(false)} style={styles.searchControl}><Text style={styles.linkText}>收起</Text></Pressable>
+      </View> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel="刷新订单" accessibilityState={{ busy: query.isRefetching }} disabled={query.isRefetching} onPress={() => void query.refetch()} style={styles.refreshButton}><Text style={styles.linkText}>{query.isRefetching ? "刷新中…" : "刷新订单"}</Text></Pressable>
+      {keyword.trim() ? <Text style={styles.searchNote}>仅搜索已加载订单；继续加载可查看更早记录。</Text> : null}
       <ScrollView
+        ref={filterScroll}
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.filtersViewport}
@@ -75,12 +101,18 @@ export function OrdersScreen() {
           return (
             <Pressable
               key={item.label}
+              onLayout={({ nativeEvent }) => {
+                const value = item.value ?? 'ALL';
+                filterPositions.current[value] = nativeEvent.layout.x;
+                if (value === filter) filterScroll.current?.scrollTo({ x: Math.max(0, nativeEvent.layout.x - 12), animated: false });
+              }}
               accessibilityRole="tab"
               accessibilityState={{ selected }}
               onPress={() => {
-                savedFilter = item.value;
+                savedFilter = item.value ?? "ALL";
                 savedOffset = 0;
-                setFilter(item.value);
+                router.setParams({ filter: undefined });
+                setFilter(item.value ?? "ALL");
               }}
               style={styles.filter}
             >
@@ -99,8 +131,8 @@ export function OrdersScreen() {
         scrollEventThrottle={200}
         contentContainerStyle={styles.list}
         refreshControl={<RefreshControl refreshing={query.isRefetching} onRefresh={() => void query.refetch()} tintColor={colors.accent} />}
-        ListEmptyComponent={<EmptyOrders />}
-        renderItem={({ item }) => <OrderCard item={item} />}
+        ListEmptyComponent={keyword.trim() ? <StateView kind="empty" title="没有找到相关订单" message="当前已加载订单中没有匹配项，可以修改搜索词或继续加载。" /> : filter === 'PENDING_REVIEW' && query.hasNextPage ? <StateView kind="empty" title="已加载订单中暂无待评价" message="还有历史订单未加载，请继续加载后查看" /> : <EmptyOrders />}
+        renderItem={({ item }) => <BuyerOrderCard item={item} state={listStatus(item)} />}
         ListFooterComponent={(
           <View style={styles.footer}>
             {query.hasNextPage ? <PrimaryButton tone="plain" label={query.isFetchingNextPage ? "加载中…" : "加载更多"} loading={query.isFetchingNextPage} onPress={() => void query.fetchNextPage()} /> : null}
@@ -112,30 +144,18 @@ export function OrdersScreen() {
   );
 }
 
-function OrdersHeader({ refreshing = false, onRefresh }: { refreshing?: boolean; onRefresh?(): void }) {
+function OrdersHeader({ searchOpen = false, onSearch }: { searchOpen?: boolean; onSearch?(): void }) {
   return (
     <View style={styles.header}>
-      <View style={styles.headerCopy}>
-        <Text style={styles.pageTitle}>我的订单</Text>
-        <Text style={styles.pageSubtitle}>只显示我购买的服务</Text>
-      </View>
-      {onRefresh ? (
-        <Pressable accessibilityRole="button" accessibilityLabel="刷新订单" accessibilityState={{ busy: refreshing }} disabled={refreshing} onPress={onRefresh} style={styles.refreshButton}>
-          {refreshing ? <Text style={styles.refreshingText}>…</Text> : <RefreshIcon size={22} />}
-        </Pressable>
-      ) : null}
+      <View style={styles.headerAction} />
+      <Text style={styles.pageTitle}>我的订单</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel="搜索订单" accessibilityState={{ expanded: searchOpen }} disabled={!onSearch} onPress={onSearch} style={styles.headerAction}><ApprovedIllustration kind="search" size={25} /><Text style={styles.searchLabel}>搜索</Text></Pressable>
     </View>
   );
 }
 
 function EmptyOrders() {
-  return (
-    <View style={styles.emptyCard}>
-      <View style={styles.emptyMark}><OrderTabIcon size={34} /></View>
-      <Text style={styles.emptyTitle}>还没有订单</Text>
-      <Text style={styles.emptyMessage}>当前分类暂无订单</Text>
-    </View>
-  );
+  return <StateView kind="empty" illustrationSize={176} title="还没有购买订单" message="当前分类暂无订单，新的订单会显示在这里。" actionLabel="去看看服务" onRetry={() => router.push('/(buyer-tabs)')} />;
 }
 
 function SupportEntry() {
@@ -155,38 +175,22 @@ function listStatus(item: OrderApiView) {
   if (item.payment_status === "REFUNDED") return "已退款";
   if (item.after_sale_status === "IN_PROGRESS") return "售后中";
   if (item.status === "COMPLETED" && item.reviewed) return "已评价";
+  if (isFulfillmentOrder(item) && item.status === "PENDING_BUYER_CONFIRM") return "待收货";
   return labels[item.status];
-}
-
-function OrderCard({ item }: { item: OrderApiView }) {
-  const state = listStatus(item);
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${item.product_title}，${state}`} onPress={() => router.push({ pathname: "/orders/[id]", params: { id: item.id } })} style={styles.card}>
-      <View style={styles.top}>
-        <View style={styles.sellerRow}><Text style={styles.seller}>{item.seller_name}</Text><ChevronRightIcon size={15} color={colors.text} /></View>
-        <Text style={styles.status}>{state}</Text>
-      </View>
-      <View style={styles.row}>
-        <FileImage fileId={item.product_image || null} style={styles.image} label={`${item.product_title}图片`} />
-        <View style={styles.flex}>
-          <Text style={styles.title}>{item.product_title}</Text>
-          <Text style={styles.meta}>{item.sku_name} · {formatServiceTime(item.service_starts_at)}</Text>
-          <Text style={styles.price}>{formatCent(item.payable_amount_cent)}</Text>
-        </View>
-      </View>
-      <View style={styles.cardFooter}><Text style={styles.detailAction}>订单详情</Text></View>
-    </Pressable>
-  );
 }
 
 const styles = StyleSheet.create({
   content: { paddingTop: spacing.md },
-  header: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: spacing.md, paddingBottom: spacing.sm },
-  headerCopy: { flex: 1, gap: 3 },
-  pageTitle: { ...typography.pageTitle, color: colors.text },
-  pageSubtitle: { ...typography.caption, color: colors.textSecondary },
-  refreshButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: 22, backgroundColor: colors.surfaceCard, borderWidth: 1, borderColor: colors.border },
-  refreshingText: { color: colors.text, fontSize: 23, lineHeight: 25, fontWeight: "800" },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerAction: { width: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
+  searchLabel: { fontSize: 10, lineHeight: 14, color: colors.text },
+  pageTitle: { ...typography.pageTitle, flex: 1, color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  refreshButton: { minHeight: 44, alignSelf: "flex-end", justifyContent: "center", paddingHorizontal: 6 },
+  linkText: { color: colors.accent, fontSize: 12 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  searchInput: { flex: 1, minWidth: 0, minHeight: 44, borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, color: colors.text, backgroundColor: colors.white, fontSize: 13 },
+  searchControl: { minWidth: 44, minHeight: 44, alignItems: "center", justifyContent: "center" },
+  searchNote: { fontSize: 12, lineHeight: 18, color: colors.textSecondary },
   filtersViewport: { flexGrow: 0, flexShrink: 0, maxHeight: 50 },
   filters: { minHeight: 46, alignItems: "center", gap: spacing.lg, paddingRight: spacing.lg },
   filter: { height: 44, minWidth: 42, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.xs },
@@ -195,16 +199,16 @@ const styles = StyleSheet.create({
   filterUnderline: { position: "absolute", bottom: 2, width: 22, height: 3, borderRadius: 2, backgroundColor: colors.accent },
   orderList: { flex: 1 },
   list: { gap: spacing.md, paddingTop: spacing.sm, paddingBottom: 112 },
-  emptyCard: { minHeight: 230, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl, borderWidth: 1, borderColor: colors.border, borderRadius: radii.xl, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  emptyCard: { minHeight: 230, alignItems: "center", justifyContent: "center", gap: spacing.sm, padding: spacing.xl, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   emptyMark: { width: 52, height: 52, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: colors.accentSoft },
   emptyTitle: { ...typography.sectionTitle, color: colors.text },
   emptyMessage: { ...typography.body, color: colors.textSecondary },
   footer: { gap: spacing.md, paddingTop: spacing.md },
-  support: { minHeight: 82, flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
-  supportMark: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 14, backgroundColor: colors.accentSoft },
-  supportTitle: { ...typography.cardTitle, color: colors.text },
+  support: { minHeight: 76, flexDirection: "row", alignItems: "center", gap: 16, paddingVertical: 12, paddingHorizontal: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, borderRadius: 18, backgroundColor: "transparent" },
+  supportMark: { width: 32, height: 32, alignItems: "center", justifyContent: "center" },
+  supportTitle: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: colors.text },
   supportMeta: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  card: { gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radii.lg, backgroundColor: "rgba(255,253,248,0.96)", ...nativeShadow },
+  card: { gap: spacing.md, padding: spacing.lg, ...nativeShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   top: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md, paddingBottom: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   sellerRow: { flexDirection: "row", alignItems: "center", gap: 7 },
   seller: { ...typography.body, color: colors.text, fontWeight: "800" },

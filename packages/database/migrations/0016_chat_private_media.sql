@@ -1,0 +1,9 @@
+ALTER TYPE "public"."file_type" ADD VALUE 'CHAT_IMAGE' BEFORE 'ORDER_FULFILLMENT_IMAGE';--> statement-breakpoint
+ALTER TYPE "public"."file_type" ADD VALUE 'CHAT_VOICE' BEFORE 'ORDER_FULFILLMENT_IMAGE';--> statement-breakpoint
+ALTER TYPE "public"."message_type" ADD VALUE 'IMAGE';--> statement-breakpoint
+ALTER TYPE "public"."message_type" ADD VALUE 'VOICE';--> statement-breakpoint
+ALTER TABLE "messages" ADD COLUMN "media_file_id" uuid;--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_media_file_id_files_id_fk" FOREIGN KEY ("media_file_id") REFERENCES "public"."files"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "messages_media_file_uq" ON "messages" USING btree ("media_file_id") WHERE "messages"."media_file_id" IS NOT NULL;--> statement-breakpoint
+ALTER TABLE "files" ADD CONSTRAINT "files_chat_metadata_valid" CHECK ("files"."file_type"::text NOT IN ('CHAT_IMAGE','CHAT_VOICE') OR ("files"."visibility" = 'PRIVATE' AND ("files"."file_type"::text = 'CHAT_IMAGE' AND "files"."mime_type" IN ('image/jpeg','image/png','image/webp') OR "files"."file_type"::text = 'CHAT_VOICE' AND "files"."mime_type" IN ('audio/aac','audio/mp4','audio/mpeg') AND ("files"."upload_status" <> 'VERIFIED' OR ("files"."duration_ms" IS NOT NULL AND "files"."duration_ms" BETWEEN 1000 AND 60000)))));--> statement-breakpoint
+ALTER TABLE "messages" ADD CONSTRAINT "messages_media_shape_valid" CHECK (("messages"."message_type"::text IN ('IMAGE','VOICE') AND "messages"."media_file_id" IS NOT NULL) OR ("messages"."message_type"::text NOT IN ('IMAGE','VOICE') AND "messages"."media_file_id" IS NULL));

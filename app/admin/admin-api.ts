@@ -33,8 +33,15 @@ function adminApiBaseUrl() {
 
 export async function adminApiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await adminApiFetch(path, init);
-  const body = await response.json().catch(() => ({})) as Record<string, unknown>;
-  throwForError(response, body, path);
+  const body: unknown = response.status === 204 ? {} : await response.json().catch(() => null);
+  const structured = body !== null && typeof body === "object";
+  // An HTTP success alone is not a valid JSON business acknowledgement. Never
+  // turn proxy HTML, truncated JSON or scalar payloads into a successful write.
+  throwForError(response, structured ? body as Record<string, unknown> : {}, path);
+  if (!structured) throw new AdminApiError(
+    "管理服务响应格式异常，操作结果尚未确认，请重新读取记录后核对",
+    "ADMIN_RESPONSE_INVALID", response.status, response.headers.get("x-request-id"),
+  );
   if (init.method && !["GET", "HEAD"].includes(init.method.toUpperCase()) && !path.startsWith("/auth/")) emit({ type: "data-changed" });
   return body as T;
 }

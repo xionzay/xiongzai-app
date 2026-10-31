@@ -4,6 +4,7 @@ import net from "node:net";
 import { spawn } from "node:child_process";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { observeProcessExit, stopTestProcess, waitForLocalHttp, waitForTestExit } from "../scripts/production-test-process.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 
@@ -17,19 +18,20 @@ test("API production artifact starts, rejects anonymous admin access and shuts d
     stdio: ["ignore", "pipe", "pipe"],
   });
   const output = capture(child);
+  const exited = observeProcessExit(child);
   try {
-    await waitForHttp(`http://127.0.0.1:${port}/health/live`, child, output);
+    const live = await waitForLocalHttp(`http://127.0.0.1:${port}/health/live`, child);
+    assert.equal(live.status, 200); await live.body?.cancel();
     const response = await fetch(`http://127.0.0.1:${port}/admin-api/v1/auth/session`);
     assert.equal(response.status, 401);
     assert.match(response.headers.get("cache-control") ?? "", /no-store/u);
     assert.match(response.headers.get("x-request-id") ?? "", /^[A-Za-z0-9._:-]{8,128}$/u);
   } finally {
-    child.kill("SIGTERM");
+    const result = await stopTestProcess(child, exited);
+    assert.equal(controlledExit(result), true, "API artifact must stop cleanly");
   }
-  const result = await waitForExit(child);
-  assert.equal(controlledExit(result), true, output.text());
   assert.equal(output.text().includes(marker), false);
-  assert.doesNotMatch(output.text(), /postgres(?:ql)?:\/\//iu);
+  assert.equal(/postgres(?:ql)?:\/\//iu.test(output.text()), false, "API logs must not expose a database URL");
 });
 
 test("frontend production artifact serves /admin and shuts down cleanly", async () => {
@@ -40,15 +42,16 @@ test("frontend production artifact serves /admin and shuts down cleanly", async 
     stdio: ["ignore", "pipe", "pipe"],
   });
   const output = capture(child);
+  const exited = observeProcessExit(child);
   try {
-    const response = await waitForHttp(`http://127.0.0.1:${port}/admin`, child, output);
+    const response = await waitForLocalHttp(`http://127.0.0.1:${port}/admin`, child);
     assert.equal(response.status, 200);
     assert.match(await response.text(), /熊崽电竞|管理员/u);
   } finally {
-    child.kill("SIGTERM");
+    const result = await stopTestProcess(child, exited);
+    assert.equal(controlledExit(result), true, "frontend artifact must stop cleanly");
   }
-  const result = await waitForExit(child);
-  assert.equal(controlledExit(result), true, output.text());
+  assert.equal(/postgres(?:ql)?:\/\//iu.test(output.text()), false, "frontend logs must not expose a database URL");
 });
 
 test("protected API startup fails non-zero with key-only diagnostics", async () => {
@@ -66,11 +69,14 @@ test("protected API startup fails non-zero with key-only diagnostics", async () 
     stdio: ["ignore", "pipe", "pipe"],
   });
   const output = capture(child);
-  const result = await waitForExit(child);
+  const exited = observeProcessExit(child);
+  let result;
+  try { result = await waitForTestExit(child, exited); }
+  finally { await stopTestProcess(child, exited); }
   assert.notEqual(result.code, 0);
-  assert.match(output.text(), /ADMIN_TOKEN_SECRET|PAYMENT_PROVIDER_MODE/u);
+  assert.equal(/ADMIN_TOKEN_SECRET|PAYMENT_PROVIDER_MODE/u.test(output.text()), true, "protected startup must report configuration key names");
   assert.equal(output.text().includes(marker), false);
-  assert.doesNotMatch(output.text(), /postgres(?:ql)?:\/\//iu);
+  assert.equal(/postgres(?:ql)?:\/\//iu.test(output.text()), false, "protected startup logs must not expose a database URL");
 });
 
 function runtimeEnvironment(port, marker) {
@@ -104,25 +110,6 @@ function capture(child) {
   child.stdout.on("data", (chunk) => { value += chunk.toString(); });
   child.stderr.on("data", (chunk) => { value += chunk.toString(); });
   return { text: () => value };
-}
-
-function waitForExit(child, timeoutMs = 10_000) {
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => { child.kill("SIGKILL"); reject(new Error("local artifact process did not stop")); }, timeoutMs);
-    child.once("error", reject);
-    child.once("exit", (code, signal) => { clearTimeout(timeout); resolve({ code, signal }); });
-  });
-}
-
-async function waitForHttp(url, child, output, timeoutMs = 20_000) {
-  const deadline = Date.now() + timeoutMs;
-  let lastError;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null || child.signalCode !== null) throw new Error(`local artifact exited before readiness\n${output.text()}`);
-    try { return await fetch(url); }
-    catch (error) { lastError = error; await new Promise((resolve) => setTimeout(resolve, 100)); }
-  }
-  throw lastError ?? new Error("local artifact did not become ready");
 }
 
 function controlledExit(result) {

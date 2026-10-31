@@ -14,7 +14,7 @@ export const adminQualitySteps = [
   { name: "根 TypeScript", command: "node", args: ["node_modules/typescript/bin/tsc", "-p", "tsconfig.json", "--noEmit"] },
   { name: "全工作区 TypeScript", command: "pnpm", args: ["-r", "--if-present", "typecheck"] },
   { name: "后端构建", command: "pnpm", args: ["run", "backend:build"] },
-  { name: "管理员契约、SSR 与门禁单元测试", command: "node", args: ["--test", "tests/admin-ui.test.mjs", "tests/admin-quality.test.mjs"] },
+  { name: "管理员契约、SSR 与门禁单元测试", command: "node", args: ["--test", "tests/admin-ui.test.mjs", "tests/admin-quality.test.mjs", "tests/admin-rbac-behavior.test.mjs", "tests/admin-remediation.test.mjs", "tests/admin-commerce-alignment.test.mjs", "tests/community-ui.test.mjs", "tests/admin-after-sale-cases.test.mjs", "apps/api/tests/admin-safety.unit.test.mjs"] },
   { name: "管理员真实浏览器 E2E", command: "pnpm", args: ["run", "admin:e2e"] },
   { name: "管理员治理 PostgreSQL 集成", command: "node", args: ["--test", "--test-concurrency=1", "apps/api/tests/admin-governance.integration.test.mjs"] },
   { name: "财务 PostgreSQL 集成", command: "node", args: ["--test", "--test-concurrency=1", "apps/api/tests/finance.integration.test.mjs"] },

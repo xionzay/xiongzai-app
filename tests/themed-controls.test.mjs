@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync,writeFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import * as React from 'react';
@@ -71,5 +71,6 @@ function elements(node,type){if(!node||typeof node!=='object')return [];if(Array
  const css=['app/ui/cartoon.css','app/product-decisions.css'].map(p=>readFileSync(p,'utf8')).join('\n');
  const sections=fixtures.map(({name,html})=>`<section><h2>${name}</h2>${html}</section>`).join('');
  const document=`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>隔离控件样式验收</title><style>${css}\n*{box-sizing:border-box}body{margin:0;font:16px/1.5 system-ui;color:#203a57} .phone-shell{width:100%;padding:16px;background:linear-gradient(120deg,#b9eafd,#fff4cb);min-height:100vh}section{padding:12px 0;border-bottom:1px solid #719bb533}h1{font-size:20px}h2{font-size:17px}.toon-action{margin:4px 0}</style><div class="phone-shell" data-page-palette="buyer"><h1>隔离组件测试</h1><p>以下为明确标识的测试数据，无真实领取、核价、反馈提交和发送能力。仅用于验证生产组件的状态外观。</p>${sections}</div></html>`;
- writeFileSync('docs/user-ui-style-fix-2026-10-05/isolated-controls.html',document.replaceAll('href="/assets/','href="http://127.0.0.1:3001/assets/'));
+ mkdirSync('.local/style-fixtures',{recursive:true});
+ writeFileSync('.local/style-fixtures/isolated-controls.html',document.replaceAll('href="/assets/','href="http://127.0.0.1:3001/assets/'));
 });

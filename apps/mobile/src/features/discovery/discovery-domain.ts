@@ -75,10 +75,10 @@ export function purchaseBlock(
   viewerId?: string
 ): PurchaseBlockCode | null {
   if (service.status !== "ON_SALE") return "SERVICE_UNAVAILABLE";
-  if (!service.seller.accepting_orders) return "SELLER_PAUSED";
+  if (!service.seller.accepting_orders || service.seller.status !== "APPROVED") return "SELLER_PAUSED";
   if (!service.skus.some((sku) => sku.status === "ACTIVE")) return "NO_SKU";
   if (viewerId && service.seller.user_id === viewerId) return "OWN_SERVICE";
-  if (slots && !slots.some((slot) => slot.status === "OPEN")) return "NO_AVAILABILITY";
+  if (service.fulfillment_seconds == null && slots && !slots.some((slot) => slot.status === "OPEN")) return "NO_AVAILABILITY";
   return null;
 }
 

@@ -8,7 +8,6 @@ import { resolveInternalReturnTo } from "../src/auth/return-to";
 import type { ServiceDetailApiView } from "../src/types/api";
 
 const serviceDetailSource = readFileSync(fileURLToPath(new URL("../src/features/discovery/service-detail-screen.tsx", import.meta.url).href), "utf8");
-const favoriteButtonSource = readFileSync(fileURLToPath(new URL("../src/features/favorites/favorite-button.tsx", import.meta.url).href), "utf8");
 
 const service = (overrides: Partial<ServiceDetailApiView> = {}): ServiceDetailApiView => ({
   id: "p1", seller_id: "s1", title: "王牌陪玩", description: "服务说明文字", service_time_description: "提前预约", cover_file_id: null,
@@ -83,10 +82,13 @@ test("收藏乐观更新支持添加、删除，调用方可用原快照回滚",
   assert.deepEqual(original, [{ id: "f1", target_type: "SELLER", seller_id: "s1", product_id: null, created_at: "2026-01-01" }]);
 });
 
-test("服务详情按原 UI 保留商品卡、双列规格、陪玩入口和三段底部操作", () => {
+test("服务详情按最新 UI 使用全宽主图、规格弹窗、店铺入口和四段底部操作", () => {
   assert.match(serviceDetailSource, /aspectRatio: 1/u);
-  for (const label of ["选择服务规格", "价格由陪玩自主设置", "服务说明", "服务评价", "平台保障", "在线接单", "收藏服务", "选择规格"]) assert.match(`${serviceDetailSource}\n${favoriteButtonSource}`, new RegExp(label, "u"));
-  assert.match(serviceDetailSource, /activeSkus\.map[\s\S]*skuGrid/u);
+  for (const label of ["商品详情", "服务说明", "商品评价", "平台保障", "在线接单", "店铺", "客服", "立即购买"]) assert.match(serviceDetailSource, new RegExp(label, "u"));
+  assert.match(serviceDetailSource, /sheetOpen \? <PurchaseSpecSheet/u);
+  assert.match(serviceDetailSource, /skus=\{activeSkus\}/u);
+  assert.doesNotMatch(serviceDetailSource, /activeSkus\.map/u);
+  assert.match(serviceDetailSource, /resizeMode="contain"/u);
   assert.match(serviceDetailSource, /appearance="service-action"/u);
   assert.match(serviceDetailSource, /createConsultation\(service\.id\)/u);
   assert.match(serviceDetailSource, /\/checkout\/schedule/u);

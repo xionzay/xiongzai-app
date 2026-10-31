@@ -1,3 +1,5 @@
+import { BrandBackdrop } from "@/components/brand-backdrop";
+import { JellyIcon } from "../../components/jelly-icon";
 import * as Crypto from "expo-crypto";
 import { ChevronLeftIcon } from "@/components/ui-icons";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,14 +25,7 @@ import { formatCent } from "@/utils/money";
 import type { PaymentChannel } from "@xiongzai/contracts";
 import { ShieldIcon } from "@/components/tab-icons";
 
-const pageBands = Array.from({ length: 64 }, (_, index) => {
-  const ratio = index / 63;
-  const progress = Math.min(ratio / 0.32, 1);
-  const from = [223, 241, 255];
-  const to = [255, 249, 238];
-  const channel = (value: number, target: number) => Math.round(value + (target - value) * progress);
-  return `rgb(${channel(from[0]!, to[0]!)}, ${channel(from[1]!, to[1]!)}, ${channel(from[2]!, to[2]!)})`;
-});
+
 
 export function PaymentScreen() {
   const { id = "", retry } = useLocalSearchParams<{ id: string; retry?: string }>();
@@ -116,7 +111,7 @@ export function PaymentScreen() {
 
         <View style={styles.orderCard}><View style={styles.orderCopy}><Text style={styles.orderTitle} numberOfLines={2}>{current.product_title}</Text><Text style={styles.orderNo}>订单号 {current.order_no}</Text></View><Text style={styles.orderPrice}>{formatCent(current.payable_amount_cent)}</Text></View>
 
-        {runtimeFlags.enableMockPayment ? <View style={styles.methods} accessibilityRole="radiogroup"><Text style={styles.sectionTitle}>选择支付方式</Text><NoticeBanner message="测试支付，不会真实扣款。微信支付和支付宝支付均由本地后端 Mock；失败后重试会保持原支付渠道，并继续使用幂等保护。" />{(["WECHAT_APP", "ALIPAY_APP"] as const).map((channel) => { const checked = paymentChannel === channel; const wechat = channel === "WECHAT_APP"; const channelLocked = Boolean(activePayment || retryPayment); return <Pressable key={channel} accessibilityRole="radio" accessibilityLabel={`${wechat ? "微信支付" : "支付宝支付"}，测试支付，不会真实扣款`} accessibilityState={{ checked, disabled: channelLocked }} disabled={channelLocked} onPress={() => setSelectedChannel(channel)} style={[styles.method, checked && styles.methodSelected]}><View style={[styles.methodMark, wechat ? styles.wechatMark : styles.alipayMark]}><Text style={styles.methodMarkText}>{wechat ? "微" : "支"}</Text></View><View style={styles.methodCopy}><Text style={styles.methodTitle}>{wechat ? "微信支付" : "支付宝支付"}<Text style={styles.testTag}> · 测试</Text></Text><Text style={styles.methodNote}>{retryPayment && checked ? "失败重试保持此渠道，使用新的稳定幂等支付意图" : "本地 Mock 渠道，不产生真实扣款"}</Text></View><View style={[styles.check, !checked && styles.checkEmpty]}>{checked ? <Text style={styles.checkText}>✓</Text> : null}</View></Pressable>; })}</View> : <NoticeBanner tone="danger" message="当前构建未配置可用支付渠道，已禁止创建支付。" />}
+        {runtimeFlags.enableMockPayment ? <View style={styles.methods} accessibilityRole="radiogroup"><Text style={styles.sectionTitle}>选择支付方式</Text><NoticeBanner message="测试支付，不会真实扣款。微信支付和支付宝支付均由本地后端 Mock；失败后重试会保持原支付渠道，并继续使用幂等保护。" />{(["WECHAT_APP", "ALIPAY_APP"] as const).map((channel) => { const checked = paymentChannel === channel; const wechat = channel === "WECHAT_APP"; const channelLocked = Boolean(activePayment || retryPayment); return <Pressable key={channel} accessibilityRole="radio" accessibilityLabel={`${wechat ? "微信支付" : "支付宝支付"}，测试支付，不会真实扣款`} accessibilityState={{ checked, disabled: channelLocked }} disabled={channelLocked} onPress={() => setSelectedChannel(channel)} style={[styles.method, checked && styles.methodSelected]}><View style={[styles.methodMark, wechat ? styles.wechatMark : styles.alipayMark]}><Text style={styles.methodMarkText}>{wechat ? "微" : "支"}</Text></View><View style={styles.methodCopy}><Text style={styles.methodTitle}>{wechat ? "微信支付" : "支付宝支付"}<Text style={styles.testTag}> · 测试</Text></Text><Text style={styles.methodNote}>{retryPayment && checked ? "失败重试保持此渠道，使用新的稳定幂等支付意图" : "本地 Mock 渠道，不产生真实扣款"}</Text></View><View style={[styles.check, !checked && styles.checkEmpty]}>{checked ? <Text style={styles.checkText}><JellyIcon kind="check" label="已选" /></Text> : null}</View></Pressable>; })}</View> : <NoticeBanner tone="danger" message="当前构建未配置可用支付渠道，已禁止创建支付。" />}
 
         {!activePayment ? <View style={styles.policyWrap}><PolicyConfirmationList title="交易与售后规则确认" hint="创建支付前必须保存当前已发布版本的接受记录。" policies={transactionPolicies.data} isPending={transactionPolicies.isPending} isError={transactionPolicies.isError} confirmedIds={confirmedPolicyIds} disabled={submitting} onChange={setConfirmedPolicyIds} onRetry={() => void transactionPolicies.refetch()} /></View> : null}
         {policyNotice ? <View style={styles.policyWrap}><NoticeBanner tone="danger" message={policyNotice} /></View> : null}
@@ -132,32 +127,32 @@ export function PaymentScreen() {
   );
 }
 
-function PaymentBackdrop() { return <View pointerEvents="none" style={styles.backdrop}>{pageBands.map((color, index) => <View key={`${index}-${color}`} style={[styles.band, { backgroundColor: color }]} />)}</View>; }
+function PaymentBackdrop() { return <BrandBackdrop />; }
 
 const softShadow = { shadowColor: "#4B3920", shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 3 } as const;
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#DFF1FF" },
+  safe: { flex: 1, backgroundColor: colors.canvas },
   backdrop: { position: "absolute", top: 0, bottom: 0, left: 0, right: 0 },
   band: { flex: 1 },
   content: { paddingBottom: 20 },
-  header: { minHeight: 84, flexDirection: "row", alignItems: "center", paddingHorizontal: 9, paddingBottom: 11 },
-  headerButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", paddingHorizontal: 9, minHeight: 60, paddingBottom: 4, height: undefined },
+  headerButton: { alignItems: "center", justifyContent: "center", backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: 0, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0, width: 48, height: undefined, minHeight: 48 },
   back: { color: colors.text, fontSize: 38, lineHeight: 40 },
-  headerCopy: { flex: 1, alignItems: "center" },
-  headerTitle: { color: colors.text, fontSize: 23, lineHeight: 30, fontWeight: "900", textAlign: "center" },
-  headerSubtitle: { marginTop: 3, color: "#74767B", fontSize: 12, lineHeight: 16, textAlign: "center" },
+  headerCopy: { flex: 1, alignItems: "center", marginLeft: 0, minWidth: 0 },
+  headerTitle: { color: colors.text, fontSize: 19, lineHeight: 26, fontWeight: "600", textAlign: "center" },
+  headerSubtitle: { marginTop: 3, fontSize: 12, lineHeight: 16, textAlign: "center", color: colors.textSecondary },
   amountSection: { alignItems: "center", paddingHorizontal: 12, paddingTop: 13, paddingBottom: 24 },
   amountLabel: { color: "#74767B", fontSize: 12 },
   amount: { marginVertical: 8, color: colors.text, fontSize: 42, lineHeight: 50, fontWeight: "900" },
   guarantee: { color: "#3479B5", fontSize: 12, fontWeight: "700" },
   urgent: { color: colors.danger },
-  orderCard: { minHeight: 74, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  orderCard: { minHeight: 74, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10, marginHorizontal: 12, marginBottom: 10, padding: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   orderCopy: { flex: 1 },
   orderTitle: { color: colors.text, fontSize: 13, lineHeight: 19, fontWeight: "800" },
   orderNo: { marginTop: 4, color: "#74767B", fontSize: 12 },
   orderPrice: { color: colors.accent, fontSize: 16, fontWeight: "900" },
-  methods: { marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 18, backgroundColor: "#FFFDF8", ...softShadow },
+  methods: { marginHorizontal: 12, marginBottom: 10, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, backgroundColor: "transparent" },
   sectionTitle: { minHeight: 38, color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: "800" },
   method: { minHeight: 67, flexDirection: "row", alignItems: "center", gap: 10 },
   methodSelected: { borderRadius: 14, backgroundColor: "#F4FAFF" },
@@ -172,7 +167,7 @@ const styles = StyleSheet.create({
   check: { width: 22, height: 22, alignItems: "center", justifyContent: "center", borderWidth: 2, borderColor: colors.accent, borderRadius: 11, backgroundColor: colors.accent },
   checkText: { color: colors.white, fontSize: 12, fontWeight: "900" },
   checkEmpty: { borderColor: "#BBB8B0", backgroundColor: "transparent" },
-  securityCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 12, marginBottom: 10, padding: 13, borderWidth: 1, borderColor: "rgba(62,57,47,0.11)", borderRadius: 17, backgroundColor: "rgba(255,253,248,0.96)", ...softShadow },
+  securityCard: { flexDirection: "row", alignItems: "center", gap: 12, marginHorizontal: 12, marginBottom: 10, padding: 13, ...softShadow, backgroundColor: "transparent", borderWidth: 0, borderLeftWidth: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.divider, borderBottomColor: colors.divider, borderRadius: 0, shadowOpacity: 0, elevation: 0 },
   policyWrap: { marginHorizontal: 12, marginBottom: 10 },
   securityText: { flex: 1, color: "#74767B", fontSize: 12, lineHeight: 16 },
   payButton: { height: 52, alignItems: "center", justifyContent: "center", marginHorizontal: 12, marginTop: 5, borderRadius: 17, backgroundColor: colors.accent, shadowColor: colors.accent, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 16, elevation: 5 },

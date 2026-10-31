@@ -40,9 +40,10 @@ test("已通过陪玩的公开资料变更生成审核快照且不会直接覆�
   assert.doesNotMatch(sellerProfile, /陪玩公开资料已保存/u);
 });
 
-test("服务图片最多九张且支持排序、主图和解绑，投诉凭证最多六张", () => {
-  assert.match(serviceEdit, /product\.images\.length >= 9/u);
-  assert.match(serviceEdit, /product\.images\.length < 9/u);
+test("商品图和详情图契约最多三十张且支持排序、首图和解绑，投诉凭证最多六张", () => {
+  assert.match(serviceEdit, /product\.images\.length >= 30/u);
+  assert.match(serviceEdit, /product\.images\.length < 30/u);
+  assert.match(serviceEdit, /image_kind: image\.image_kind/u);
   assert.match(serviceEdit, /is_cover/u);
   assert.match(serviceEdit, /图片顺序已更新/u);
   assert.match(serviceEdit, /图片已从服务移除/u);

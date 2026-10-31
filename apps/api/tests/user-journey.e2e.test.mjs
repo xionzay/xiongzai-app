@@ -55,9 +55,9 @@ before(async () => {
   await runMigration("0005_policy_acceptance_context.sql");
   await runMigration("0006_policy_version_bindings.sql");
   await runMigration("0009_clear_rhodey.sql"); await runMigration("0010_order_rule_version.sql");
-  database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-user-journey-e2e", options: `-c search_path=${schemaName},public`, max: 16 });
+  await applyStageOneMigrations(migrationClient, schemaName); database = createDatabaseClient({ connectionString: databaseUrl, application_name: "xiongzai-user-journey-e2e", options: `-c search_path=${schemaName},public`, max: 16 });
   app = await createApiApp({ config, databaseClient: database, smsProvider: { sendCode: async (delivery) => deliveries.push({ ...delivery }) }, logger: new JsonLogger("user-journey-e2e", (line) => logs.push(line)) });
-  admin = await seedAdmin(["order.read", "withdrawal.read", "withdrawal.manage", "withdrawal.review.initial"]);
+  admin = await seedAdmin(["order.read", "withdrawal.read", "withdrawal.manage", "withdrawal.review.initial", "finance.read", "finance.manage"]);
   finalAdmin = await seedAdmin(["withdrawal.read", "withdrawal.review.final"]);
   await seedConfigs();
   ({ loginPolicyIds, paymentPolicyId } = await seedPolicies());
@@ -143,6 +143,14 @@ test("用户端与陪玩端可完成从登录到提现、退款的真实全链�
   assert.equal(withdrawal.statusCode, 201, withdrawal.body);
   const approved = await adminRequest("POST", `/admin-api/v1/withdrawals/${withdrawal.json().id}/approve`, { version: withdrawal.json().version, reason: "E2E 提现审核通过" });
   assert.equal(approved.statusCode, 201, approved.body);
+  const transfers=await adminRequest("GET","/admin-api/v1/finance/transfers");
+  assert.equal(transfers.statusCode,200);
+  const operation=transfers.json().find(row=>row.withdrawal_id===withdrawal.json().id);
+  assert.ok(operation);assert.equal(operation.channel,"ALIPAY");
+  const mockResult=await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/mock-result`,{version:operation.version,status:"SUCCEEDED",reason:"E2E 模拟成功回调丢失"});
+  assert.equal(mockResult.statusCode,201);assert.equal(mockResult.json().business_result_applied,false);
+  const recovered=await adminRequest("POST",`/admin-api/v1/finance/transfers/${operation.id}/recover`,{version:operation.version,reason:"E2E 查询原渠道结果"});
+  assert.equal(recovered.statusCode,201,recovered.body);assert.equal(recovered.json().status,"SUCCEEDED");
   const payoutPayload = { event_id: randomUUID(), event_type: "PAYOUT_SUCCEEDED", withdrawal_no: approved.json().withdrawal_no, provider_payout_no: approved.json().provider_payout_no, amount_cent: approved.json().actual_amount_cent };
   const payoutProvider = new MockPayoutProvider(payoutSecret);
   const payout = await app.inject({ method: "POST", url: "/callbacks/v1/payouts/mock", headers: { "x-payout-signature": payoutProvider.sign(payoutPayload) }, payload: payoutPayload });
@@ -238,3 +246,4 @@ async function adminRequest(method, url, payload) { const first=await app.inject
 function cookieHeader(response) { const values = Array.isArray(response.headers["set-cookie"]) ? response.headers["set-cookie"] : [response.headers["set-cookie"]]; return values.filter(Boolean).map((value) => value.split(";", 1)[0]).join("; "); }
 function splitMigration(sql) { return sql.split("--> statement-breakpoint").map((statement) => statement.trim()).filter(Boolean); }
 async function runMigration(name) { let source = await readFile(new URL(`../../../packages/database/migrations/${name}`, import.meta.url), "utf8"); source = source.replaceAll('"public".', `"${schemaName}".`); for (const statement of splitMigration(source)) await migrationClient.query(statement); }
+import { applyStageOneMigrations } from "./stage-one-migrations.mjs";
